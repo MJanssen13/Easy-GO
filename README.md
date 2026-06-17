@@ -27,7 +27,7 @@ npm install
 cp .env.local.example .env.local   # preencha com os valores do seu projeto Supabase
 
 # 3. Banco de dados
-#    Aplique a migração em supabase/migrations/0001_init.sql no seu projeto
+#    Aplique a migração em supabase/migrations/20260617120000_init.sql no seu projeto
 #    (SQL Editor do Supabase ou `supabase db push`).
 
 # 4. Desenvolvimento
