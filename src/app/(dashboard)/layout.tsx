@@ -1,28 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Activity, LogOut } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Button } from "@/components/ui/button";
 import { signOut } from "./actions";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Defense-in-depth: middleware already guards, but never render the shell without a session.
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
-
-  const displayName = profile?.full_name ?? user.email ?? "Equipe";
-  const initial = displayName.charAt(0).toUpperCase();
+  // AUTH TEMPORARIAMENTE DESATIVADA
+  const displayName = "Equipe HC-UFTM";
+  const initial = "E";
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">

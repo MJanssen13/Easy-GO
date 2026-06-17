@@ -1,8 +1,8 @@
-import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { NextResponse, type NextRequest } from "next/server";
 
+// AUTH TEMPORARIAMENTE DESATIVADA — reativar após resolver login no Supabase
 export async function middleware(request: NextRequest) {
-  return updateSession(request);
+  return NextResponse.next();
 }
 
 export const config = {

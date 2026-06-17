@@ -26,7 +26,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    return { error: "Credenciais inválidas. Verifique e tente novamente." };
+    return { error: error.message };
   }
 
   revalidatePath("/", "layout");
