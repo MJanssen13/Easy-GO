@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, Plus, AlertTriangle } from "lucide-react";
+import { Activity, Plus, AlertTriangle, CalendarClock } from "lucide-react";
 import { listPatients } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient } from "@/core/patients/types";
@@ -33,9 +33,14 @@ export default async function PrePartoBoard() {
             <p className="text-sm text-muted-foreground">Leitos e trabalho de parto</p>
           </div>
         </div>
-        <Link href="/pre-parto/admissao" className={buttonVariants()}>
-          <Plus className="h-4 w-4" /> Admitir
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/pre-parto/cronograma" className={buttonVariants({ variant: "outline" })}>
+            <CalendarClock className="h-4 w-4" /> Cronograma
+          </Link>
+          <Link href="/pre-parto/admissao" className={buttonVariants()}>
+            <Plus className="h-4 w-4" /> Admitir
+          </Link>
+        </div>
       </div>
 
       {loadError && (

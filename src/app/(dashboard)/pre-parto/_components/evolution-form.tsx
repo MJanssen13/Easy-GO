@@ -2,9 +2,10 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Target } from "lucide-react";
 import { recordObservation, type ObservationState } from "../actions";
 import type { Patient } from "@/core/patients/types";
+import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -42,13 +43,46 @@ function Field({
   );
 }
 
-export function EvolutionForm({ patient }: { patient: Patient }) {
+export function EvolutionForm({
+  patient,
+  taskId,
+  focus = [],
+  defaultRecordedAt,
+}: {
+  patient: Patient;
+  taskId?: string;
+  focus?: string[];
+  defaultRecordedAt?: string;
+}) {
   const [state, formAction, pending] = useActionState(recordObservation, initialState);
-  const [mgEnabled, setMgEnabled] = useState(patient.useMagnesiumSulfate);
+  const [mgEnabled, setMgEnabled] = useState(
+    patient.useMagnesiumSulfate ||
+      focus.some((f) => ["Reflexo", "Diurese", "FR"].includes(f)),
+  );
 
   return (
     <form action={formAction} className="space-y-5">
       <input type="hidden" name="patientId" value={patient.id} />
+      {taskId && <input type="hidden" name="taskId" value={taskId} />}
+
+      {/* Aferições solicitadas pela rotina */}
+      {focus.length > 0 && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
+            <Target className="h-4 w-4" /> Aferir nesta tarefa
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {focus.map((f) => (
+              <span
+                key={f}
+                className={`rounded border px-2 py-0.5 text-xs font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
+              >
+                {f}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Cabeçalho do registro */}
       <Card>
@@ -62,7 +96,7 @@ export function EvolutionForm({ patient }: { patient: Patient }) {
                 id="recordedAt"
                 name="recordedAt"
                 type="datetime-local"
-                defaultValue={nowLocal()}
+                defaultValue={defaultRecordedAt ?? nowLocal()}
               />
             </Field>
             <Field label="Examinador(a)" htmlFor="examinerName">

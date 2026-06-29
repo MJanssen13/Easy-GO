@@ -1,15 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList, Plus } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE } from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
 import { renderEvolution } from "@/core/prontuario/preparto";
+import { upcomingTasks } from "@/core/schedule/planner";
+import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
 import { removePatient } from "../actions";
+
+function hhmm(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function formatBR(iso?: string | null): string {
   if (!iso) return "—";
@@ -54,6 +65,11 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/pre-parto/${patient.id}/rotina`}>
+            <Button size="sm" variant="outline">
+              <CalendarClock className="h-4 w-4" /> Planejar rotina
+            </Button>
+          </Link>
           <Link href={`/pre-parto/${patient.id}/evolucao`}>
             <Button size="sm">
               <Plus className="h-4 w-4" /> Nova evolução
@@ -92,6 +108,44 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           )}
         </CardContent>
       </Card>
+
+      {(() => {
+        const next = upcomingTasks(patient.schedule ?? [], 6);
+        if (next.length === 0) return null;
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CalendarClock className="h-4 w-4" /> Próximas aferições
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-1.5 text-sm">
+                {next.map((t) => (
+                  <li key={t.id} className="flex items-center gap-2">
+                    <Link
+                      href={`/pre-parto/${patient.id}/evolucao?taskId=${t.id}`}
+                      className="flex items-center gap-2 hover:underline"
+                    >
+                      <span className="font-mono font-bold">{hhmm(t.timestamp)}</span>
+                      <span className="flex flex-wrap gap-1">
+                        {t.focus.map((f) => (
+                          <span
+                            key={f}
+                            className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
+                          >
+                            {f}
+                          </span>
+                        ))}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       <Card>
         <CardHeader>

@@ -7,8 +7,12 @@ import {
   createPatient,
   deletePatient,
   addObservation,
+  updateSchedule,
+  getSchedule,
   RepositoryError,
 } from "@/core/patients/repository";
+import { mergeSchedule, markCompleted, setTaskStatus } from "@/core/schedule/planner";
+import type { ScheduledTask } from "@/core/patients/types";
 import { eddFromLMP, gaFromLMP } from "@/core/obstetric/gestational-age";
 import type {
   NewPatientInput,
@@ -125,6 +129,7 @@ const intNum = z.coerce.number().int().optional();
 
 const observationSchema = z.object({
   patientId: z.string().min(1),
+  taskId: z.string().optional(),
   recordedAt: z.string().optional(),
   examinerName: z.string().trim().optional(),
   // vitais
@@ -171,6 +176,7 @@ export async function recordObservation(
 ): Promise<ObservationState> {
   const raw = {
     patientId: formData.get("patientId"),
+    taskId: opt(formData.get("taskId")),
     recordedAt: opt(formData.get("recordedAt")),
     examinerName: opt(formData.get("examinerName")),
     paSystolic: opt(formData.get("paSystolic")),
@@ -274,8 +280,103 @@ export async function recordObservation(
     return { error: message };
   }
 
+  // Best-effort: if this evolution fulfils a scheduled task, mark it done.
+  if (d.taskId) {
+    try {
+      const schedule = await getSchedule(d.patientId);
+      await updateSchedule(d.patientId, markCompleted(schedule, d.taskId));
+    } catch {
+      // schedule update is non-critical; the observation is already saved
+    }
+  }
+
   revalidatePath(`/pre-parto/${d.patientId}`);
+  revalidatePath("/pre-parto/cronograma");
   redirect(`/pre-parto/${d.patientId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Rotina de aferições (planejamento)
+// ---------------------------------------------------------------------------
+
+const incomingTaskSchema = z.object({
+  timestamp: z.string().min(1),
+  focus: z.array(z.string()).default([]),
+});
+
+const routineSchema = z.object({
+  patientId: z.string().min(1),
+  replaceFuture: z.boolean().optional(),
+  tasks: z.array(incomingTaskSchema),
+});
+
+export type RoutineState = { error?: string };
+
+export async function saveRoutine(
+  _prev: RoutineState,
+  formData: FormData,
+): Promise<RoutineState> {
+  let tasksParsed: unknown = [];
+  try {
+    tasksParsed = JSON.parse(String(formData.get("tasks") ?? "[]"));
+  } catch {
+    return { error: "Cronograma inválido." };
+  }
+
+  const parsed = routineSchema.safeParse({
+    patientId: formData.get("patientId"),
+    replaceFuture: formData.get("replaceFuture") === "on",
+    tasks: tasksParsed,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+  const { patientId, replaceFuture, tasks } = parsed.data;
+
+  if (tasks.length === 0) {
+    return { error: "Selecione ao menos um horário e parâmetro." };
+  }
+
+  const incoming: ScheduledTask[] = tasks.map((t) => ({
+    id:
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${t.timestamp}-${Math.random().toString(16).slice(2)}`,
+    timestamp: new Date(t.timestamp).toISOString(),
+    focus: t.focus,
+    status: "pending" as const,
+  }));
+
+  try {
+    const existing = await getSchedule(patientId);
+    await updateSchedule(patientId, mergeSchedule(existing, incoming, replaceFuture ?? false));
+  } catch (err) {
+    const message =
+      err instanceof RepositoryError ? err.message : "Não foi possível salvar a rotina.";
+    return { error: message };
+  }
+
+  revalidatePath(`/pre-parto/${patientId}`);
+  revalidatePath("/pre-parto/cronograma");
+  redirect(`/pre-parto/${patientId}`);
+}
+
+/** Quick status change for a task (concluir/cancelar) from the cronograma. */
+export async function updateTaskStatus(formData: FormData): Promise<void> {
+  const patientId = String(formData.get("patientId") ?? "");
+  const taskId = String(formData.get("taskId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  if (!patientId || !taskId) return;
+  if (status !== "completed" && status !== "cancelled" && status !== "pending") return;
+
+  try {
+    const schedule = await getSchedule(patientId);
+    await updateSchedule(patientId, setTaskStatus(schedule, taskId, status));
+  } catch {
+    // best-effort
+  }
+  revalidatePath("/pre-parto/cronograma");
+  revalidatePath(`/pre-parto/${patientId}`);
 }
 
 export async function removePatient(formData: FormData): Promise<void> {

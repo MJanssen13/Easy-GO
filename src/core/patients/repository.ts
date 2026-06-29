@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import type { PatientModule } from "@/types/database";
-import type { Patient, Observation, NewPatientInput, NewObservationInput } from "./types";
+import type { PatientModule, Json } from "@/types/database";
+import type {
+  Patient,
+  Observation,
+  NewPatientInput,
+  NewObservationInput,
+  ScheduledTask,
+} from "./types";
 import {
   dbToPatient,
   dbToObservation,
@@ -81,6 +87,32 @@ export async function deletePatient(id: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("patients").delete().eq("id", id);
   if (error) throw new RepositoryError("Não foi possível excluir a paciente.", error);
+}
+
+/** Overwrite a patient's monitoring schedule (rotina de aferições). */
+export async function updateSchedule(
+  patientId: string,
+  schedule: ScheduledTask[],
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("patients")
+    .update({ schedule: schedule as unknown as Json })
+    .eq("id", patientId);
+  if (error) throw new RepositoryError("Não foi possível salvar a rotina.", error);
+}
+
+/** Read just the schedule array of a patient. */
+export async function getSchedule(patientId: string): Promise<ScheduledTask[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("patients")
+    .select("schedule")
+    .eq("id", patientId)
+    .single();
+  if (error || !data) throw new RepositoryError("Paciente não encontrada.", error);
+  const raw = data.schedule;
+  return Array.isArray(raw) ? (raw as unknown as ScheduledTask[]) : [];
 }
 
 export async function addObservation(input: NewObservationInput): Promise<Observation> {
