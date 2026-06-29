@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
+import { listCtgs } from "@/core/ctg/repository";
+import { renderCtgLine } from "@/core/ctg/render";
 import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE } from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
 import { renderEvolution } from "@/core/prontuario/preparto";
@@ -11,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
-import { removePatient } from "../actions";
+import { removePatient, removeCtg } from "../actions";
 
 function hhmm(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
@@ -33,6 +35,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
   const patient = await getPatient(id);
   if (!patient) notFound();
 
+  const ctgs = await listCtgs(id).catch(() => []);
   const ga = currentGaLabel(patient);
   const fields: { label: string; value: string }[] = [
     { label: "Leito", value: patient.bed ?? "—" },
@@ -68,6 +71,11 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           <Link href={`/pre-parto/${patient.id}/rotina`}>
             <Button size="sm" variant="outline">
               <CalendarClock className="h-4 w-4" /> Planejar rotina
+            </Button>
+          </Link>
+          <Link href={`/pre-parto/${patient.id}/ctg`}>
+            <Button size="sm" variant="outline">
+              <Activity className="h-4 w-4" /> CTG
             </Button>
           </Link>
           <Link href={`/pre-parto/${patient.id}/evolucao`}>
@@ -146,6 +154,49 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           </Card>
         );
       })()}
+
+      {ctgs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4" /> Cardiotocografias
+              <span className="text-xs font-normal text-muted-foreground">({ctgs.length})</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {ctgs.map((c) => {
+                const line = renderCtgLine(c);
+                return (
+                  <li key={c.id} className="rounded-md border">
+                    <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">
+                          {new Date(c.recordedAt).toLocaleString("pt-BR")}
+                        </span>
+                        <Badge variant={c.score >= 4 ? "success" : c.score >= 2 ? "warning" : "destructive"}>
+                          {c.score}/5 · {c.conclusion}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <CopyButton text={line} />
+                        <form action={removeCtg}>
+                          <input type="hidden" name="id" value={c.id} />
+                          <input type="hidden" name="patientId" value={patient.id} />
+                          <Button type="submit" variant="ghost" size="icon" className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                    <pre className="prontuario-text px-3 py-2 text-sm">{line}</pre>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

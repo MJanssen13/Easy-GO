@@ -12,6 +12,9 @@ import {
   RepositoryError,
 } from "@/core/patients/repository";
 import { mergeSchedule, markCompleted, setTaskStatus } from "@/core/schedule/planner";
+import { createCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
+import { computeCtgScore, suggestConclusion } from "@/core/ctg/scoring";
+import type { NewCtgInput } from "@/core/ctg/types";
 import type { ScheduledTask } from "@/core/patients/types";
 import { eddFromLMP, gaFromLMP } from "@/core/obstetric/gestational-age";
 import type {
@@ -359,6 +362,105 @@ export async function saveRoutine(
   revalidatePath(`/pre-parto/${patientId}`);
   revalidatePath("/pre-parto/cronograma");
   redirect(`/pre-parto/${patientId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Cardiotocografia (CTG)
+// ---------------------------------------------------------------------------
+
+const ctgSchema = z.object({
+  patientId: z.string().min(1),
+  recordedAt: z.string().optional(),
+  baseline: intNum,
+  variability: z.enum(["absent", "lt5", "6-25", "gt25", "sinusoidal"]).optional(),
+  accelerations: z.enum(["present", "absent"]).optional(),
+  atMfRatio: z.enum(["lt60", "gte60"]).optional(),
+  movements: z.enum(["present", "absent"]).optional(),
+  decelerations: z.enum(["present", "absent"]).optional(),
+  decelerationType: z.enum(["early", "late", "variable"]).optional(),
+  decelerationCount: z.string().trim().optional(),
+  contractions: z.enum(["present", "absent"]).optional(),
+  soundStimulus: z.enum(["done", "not_done"]).optional(),
+  stimulusCount: z.string().trim().optional(),
+  conclusion: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+});
+
+export type CtgState = { error?: string };
+
+export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgState> {
+  const raw = {
+    patientId: formData.get("patientId"),
+    recordedAt: opt(formData.get("recordedAt")),
+    baseline: opt(formData.get("baseline")),
+    variability: opt(formData.get("variability")),
+    accelerations: opt(formData.get("accelerations")),
+    atMfRatio: opt(formData.get("atMfRatio")),
+    movements: opt(formData.get("movements")),
+    decelerations: opt(formData.get("decelerations")),
+    decelerationType: opt(formData.get("decelerationType")),
+    decelerationCount: opt(formData.get("decelerationCount")),
+    contractions: opt(formData.get("contractions")),
+    soundStimulus: opt(formData.get("soundStimulus")),
+    stimulusCount: opt(formData.get("stimulusCount")),
+    conclusion: opt(formData.get("conclusion")),
+    notes: opt(formData.get("notes")),
+  };
+
+  const parsed = ctgSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+  const d = parsed.data;
+
+  const score = computeCtgScore({
+    baseline: d.baseline,
+    variability: d.variability,
+    atMfRatio: d.atMfRatio,
+    decelerations: d.decelerations,
+  });
+
+  const input: NewCtgInput = {
+    patientId: d.patientId,
+    recordedAt: d.recordedAt ? new Date(d.recordedAt).toISOString() : undefined,
+    baseline: d.baseline,
+    variability: d.variability,
+    accelerations: d.accelerations,
+    atMfRatio: d.atMfRatio,
+    movements: d.movements,
+    decelerations: d.decelerations,
+    decelerationType: d.decelerationType,
+    decelerationCount: d.decelerationCount,
+    contractions: d.contractions,
+    soundStimulus: d.soundStimulus,
+    stimulusCount: d.stimulusCount,
+    score,
+    conclusion: d.conclusion && d.conclusion !== "" ? d.conclusion : suggestConclusion(score),
+    notes: d.notes ?? null,
+  };
+
+  try {
+    await createCtg(input);
+  } catch (err) {
+    const message =
+      err instanceof RepositoryError ? err.message : "Não foi possível salvar a CTG.";
+    return { error: message };
+  }
+
+  revalidatePath(`/pre-parto/${d.patientId}`);
+  redirect(`/pre-parto/${d.patientId}`);
+}
+
+export async function removeCtg(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  const patientId = String(formData.get("patientId") ?? "");
+  if (!id) return;
+  try {
+    await deleteCtgRow(id);
+  } catch {
+    // best-effort
+  }
+  if (patientId) revalidatePath(`/pre-parto/${patientId}`);
 }
 
 /** Quick status change for a task (concluir/cancelar) from the cronograma. */
