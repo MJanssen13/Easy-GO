@@ -3,9 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createPatient, deletePatient, RepositoryError } from "@/core/patients/repository";
+import {
+  createPatient,
+  deletePatient,
+  addObservation,
+  RepositoryError,
+} from "@/core/patients/repository";
 import { eddFromLMP, gaFromLMP } from "@/core/obstetric/gestational-age";
-import type { NewPatientInput, PatientStatus } from "@/core/patients/types";
+import type {
+  NewPatientInput,
+  NewObservationInput,
+  PatientStatus,
+  VitalSigns,
+  ObstetricData,
+  Medication,
+  MagnesiumData,
+} from "@/core/patients/types";
 
 function toISODate(d: Date): string {
   const y = d.getFullYear();
@@ -95,6 +108,174 @@ export async function admitPatient(
 
   revalidatePath("/pre-parto");
   redirect("/pre-parto");
+}
+
+// ---------------------------------------------------------------------------
+// Evolução / observação
+// ---------------------------------------------------------------------------
+
+/** Treat empty-string / null form values as undefined so z.coerce won't see "". */
+function opt(v: FormDataEntryValue | null): string | undefined {
+  const s = typeof v === "string" ? v.trim() : "";
+  return s === "" ? undefined : s;
+}
+
+const num = z.coerce.number().optional();
+const intNum = z.coerce.number().int().optional();
+
+const observationSchema = z.object({
+  patientId: z.string().min(1),
+  recordedAt: z.string().optional(),
+  examinerName: z.string().trim().optional(),
+  // vitais
+  paSystolic: intNum,
+  paDiastolic: intNum,
+  paStandingSystolic: intNum,
+  paStandingDiastolic: intNum,
+  fc: intNum,
+  tax: num,
+  spo2: intNum,
+  dxt: intNum,
+  // dinâmica / BCF
+  bcf: intNum,
+  dynamicsSummary: z.string().trim().optional(),
+  // toque
+  dilation: num,
+  effacement: intNum,
+  station: intNum,
+  presentation: z.enum(["cephalic", "breech", "transverse"]).optional(),
+  membranes: z.enum(["intact", "ruptured_clear", "ruptured_meconium"]).optional(),
+  cervixPosition: z.enum(["posterior", "intermediate", "central"]).optional(),
+  cervixConsistency: z.enum(["firm", "intermediate", "soft"]).optional(),
+  bloodOnGlove: z.boolean().optional(),
+  cervixObservation: z.string().trim().optional(),
+  // MgSO₄
+  magnesiumEnabled: z.boolean().optional(),
+  mgReflex: z.enum(["present", "absent", "increased", "decreased"]).optional(),
+  mgDiuresis: z.string().trim().optional(),
+  mgRespiratoryRate: intNum,
+  // medicação
+  misoprostolDose: intNum,
+  misoprostolCount: intNum,
+  oxytocinDose: num,
+  antibiotic: z.string().trim().optional(),
+  // conduta
+  notes: z.string().trim().optional(),
+});
+
+export type ObservationState = { error?: string };
+
+export async function recordObservation(
+  _prev: ObservationState,
+  formData: FormData,
+): Promise<ObservationState> {
+  const raw = {
+    patientId: formData.get("patientId"),
+    recordedAt: opt(formData.get("recordedAt")),
+    examinerName: opt(formData.get("examinerName")),
+    paSystolic: opt(formData.get("paSystolic")),
+    paDiastolic: opt(formData.get("paDiastolic")),
+    paStandingSystolic: opt(formData.get("paStandingSystolic")),
+    paStandingDiastolic: opt(formData.get("paStandingDiastolic")),
+    fc: opt(formData.get("fc")),
+    tax: opt(formData.get("tax")),
+    spo2: opt(formData.get("spo2")),
+    dxt: opt(formData.get("dxt")),
+    bcf: opt(formData.get("bcf")),
+    dynamicsSummary: opt(formData.get("dynamicsSummary")),
+    dilation: opt(formData.get("dilation")),
+    effacement: opt(formData.get("effacement")),
+    station: opt(formData.get("station")),
+    presentation: opt(formData.get("presentation")),
+    membranes: opt(formData.get("membranes")),
+    cervixPosition: opt(formData.get("cervixPosition")),
+    cervixConsistency: opt(formData.get("cervixConsistency")),
+    bloodOnGlove: formData.get("bloodOnGlove") === "on",
+    cervixObservation: opt(formData.get("cervixObservation")),
+    magnesiumEnabled: formData.get("magnesiumEnabled") === "on",
+    mgReflex: opt(formData.get("mgReflex")),
+    mgDiuresis: opt(formData.get("mgDiuresis")),
+    mgRespiratoryRate: opt(formData.get("mgRespiratoryRate")),
+    misoprostolDose: opt(formData.get("misoprostolDose")),
+    misoprostolCount: opt(formData.get("misoprostolCount")),
+    oxytocinDose: opt(formData.get("oxytocinDose")),
+    antibiotic: opt(formData.get("antibiotic")),
+    notes: opt(formData.get("notes")),
+  };
+
+  const parsed = observationSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+  const d = parsed.data;
+
+  const vitals: VitalSigns = {
+    paSystolic: d.paSystolic,
+    paDiastolic: d.paDiastolic,
+    paStandingSystolic: d.paStandingSystolic,
+    paStandingDiastolic: d.paStandingDiastolic,
+    fc: d.fc,
+    tax: d.tax,
+    spo2: d.spo2,
+    dxt: d.dxt,
+  };
+
+  const obstetric: ObstetricData = {
+    bcf: d.bcf,
+    dynamicsSummary: d.dynamicsSummary,
+    dilation: d.dilation,
+    effacement: d.effacement,
+    station: d.station,
+    presentation: d.presentation,
+    membranes: d.membranes,
+    cervixPosition: d.cervixPosition,
+    cervixConsistency: d.cervixConsistency,
+    bloodOnGlove: d.bloodOnGlove || undefined,
+    cervixObservation: d.cervixObservation,
+  };
+
+  let medication: Medication | undefined;
+  if (d.misoprostolDose != null || d.oxytocinDose != null || d.antibiotic) {
+    medication = {
+      misoprostolDose: d.misoprostolDose,
+      misoprostolCount: d.misoprostolCount,
+      oxytocinDose: d.oxytocinDose,
+      antibiotic: d.antibiotic,
+    };
+  }
+
+  let magnesiumData: MagnesiumData | undefined;
+  if (d.magnesiumEnabled) {
+    magnesiumData = {
+      reflex: d.mgReflex ?? "present",
+      diuresis: d.mgDiuresis ?? "",
+      respiratoryRate: d.mgRespiratoryRate,
+    };
+  }
+
+  const input: NewObservationInput = {
+    patientId: d.patientId,
+    recordedAt: d.recordedAt ? new Date(d.recordedAt).toISOString() : undefined,
+    vitals,
+    obstetric,
+    medication,
+    magnesiumData,
+    examinerName: d.examinerName ?? null,
+    notes: d.notes ?? null,
+  };
+
+  try {
+    await addObservation(input);
+  } catch (err) {
+    const message =
+      err instanceof RepositoryError
+        ? err.message
+        : "Não foi possível registrar a evolução. Verifique a conexão.";
+    return { error: message };
+  }
+
+  revalidatePath(`/pre-parto/${d.patientId}`);
+  redirect(`/pre-parto/${d.patientId}`);
 }
 
 export async function removePatient(formData: FormData): Promise<void> {

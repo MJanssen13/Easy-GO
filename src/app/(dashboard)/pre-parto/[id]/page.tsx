@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, Plus } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE } from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
+import { renderEvolution } from "@/core/prontuario/preparto";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CopyButton } from "@/components/copy-button";
 import { removePatient } from "../actions";
 
 function formatBR(iso?: string | null): string {
@@ -51,12 +53,19 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
             {patient.bed && <span className="text-sm text-muted-foreground">Leito {patient.bed}</span>}
           </div>
         </div>
-        <form action={removePatient}>
-          <input type="hidden" name="id" value={patient.id} />
-          <Button type="submit" variant="outline" size="sm" className="text-destructive">
-            <Trash2 className="h-4 w-4" /> Remover
-          </Button>
-        </form>
+        <div className="flex items-center gap-2">
+          <Link href={`/pre-parto/${patient.id}/evolucao`}>
+            <Button size="sm">
+              <Plus className="h-4 w-4" /> Nova evolução
+            </Button>
+          </Link>
+          <form action={removePatient}>
+            <input type="hidden" name="id" value={patient.id} />
+            <Button type="submit" variant="outline" size="sm" className="text-destructive">
+              <Trash2 className="h-4 w-4" /> Remover
+            </Button>
+          </form>
+        </div>
       </div>
 
       <Card>
@@ -95,35 +104,39 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </CardHeader>
         <CardContent>
           {patient.observations && patient.observations.length > 0 ? (
-            <ul className="space-y-2">
-              {patient.observations.map((o) => (
-                <li key={o.id} className="rounded-md border px-3 py-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">
-                      {new Date(o.recordedAt).toLocaleString("pt-BR")}
-                    </span>
-                    {o.examinerName && (
-                      <span className="text-xs text-muted-foreground">{o.examinerName}</span>
-                    )}
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                    {o.obstetric.bcf != null && <span>BCF {o.obstetric.bcf}</span>}
-                    {o.obstetric.dilation != null && <span>Dilatação {o.obstetric.dilation}cm</span>}
-                    {o.vitals.paSystolic != null && o.vitals.paDiastolic != null && (
-                      <span>
-                        PA {o.vitals.paSystolic}×{o.vitals.paDiastolic}
-                      </span>
-                    )}
-                    {o.vitals.fc != null && <span>FC {o.vitals.fc}</span>}
-                  </div>
-                  {o.notes && <p className="mt-1 text-sm">{o.notes}</p>}
-                </li>
-              ))}
+            <ul className="space-y-3">
+              {patient.observations.map((o) => {
+                const text = renderEvolution(patient, o);
+                return (
+                  <li key={o.id} className="rounded-md border">
+                    <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
+                      <div>
+                        <span className="text-sm font-medium">
+                          {new Date(o.recordedAt).toLocaleString("pt-BR")}
+                        </span>
+                        {o.examinerName && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {o.examinerName}
+                          </span>
+                        )}
+                      </div>
+                      <CopyButton text={text} />
+                    </div>
+                    <pre className="prontuario-text px-3 py-2 text-sm">{text}</pre>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Nenhuma evolução registrada. O formulário de evolução (sinais vitais, dinâmica, toque,
-              CTG e protocolos) entra na próxima fatia.
+              Nenhuma evolução registrada. Use{" "}
+              <Link
+                href={`/pre-parto/${patient.id}/evolucao`}
+                className="font-medium text-primary hover:underline"
+              >
+                Nova evolução
+              </Link>{" "}
+              para registrar sinais vitais, dinâmica, toque e protocolos.
             </p>
           )}
         </CardContent>
