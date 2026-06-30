@@ -147,12 +147,18 @@ export function renderPsgo(form: PsgoForm): string {
     L.push(buildExamLine(s.id, form.exam[s.id], form.vitals));
   }
 
-  // Laboratoriais / imagem
+  // Laboratoriais
   L.push("EXAMES LABORATORIAIS:");
   if (form.labs.trim()) L.push(form.labs.trim());
-  L.push("EXAMES DE IMAGEM ( ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):");
+
+  // Exames de imagem (seção própria, em quadro)
   const imaging = renderImaging(form.imagingExams);
-  if (imaging.trim()) L.push(imaging);
+  if (imaging.trim()) {
+    L.push("EXAMES DE IMAGEM (USG):");
+    L.push(imaging);
+  } else {
+    L.push("EXAMES DE IMAGEM (ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):");
+  }
 
   // CTG
   L.push(`CTG: ${form.ctg}`);

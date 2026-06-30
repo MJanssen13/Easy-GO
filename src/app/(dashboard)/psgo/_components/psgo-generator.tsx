@@ -9,7 +9,7 @@ import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES } from "@/core/psgo/serology";
-import { renderImagingExam, type ImagingExam } from "@/core/psgo/imaging";
+import { renderImagingExam, examCpr, type ImagingExam } from "@/core/psgo/imaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -777,92 +777,183 @@ export function PsgoGenerator() {
           </CardContent>
         </Card>
 
-        {/* Exames de imagem */}
+        {/* Exames de imagem (USG) — seção própria, em quadro */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
               Exames de imagem (USG)
               <Button type="button" size="sm" variant="outline" onClick={addImaging}>
-                <Plus className="h-4 w-4" /> Exame
+                <Plus className="h-4 w-4" /> USG
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {form.imagingExams.length === 0 && (
+            {form.imagingExams.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Adicione um USG para calcular percentis (PFE/CA por Hadlock; Doppler pela FMF).
+                Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL pela Hadlock; IP-AUmb, IP-ACM e
+                RCP pela FMF (Ciobanu 2019).
               </p>
-            )}
-            {form.imagingExams.map((e) => (
-              <div key={e.id} className="space-y-2 rounded-md border p-2">
-                <div className="flex items-end gap-2">
-                  <Field label="Data">
-                    <Input
-                      type="date"
-                      className="w-36"
-                      value={e.date ?? ""}
-                      onChange={(ev) => updateImaging(e.id, { date: ev.target.value })}
-                    />
-                  </Field>
-                  <Field label="IG sem">
-                    <Input
-                      type="number"
-                      className="w-20"
-                      value={e.gaWeeks ?? ""}
-                      onChange={(ev) => updateImaging(e.id, { gaWeeks: numOrUndef(ev.target.value) })}
-                    />
-                  </Field>
-                  <Field label="IG dias">
-                    <Input
-                      type="number"
-                      className="w-20"
-                      value={e.gaDays ?? ""}
-                      onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
-                    />
-                  </Field>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="ml-auto"
-                    onClick={() => removeImaging(e.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <Field label="PFE (g)">
-                    <Input value={e.efw ?? ""} onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })} inputMode="numeric" />
-                  </Field>
-                  <Field label="CA (mm)">
-                    <Input value={e.ac ?? ""} onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })} inputMode="numeric" />
-                  </Field>
-                  <Field label="IP-AUt (médio)">
-                    <Input value={e.utpi ?? ""} onChange={(ev) => updateImaging(e.id, { utpi: ev.target.value })} inputMode="decimal" />
-                  </Field>
-                  <Field label="ACM-PSV (cm/s)">
-                    <Input value={e.mcaPsv ?? ""} onChange={(ev) => updateImaging(e.id, { mcaPsv: ev.target.value })} inputMode="decimal" />
-                  </Field>
-                  <Field label="DV-IP">
-                    <Input value={e.dvpi ?? ""} onChange={(ev) => updateImaging(e.id, { dvpi: ev.target.value })} inputMode="decimal" />
-                  </Field>
-                  <Field label="ILA / maior bolsão">
-                    <Input value={e.ila ?? ""} onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })} />
-                  </Field>
-                  <Field label="Placenta">
-                    <Input value={e.placenta ?? ""} onChange={(ev) => updateImaging(e.id, { placenta: ev.target.value })} />
-                  </Field>
-                  <Field label="Apresentação">
-                    <Input value={e.presentation ?? ""} onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })} />
-                  </Field>
-                  <Field label="Obs.">
-                    <Input value={e.notes ?? ""} onChange={(ev) => updateImaging(e.id, { notes: ev.target.value })} />
-                  </Field>
-                </div>
-                <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
-                  {renderImagingExam(e)}
-                </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground">
+                      {[
+                        "Data",
+                        "IG sem",
+                        "d",
+                        "Apresentação",
+                        "Peso (g)",
+                        "Circ. abd. (mm)",
+                        "Placenta (inserção)",
+                        "Grau",
+                        "MBV",
+                        "IP AUmb",
+                        "IP ACM",
+                        "RCP",
+                        "",
+                      ].map((h, i) => (
+                        <th key={i} className="border-b p-1 font-medium">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.imagingExams.map((e) => {
+                      const rcp = examCpr(e);
+                      return (
+                        <tr key={e.id} className="align-top">
+                          <td className="border-b p-1">
+                            <Input
+                              type="date"
+                              className="h-7 w-32 text-xs"
+                              value={e.date ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { date: ev.target.value })}
+                            />
+                          </td>
+                          <td className="border-b p-1">
+                            <Input
+                              type="number"
+                              className="h-7 w-14 text-xs"
+                              value={e.gaWeeks ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { gaWeeks: numOrUndef(ev.target.value) })}
+                            />
+                          </td>
+                          <td className="border-b p-1">
+                            <Input
+                              type="number"
+                              className="h-7 w-12 text-xs"
+                              value={e.gaDays ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
+                            />
+                          </td>
+                          <td className="border-b p-1">
+                            <select
+                              className={`${selectClass} h-7 w-24 text-xs`}
+                              value={e.presentation ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
+                            >
+                              <option value="">—</option>
+                              <option value="CEFÁLICA">Cefálica</option>
+                              <option value="PÉLVICA">Pélvica</option>
+                              <option value="CÓRMICA">Córmica</option>
+                            </select>
+                          </td>
+                          <td className="border-b p-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="numeric"
+                              value={e.efw ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
+                            />
+                          </td>
+                          <td className="border-b p-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="numeric"
+                              value={e.ac ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
+                            />
+                          </td>
+                          <td className="border-b p-1">
+                            <select
+                              className={`${selectClass} h-7 w-28 text-xs`}
+                              value={e.placentaSite ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
+                            >
+                              <option value="">—</option>
+                              <option value="ANTERIOR">Anterior</option>
+                              <option value="POSTERIOR">Posterior</option>
+                              <option value="FÚNDICA">Fúndica</option>
+                              <option value="LATERAL DIREITA">Lateral D</option>
+                              <option value="LATERAL ESQUERDA">Lateral E</option>
+                              <option value="PRÉVIA">Prévia</option>
+                            </select>
+                          </td>
+                          <td className="border-b p-1">
+                            <select
+                              className={`${selectClass} h-7 w-14 text-xs`}
+                              value={e.placentaGrade ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
+                            >
+                              <option value="">—</option>
+                              <option value="0">0</option>
+                              <option value="I">I</option>
+                              <option value="II">II</option>
+                              <option value="III">III</option>
+                            </select>
+                          </td>
+                          <td className="border-b p-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              placeholder="cm"
+                              value={e.mbv ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
+                            />
+                          </td>
+                          <td className="border-b p-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.uaPi ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
+                            />
+                          </td>
+                          <td className="border-b p-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.mcaPi ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
+                            />
+                          </td>
+                          <td className="border-b p-1 text-center font-medium tabular-nums">
+                            {rcp != null ? rcp.toFixed(2) : "—"}
+                          </td>
+                          <td className="border-b p-1">
+                            <button
+                              type="button"
+                              onClick={() => removeImaging(e.id)}
+                              className="text-destructive"
+                              title="Remover USG"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
+            )}
+
+            {form.imagingExams.map((e) => (
+              <p key={e.id} className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
+                {renderImagingExam(e)}
+              </p>
             ))}
           </CardContent>
         </Card>
