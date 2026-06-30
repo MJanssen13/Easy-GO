@@ -8,6 +8,7 @@ import { PRIOR_TYPE_LABELS, type PriorPregnancyType } from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
+import { SEROLOGY_ANALYTES } from "@/core/psgo/serology";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -126,6 +127,42 @@ export function PsgoGenerator() {
   }
   function removeMed(id: string) {
     update({ medications: form.medications.filter((m) => m.id !== id) });
+  }
+
+  // Sorologias externas (quadro)
+  function addSerologyColumn() {
+    update({
+      serologyGrid: {
+        ...form.serologyGrid,
+        columns: [...form.serologyGrid.columns, { id: uid(), date: "" }],
+      },
+    });
+  }
+  function updateSerologyColumn(id: string, date: string) {
+    update({
+      serologyGrid: {
+        ...form.serologyGrid,
+        columns: form.serologyGrid.columns.map((c) => (c.id === id ? { ...c, date } : c)),
+      },
+    });
+  }
+  function removeSerologyColumn(id: string) {
+    const values = { ...form.serologyGrid.values };
+    for (const a of SEROLOGY_ANALYTES) delete values[`${a}:${id}`];
+    update({
+      serologyGrid: {
+        columns: form.serologyGrid.columns.filter((c) => c.id !== id),
+        values,
+      },
+    });
+  }
+  function setSerologyValue(analyte: string, colId: string, value: string) {
+    update({
+      serologyGrid: {
+        ...form.serologyGrid,
+        values: { ...form.serologyGrid.values, [`${analyte}:${colId}`]: value },
+      },
+    });
   }
 
   return (
@@ -502,6 +539,98 @@ export function PsgoGenerator() {
           </CardContent>
         </Card>
 
+        {/* Sorologias */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-base">
+              Sorologias
+              <Button type="button" size="sm" variant="outline" onClick={addSerologyColumn}>
+                <Plus className="h-4 w-4" /> Coleta externa
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Field label="Colar sorologias do hospital">
+              <Textarea
+                rows={3}
+                placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
+                value={form.serologyPasted}
+                onChange={(e) => update({ serologyPasted: e.target.value })}
+              />
+            </Field>
+
+            {form.serologyGrid.columns.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      <th className="border-b p-1 text-left font-medium text-muted-foreground">
+                        Externas (EXT)
+                      </th>
+                      {form.serologyGrid.columns.map((c) => (
+                        <th key={c.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="date"
+                              className="h-7 w-32 text-xs"
+                              value={c.date}
+                              onChange={(e) => updateSerologyColumn(c.id, e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeSerologyColumn(c.id)}
+                              className="text-destructive"
+                              title="Remover coleta"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SEROLOGY_ANALYTES.map((a) => (
+                      <tr key={a}>
+                        <td className="border-b p-1 font-medium">{a}</td>
+                        {form.serologyGrid.columns.map((c) => {
+                          const key = `${a}:${c.id}`;
+                          const val = form.serologyGrid.values[key] ?? "";
+                          if (a === "VDRL") {
+                            return (
+                              <td key={c.id} className="border-b p-1">
+                                <Input
+                                  className="h-7 w-24 text-xs"
+                                  placeholder="NR / 1:..."
+                                  value={val}
+                                  onChange={(e) => setSerologyValue(a, c.id, e.target.value)}
+                                />
+                              </td>
+                            );
+                          }
+                          return (
+                            <td key={c.id} className="border-b p-1">
+                              <select
+                                className={`${selectClass} h-7 w-20 text-xs`}
+                                value={val}
+                                onChange={(e) => setSerologyValue(a, c.id, e.target.value)}
+                              >
+                                <option value="">—</option>
+                                <option value="NR">NR</option>
+                                <option value="REAG">REAG</option>
+                              </select>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* QP / HPMA */}
         <Card>
           <CardHeader>
@@ -615,6 +744,21 @@ export function PsgoGenerator() {
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+
+        {/* Exames laboratoriais */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Exames laboratoriais</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              rows={3}
+              placeholder="Cole os exames laboratoriais..."
+              value={form.labs}
+              onChange={(e) => update({ labs: e.target.value })}
+            />
           </CardContent>
         </Card>
 

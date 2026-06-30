@@ -9,6 +9,7 @@ import { resolvePsgoDating } from "./dating";
 import { autoComorbidities, classifyBmi } from "./comorbidities";
 import { formatMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
+import { renderSerologies } from "./serology";
 
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
@@ -127,9 +128,10 @@ export function renderPsgo(form: PsgoForm): string {
   const hcv = dedup([...form.habits, ...splitOther(form.habitsOther)]);
   L.push(`HCV: ${hcv.join(", ")}`);
 
-  // Sorologias (Incremento B refina; por ora, texto colado)
+  // Sorologias (colado + quadro externo, ordenado por data)
   L.push("SOROLOGIAS");
-  if (form.serologyPasted.trim()) L.push(form.serologyPasted.trim());
+  const serologies = renderSerologies(form.serologyPasted, form.serologyGrid);
+  if (serologies.trim()) L.push(serologies);
 
   // Queixa / história
   L.push(`QP: ${form.qp}`);

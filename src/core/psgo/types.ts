@@ -4,6 +4,8 @@ import type { ExamSystemState, ExamVitals } from "./exam";
 import { EXAM_SYSTEMS } from "./exam";
 import type { UsgExam, DatingPreference } from "./dating";
 import type { RobsonPresentation, RobsonFetuses, RobsonOnset } from "./robson";
+import type { SerologyGrid } from "./serology";
+import { emptySerologyGrid } from "./serology";
 
 export const HABITS = ["NEGA", "UDI", "TBG", "ÁLCOOL"];
 
@@ -83,8 +85,11 @@ export interface PsgoForm {
   // conduta
   cd: string;
 
-  // Incremento B/C (placeholders)
+  // sorologias
   serologyPasted: string;
+  serologyGrid: SerologyGrid;
+
+  // laboratoriais
   labs: string;
 }
 
@@ -137,6 +142,7 @@ export function emptyPsgoForm(): PsgoForm {
     ctg: "",
     cd: "",
     serologyPasted: "",
+    serologyGrid: emptySerologyGrid(),
     labs: "",
   };
 }
