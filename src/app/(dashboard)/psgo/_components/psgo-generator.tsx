@@ -9,6 +9,7 @@ import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES } from "@/core/psgo/serology";
+import { renderImagingExam, type ImagingExam } from "@/core/psgo/imaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -163,6 +164,20 @@ export function PsgoGenerator() {
         values: { ...form.serologyGrid.values, [`${analyte}:${colId}`]: value },
       },
     });
+  }
+
+  // Exames de imagem
+  function addImaging() {
+    update({ imagingExams: [...form.imagingExams, { id: uid() }] });
+  }
+  function updateImaging(id: string, patch: Partial<ImagingExam>) {
+    update({ imagingExams: form.imagingExams.map((e) => (e.id === id ? { ...e, ...patch } : e)) });
+  }
+  function removeImaging(id: string) {
+    update({ imagingExams: form.imagingExams.filter((e) => e.id !== id) });
+  }
+  function numOrUndef(v: string): number | undefined {
+    return v === "" ? undefined : Number(v);
   }
 
   return (
@@ -759,6 +774,96 @@ export function PsgoGenerator() {
               value={form.labs}
               onChange={(e) => update({ labs: e.target.value })}
             />
+          </CardContent>
+        </Card>
+
+        {/* Exames de imagem */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-base">
+              Exames de imagem (USG)
+              <Button type="button" size="sm" variant="outline" onClick={addImaging}>
+                <Plus className="h-4 w-4" /> Exame
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {form.imagingExams.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Adicione um USG para calcular percentis (PFE/CA por Hadlock; Doppler pela FMF).
+              </p>
+            )}
+            {form.imagingExams.map((e) => (
+              <div key={e.id} className="space-y-2 rounded-md border p-2">
+                <div className="flex items-end gap-2">
+                  <Field label="Data">
+                    <Input
+                      type="date"
+                      className="w-36"
+                      value={e.date ?? ""}
+                      onChange={(ev) => updateImaging(e.id, { date: ev.target.value })}
+                    />
+                  </Field>
+                  <Field label="IG sem">
+                    <Input
+                      type="number"
+                      className="w-20"
+                      value={e.gaWeeks ?? ""}
+                      onChange={(ev) => updateImaging(e.id, { gaWeeks: numOrUndef(ev.target.value) })}
+                    />
+                  </Field>
+                  <Field label="IG dias">
+                    <Input
+                      type="number"
+                      className="w-20"
+                      value={e.gaDays ?? ""}
+                      onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
+                    />
+                  </Field>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="ml-auto"
+                    onClick={() => removeImaging(e.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <Field label="PFE (g)">
+                    <Input value={e.efw ?? ""} onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })} inputMode="numeric" />
+                  </Field>
+                  <Field label="CA (mm)">
+                    <Input value={e.ac ?? ""} onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })} inputMode="numeric" />
+                  </Field>
+                  <Field label="IP-AUt (médio)">
+                    <Input value={e.utpi ?? ""} onChange={(ev) => updateImaging(e.id, { utpi: ev.target.value })} inputMode="decimal" />
+                  </Field>
+                  <Field label="ACM-PSV (cm/s)">
+                    <Input value={e.mcaPsv ?? ""} onChange={(ev) => updateImaging(e.id, { mcaPsv: ev.target.value })} inputMode="decimal" />
+                  </Field>
+                  <Field label="DV-IP">
+                    <Input value={e.dvpi ?? ""} onChange={(ev) => updateImaging(e.id, { dvpi: ev.target.value })} inputMode="decimal" />
+                  </Field>
+                  <Field label="ILA / maior bolsão">
+                    <Input value={e.ila ?? ""} onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })} />
+                  </Field>
+                  <Field label="Placenta">
+                    <Input value={e.placenta ?? ""} onChange={(ev) => updateImaging(e.id, { placenta: ev.target.value })} />
+                  </Field>
+                  <Field label="Apresentação">
+                    <Input value={e.presentation ?? ""} onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })} />
+                  </Field>
+                  <Field label="Obs.">
+                    <Input value={e.notes ?? ""} onChange={(ev) => updateImaging(e.id, { notes: ev.target.value })} />
+                  </Field>
+                </div>
+                <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
+                  {renderImagingExam(e)}
+                </p>
+              </div>
+            ))}
           </CardContent>
         </Card>
 

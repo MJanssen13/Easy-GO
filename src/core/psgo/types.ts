@@ -6,6 +6,7 @@ import type { UsgExam, DatingPreference } from "./dating";
 import type { RobsonPresentation, RobsonFetuses, RobsonOnset } from "./robson";
 import type { SerologyGrid } from "./serology";
 import { emptySerologyGrid } from "./serology";
+import type { ImagingExam } from "./imaging";
 
 export const HABITS = ["NEGA", "UDI", "TBG", "ÁLCOOL"];
 
@@ -91,6 +92,9 @@ export interface PsgoForm {
 
   // laboratoriais
   labs: string;
+
+  // exames de imagem (USG)
+  imagingExams: ImagingExam[];
 }
 
 function todayISO(): string {
@@ -144,6 +148,7 @@ export function emptyPsgoForm(): PsgoForm {
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),
     labs: "",
+    imagingExams: [],
   };
 }
 

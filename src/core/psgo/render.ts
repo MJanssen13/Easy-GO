@@ -10,6 +10,7 @@ import { autoComorbidities, classifyBmi } from "./comorbidities";
 import { formatMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
 import { renderSerologies } from "./serology";
+import { renderImaging } from "./imaging";
 
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
@@ -150,6 +151,8 @@ export function renderPsgo(form: PsgoForm): string {
   L.push("EXAMES LABORATORIAIS:");
   if (form.labs.trim()) L.push(form.labs.trim());
   L.push("EXAMES DE IMAGEM ( ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):");
+  const imaging = renderImaging(form.imagingExams);
+  if (imaging.trim()) L.push(imaging);
 
   // CTG
   L.push(`CTG: ${form.ctg}`);
