@@ -21,9 +21,12 @@ export interface ObstetricData {
   bcf?: number;
   dynamicsSummary?: string; // ex.: "2x30''/10'"
   dilation?: number; // cm (0-10)
+  /** Colo sem dilatação numérica (ex.: OEI, OEEA, OII). */
+  cervixStatus?: string[];
   effacement?: number; // %
   cervixPosition?: "posterior" | "intermediate" | "central";
-  cervixConsistency?: "firm" | "intermediate" | "soft";
+  /** Consistência do colo (mnemônico nasal/nasolabial/labial → N/NL/L). */
+  cervixConsistency?: "nasal" | "nasolabial" | "labial";
   station?: number; // De Lee (-4 a +4)
   presentation?: "cephalic" | "breech" | "transverse";
   membranes?: MembraneStatus;

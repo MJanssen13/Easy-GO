@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity, FileText } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
 import { renderCtgLine } from "@/core/ctg/render";
 import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE } from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
-import { renderEvolution } from "@/core/prontuario/preparto";
+import { renderConsolidatedProntuario, renderObservationLine } from "@/core/prontuario/preparto";
 import { upcomingTasks } from "@/core/schedule/planner";
 import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Badge } from "@/components/ui/badge";
@@ -118,6 +118,26 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
       </Card>
 
       {(() => {
+        const prontuario = renderConsolidatedProntuario(patient, patient.observations ?? [], ctgs);
+        if (!prontuario.trim()) return null;
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-base">
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" /> Prontuário
+                </span>
+                <CopyButton text={prontuario} label="Copiar prontuário" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre className="prontuario-text max-h-[60vh] overflow-y-auto text-sm">{prontuario}</pre>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {(() => {
         const next = upcomingTasks(patient.schedule ?? [], 6);
         if (next.length === 0) return null;
         return (
@@ -209,25 +229,18 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </CardHeader>
         <CardContent>
           {patient.observations && patient.observations.length > 0 ? (
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {patient.observations.map((o) => {
-                const text = renderEvolution(patient, o);
+                const line = renderObservationLine(o);
                 return (
-                  <li key={o.id} className="rounded-md border">
-                    <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
-                      <div>
-                        <span className="text-sm font-medium">
-                          {new Date(o.recordedAt).toLocaleString("pt-BR")}
-                        </span>
-                        {o.examinerName && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {o.examinerName}
-                          </span>
-                        )}
-                      </div>
-                      <CopyButton text={text} />
+                  <li key={o.id} className="flex items-start justify-between gap-2 rounded-md border px-3 py-2">
+                    <div className="min-w-0">
+                      <pre className="prontuario-text text-xs">{line}</pre>
+                      {o.examinerName && (
+                        <span className="text-[11px] text-muted-foreground">{o.examinerName}</span>
+                      )}
                     </div>
-                    <pre className="prontuario-text px-3 py-2 text-sm">{text}</pre>
+                    <CopyButton text={line} />
                   </li>
                 );
               })}

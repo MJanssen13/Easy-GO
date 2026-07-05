@@ -154,7 +154,8 @@ const observationSchema = z.object({
   presentation: z.enum(["cephalic", "breech", "transverse"]).optional(),
   membranes: z.enum(["intact", "ruptured_clear", "ruptured_meconium"]).optional(),
   cervixPosition: z.enum(["posterior", "intermediate", "central"]).optional(),
-  cervixConsistency: z.enum(["firm", "intermediate", "soft"]).optional(),
+  cervixConsistency: z.enum(["nasal", "nasolabial", "labial"]).optional(),
+  cervixStatus: z.string().trim().optional(),
   bloodOnGlove: z.boolean().optional(),
   cervixObservation: z.string().trim().optional(),
   // MgSO₄
@@ -199,6 +200,7 @@ export async function recordObservation(
     membranes: opt(formData.get("membranes")),
     cervixPosition: opt(formData.get("cervixPosition")),
     cervixConsistency: opt(formData.get("cervixConsistency")),
+    cervixStatus: opt(formData.get("cervixStatus")),
     bloodOnGlove: formData.get("bloodOnGlove") === "on",
     cervixObservation: opt(formData.get("cervixObservation")),
     magnesiumEnabled: formData.get("magnesiumEnabled") === "on",
@@ -239,6 +241,9 @@ export async function recordObservation(
     membranes: d.membranes,
     cervixPosition: d.cervixPosition,
     cervixConsistency: d.cervixConsistency,
+    cervixStatus: d.cervixStatus
+      ? d.cervixStatus.split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined,
     bloodOnGlove: d.bloodOnGlove || undefined,
     cervixObservation: d.cervixObservation,
   };
