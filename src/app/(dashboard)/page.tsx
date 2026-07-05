@@ -22,7 +22,7 @@ export default function HubPage() {
               <Card className="h-full transition-shadow group-hover:shadow-md">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <span className={`flex h-10 w-10 items-center justify-center rounded-lg bg-accent ${m.accent}`}>
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-xl bg-muted ring-1 ring-inset ring-border ${m.accent}`}>
                       <Icon className="h-5 w-5" />
                     </span>
                     <span className="rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
