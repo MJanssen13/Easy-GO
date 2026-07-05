@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity, Pencil } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
 import { renderCtgLine } from "@/core/ctg/render";
@@ -69,6 +69,11 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/pre-parto/${patient.id}/editar`}>
+            <Button size="sm" variant="outline">
+              <Pencil className="h-4 w-4" /> Editar
+            </Button>
+          </Link>
           <Link href={`/pre-parto/${patient.id}/rotina`}>
             <Button size="sm" variant="outline">
               <CalendarClock className="h-4 w-4" /> Planejar rotina

@@ -119,6 +119,29 @@ export interface NewPatientInput {
   riskFactors?: string[];
 }
 
+/** Campos editáveis de uma paciente (edição + protocolos). */
+export interface UpdatePatientInput {
+  name?: string;
+  bed?: string | null;
+  medicalRecordNumber?: string | null;
+  age?: number | null;
+  parity?: string | null;
+  bloodType?: string | null;
+  babyName?: string | null;
+  lmp?: string | null;
+  edd?: string | null;
+  gaWeeks?: number | null;
+  gaDays?: number | null;
+  status?: PatientStatus;
+  riskFactors?: string[];
+  useMethyldopa?: boolean;
+  methyldopaStartTime?: string | null;
+  methyldopaEndTime?: string | null;
+  useMagnesiumSulfate?: boolean;
+  magnesiumSulfateStartTime?: string | null;
+  magnesiumSulfateEndTime?: string | null;
+}
+
 export interface NewObservationInput {
   patientId: string;
   recordedAt?: string;

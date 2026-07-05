@@ -4,6 +4,7 @@ import type {
   Patient,
   Observation,
   NewPatientInput,
+  UpdatePatientInput,
   NewObservationInput,
   ScheduledTask,
 } from "./types";
@@ -11,6 +12,7 @@ import {
   dbToPatient,
   dbToObservation,
   newPatientToInsert,
+  updatePatientToDb,
   newObservationToInsert,
 } from "./mappers";
 
@@ -80,6 +82,18 @@ export async function createPatient(input: NewPatientInput): Promise<Patient> {
     .single();
 
   if (error || !data) throw new RepositoryError("Não foi possível admitir a paciente.", error);
+  return dbToPatient(data);
+}
+
+export async function updatePatient(id: string, input: UpdatePatientInput): Promise<Patient> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("patients")
+    .update(updatePatientToDb(input))
+    .eq("id", id)
+    .select()
+    .single();
+  if (error || !data) throw new RepositoryError("Não foi possível atualizar a paciente.", error);
   return dbToPatient(data);
 }
 

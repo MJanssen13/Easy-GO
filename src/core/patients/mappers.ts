@@ -8,11 +8,13 @@ import type {
   Medication,
   MagnesiumData,
   NewPatientInput,
+  UpdatePatientInput,
   NewObservationInput,
 } from "./types";
 
 type PatientRow = Database["public"]["Tables"]["patients"]["Row"];
 type PatientInsert = Database["public"]["Tables"]["patients"]["Insert"];
+type PatientUpdate = Database["public"]["Tables"]["patients"]["Update"];
 type ObservationRow = Database["public"]["Tables"]["observations"]["Row"];
 type ObservationInsert = Database["public"]["Tables"]["observations"]["Insert"];
 
@@ -74,6 +76,33 @@ export function newPatientToInsert(input: NewPatientInput, createdBy: string | n
     risk_factors: input.riskFactors ?? [],
     created_by: createdBy,
   };
+}
+
+/** Build a DB patch with only the fields present in the input. */
+export function updatePatientToDb(input: UpdatePatientInput): PatientUpdate {
+  const p: PatientUpdate = {};
+  if (input.name !== undefined) p.name = input.name;
+  if (input.bed !== undefined) p.bed = input.bed;
+  if (input.medicalRecordNumber !== undefined) p.medical_record_number = input.medicalRecordNumber;
+  if (input.age !== undefined) p.age = input.age;
+  if (input.parity !== undefined) p.parity = input.parity;
+  if (input.bloodType !== undefined) p.blood_type = input.bloodType;
+  if (input.babyName !== undefined) p.baby_name = input.babyName;
+  if (input.lmp !== undefined) p.lmp = input.lmp;
+  if (input.edd !== undefined) p.edd = input.edd;
+  if (input.gaWeeks !== undefined) p.ga_weeks = input.gaWeeks;
+  if (input.gaDays !== undefined) p.ga_days = input.gaDays;
+  if (input.status !== undefined) p.status = input.status;
+  if (input.riskFactors !== undefined) p.risk_factors = input.riskFactors;
+  if (input.useMethyldopa !== undefined) p.use_methyldopa = input.useMethyldopa;
+  if (input.methyldopaStartTime !== undefined) p.methyldopa_start_time = input.methyldopaStartTime;
+  if (input.methyldopaEndTime !== undefined) p.methyldopa_end_time = input.methyldopaEndTime;
+  if (input.useMagnesiumSulfate !== undefined) p.use_magnesium_sulfate = input.useMagnesiumSulfate;
+  if (input.magnesiumSulfateStartTime !== undefined)
+    p.magnesium_sulfate_start_time = input.magnesiumSulfateStartTime;
+  if (input.magnesiumSulfateEndTime !== undefined)
+    p.magnesium_sulfate_end_time = input.magnesiumSulfateEndTime;
+  return p;
 }
 
 export function dbToObservation(row: ObservationRow): Observation {
