@@ -27,6 +27,25 @@ export class RepositoryError extends Error {
   }
 }
 
+/**
+ * Extrai detalhes legíveis de um erro do Supabase/PostgREST (code, message,
+ * details, hint) para expor a causa real em vez de uma mensagem genérica.
+ */
+function supabaseErrorDetail(error: unknown): string {
+  if (error && typeof error === "object") {
+    const e = error as { message?: string; code?: string; details?: string; hint?: string };
+    const parts = [e.code, e.message, e.details, e.hint].filter(Boolean);
+    if (parts.length > 0) return parts.join(" · ");
+  }
+  return "";
+}
+
+/** Monta a mensagem final anexando a causa do banco, quando houver. */
+function withDetail(base: string, error: unknown): string {
+  const detail = supabaseErrorDetail(error);
+  return detail ? `${base} (${detail})` : base;
+}
+
 async function currentUserId(): Promise<string | null> {
   const supabase = await createClient();
   const {
@@ -99,7 +118,10 @@ export async function createPatient(input: NewPatientInput): Promise<Patient> {
     .select()
     .single();
 
-  if (error || !data) throw new RepositoryError("Não foi possível admitir a paciente.", error);
+  if (error || !data) {
+    console.error("createPatient failed:", error);
+    throw new RepositoryError(withDetail("Não foi possível admitir a paciente.", error), error);
+  }
   return dbToPatient(data);
 }
 
@@ -111,7 +133,10 @@ export async function updatePatient(id: string, input: UpdatePatientInput): Prom
     .eq("id", id)
     .select()
     .single();
-  if (error || !data) throw new RepositoryError("Não foi possível atualizar a paciente.", error);
+  if (error || !data) {
+    console.error("updatePatient failed:", error);
+    throw new RepositoryError(withDetail("Não foi possível atualizar a paciente.", error), error);
+  }
   return dbToPatient(data);
 }
 
@@ -190,7 +215,10 @@ export async function addObservation(input: NewObservationInput): Promise<Observ
     .select()
     .single();
 
-  if (error || !data) throw new RepositoryError("Não foi possível registrar a evolução.", error);
+  if (error || !data) {
+    console.error("addObservation failed:", error);
+    throw new RepositoryError(withDetail("Não foi possível registrar a evolução.", error), error);
+  }
   return dbToObservation(data);
 }
 
