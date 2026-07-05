@@ -8,6 +8,7 @@ import {
   renderShiftEvolution,
   type ShiftNoteInput,
   type InductionInput,
+  type TeamInput,
 } from "@/core/prontuario/preparto-evolution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,8 @@ export function ShiftEvolution({
   const set = (patch: Partial<ShiftNoteInput>) => setInput((i) => ({ ...i, ...patch }));
   const setInd = (patch: Partial<InductionInput>) =>
     setInput((i) => ({ ...i, induction: { ...i.induction, ...patch } }));
+  const setTeam = (patch: Partial<TeamInput>) =>
+    setInput((i) => ({ ...i, team: { ...i.team, ...patch } }));
 
   const text = useMemo(
     () => renderShiftEvolution(patient, observations, input),
@@ -87,6 +90,33 @@ export function ShiftEvolution({
               <option value="24H">Em 24H</option>
             </select>
           </Field>
+        </div>
+
+        {/* Equipe de plantão — cabeçalho comum a todas as evoluções do plantão */}
+        <div className="rounded-md border p-2">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">
+            Equipe de plantão (vários nomes por vírgula; cargos vazios não entram na evolução)
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <Field label="Chefia">
+              <Input value={input.team.chefia} onChange={(e) => setTeam({ chefia: e.target.value })} />
+            </Field>
+            <Field label="R3">
+              <Input value={input.team.r3} onChange={(e) => setTeam({ r3: e.target.value })} />
+            </Field>
+            <Field label="R2">
+              <Input value={input.team.r2} onChange={(e) => setTeam({ r2: e.target.value })} />
+            </Field>
+            <Field label="R1">
+              <Input value={input.team.r1} onChange={(e) => setTeam({ r1: e.target.value })} />
+            </Field>
+            <Field label="Internos">
+              <Input
+                value={input.team.internos}
+                onChange={(e) => setTeam({ internos: e.target.value })}
+              />
+            </Field>
+          </div>
         </div>
 
         <Field label="Motivo da admissão">
@@ -161,13 +191,6 @@ export function ShiftEvolution({
             rows={2}
             value={input.reviewOfSystems}
             onChange={(e) => set({ reviewOfSystems: e.target.value })}
-          />
-        </Field>
-        <Field label="Equipe de plantão">
-          <Input
-            placeholder="DRA ... | R3 ... | R2 ... | R1 ..."
-            value={input.team}
-            onChange={(e) => set({ team: e.target.value })}
           />
         </Field>
 

@@ -19,6 +19,20 @@ function uuid(): string {
   });
 }
 
+/**
+ * Round a date up to the next exact hour or half-hour (:00 or :30). Used to
+ * anchor routine generation so the 30-min cadence lands on clean times.
+ */
+export function nextHalfHour(from: Date = new Date()): Date {
+  const d = new Date(from);
+  const m = d.getMinutes();
+  const onAnchor = (m === 0 || m === 30) && d.getSeconds() === 0 && d.getMilliseconds() === 0;
+  d.setSeconds(0, 0);
+  if (onAnchor) return d;
+  d.setMinutes(m < 30 ? 30 : 60); // setMinutes(60) rolls to the next hour at :00
+  return d;
+}
+
 /** Round a date up to the next 15-minute slot. */
 export function nextSlotStart(from: Date = new Date()): Date {
   const d = new Date(from);

@@ -162,3 +162,68 @@ export function resolveDating(
 export function formatDateBR(d: Date): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
+
+/** Local-time ISO date (YYYY-MM-DD), avoiding UTC off-by-one. */
+export function toISODateLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export interface AdmissionDatingInput {
+  dumWeeks?: number | null;
+  dumDays?: number | null;
+  usWeeks?: number | null;
+  usDays?: number | null;
+  /** Date on which the gestational ages were measured (default: today). */
+  reference?: Date;
+}
+
+export interface StoredDating {
+  /** LMP-equivalent (ISO date) so the app can advance IG over time. */
+  lmp: string;
+  edd: string;
+  gaWeeks: number;
+  gaDays: number;
+  usGaWeeks: number | null;
+  usGaDays: number | null;
+  datingMethod: "lmp" | "ultrasound";
+}
+
+/**
+ * Resolve stored dating from gestational ages entered as weeks+days for DUM
+ * and/or USG (measured at `reference`). Reuses `resolveDating` (ACOG CO-700)
+ * and stores an LMP-equivalent derived from the resolved EDD, so the whole app
+ * (which keys off `lmp`) advances IG correctly regardless of the chosen method.
+ *
+ * Returns null when neither DUM nor USG is provided.
+ */
+export function datingFromGestationalAges(input: AdmissionDatingInput): StoredDating | null {
+  const ref = input.reference ?? new Date();
+  const hasDum = input.dumWeeks != null;
+  const hasUs = input.usWeeks != null;
+  if (!hasDum && !hasUs) return null;
+
+  const dumTotalDays = hasDum ? input.dumWeeks! * 7 + (input.dumDays ?? 0) : null;
+  const usGa = hasUs ? { weeks: input.usWeeks!, days: input.usDays ?? 0 } : null;
+
+  const lmpDate = dumTotalDays != null ? new Date(startOfDay(ref) - dumTotalDays * MS_PER_DAY) : null;
+
+  const result = resolveDating(
+    { lmp: lmpDate, scanDate: hasUs ? ref : null, scanGa: usGa },
+    ref,
+  );
+
+  const lmpEquiv = new Date(result.edd.getTime() - 280 * MS_PER_DAY);
+
+  return {
+    lmp: toISODateLocal(lmpEquiv),
+    edd: toISODateLocal(result.edd),
+    gaWeeks: result.ga.weeks,
+    gaDays: result.ga.days,
+    usGaWeeks: usGa ? usGa.weeks : null,
+    usGaDays: usGa ? usGa.days : null,
+    datingMethod: result.method,
+  };
+}

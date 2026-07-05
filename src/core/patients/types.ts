@@ -45,6 +45,7 @@ export interface Medication {
   misoprostolCount?: number;
   oxytocinDose?: number; // ml/h
   antibiotic?: string;
+  other?: string; // outra medicação (texto livre)
   notes?: string;
 }
 
@@ -80,9 +81,14 @@ export interface Patient {
   bloodType?: string | null;
   lmp?: string | null; // DUM (ISO date)
   edd?: string | null; // DPP (ISO date)
-  gaWeeks?: number | null;
+  gaWeeks?: number | null; // IG (snapshot na admissão — método vigente)
   gaDays?: number | null;
+  usGaWeeks?: number | null; // IG por USG (snapshot na admissão)
+  usGaDays?: number | null;
+  datingMethod?: "lmp" | "ultrasound" | null; // método vigente de datação
   babyName?: string | null;
+  babyName2?: string | null; // 2º bebê (gemelares)
+  fetalDeath: boolean; // óbito fetal
   status: PatientStatus;
   outcome: PatientOutcome;
   riskFactors: string[];
@@ -115,6 +121,12 @@ export interface NewPatientInput {
   edd?: string | null;
   gaWeeks?: number | null;
   gaDays?: number | null;
+  usGaWeeks?: number | null;
+  usGaDays?: number | null;
+  datingMethod?: "lmp" | "ultrasound" | null;
+  babyName?: string | null;
+  babyName2?: string | null;
+  fetalDeath?: boolean;
   status?: PatientStatus;
   riskFactors?: string[];
 }
@@ -128,10 +140,15 @@ export interface UpdatePatientInput {
   parity?: string | null;
   bloodType?: string | null;
   babyName?: string | null;
+  babyName2?: string | null;
+  fetalDeath?: boolean;
   lmp?: string | null;
   edd?: string | null;
   gaWeeks?: number | null;
   gaDays?: number | null;
+  usGaWeeks?: number | null;
+  usGaDays?: number | null;
+  datingMethod?: "lmp" | "ultrasound" | null;
   status?: PatientStatus;
   riskFactors?: string[];
   useMethyldopa?: boolean;

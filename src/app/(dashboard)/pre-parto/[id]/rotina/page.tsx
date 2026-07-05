@@ -10,7 +10,7 @@ export default async function RoutinePage({ params }: { params: Promise<{ id: st
   if (!patient) notFound();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="space-y-5">
       <Link
         href={`/pre-parto/${patient.id}`}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

@@ -60,6 +60,14 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
 
   const ctgs = await listCtgs(id).catch(() => []);
   const ga = currentGaLabel(patient);
+  const datingLabel =
+    patient.datingMethod === "ultrasound"
+      ? "USG"
+      : patient.datingMethod === "lmp" || patient.lmp
+        ? "DUM"
+        : "—";
+  const babyDisplay =
+    [patient.babyName, patient.babyName2].filter(Boolean).join(" / ") || "—";
   const fields: { label: string; value: string }[] = [
     { label: "Leito", value: patient.bed ?? "—" },
     { label: "Prontuário", value: patient.medicalRecordNumber ?? "—" },
@@ -67,8 +75,9 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
     { label: "Paridade", value: patient.parity ?? "—" },
     { label: "Tipo sanguíneo", value: patient.bloodType ?? "—" },
     { label: "IG (hoje)", value: ga ?? "—" },
-    { label: "DUM", value: formatBR(patient.lmp) },
+    { label: "Datação", value: datingLabel },
     { label: "DPP", value: formatBR(patient.edd) },
+    { label: "Bebê", value: babyDisplay },
   ];
 
   return (
@@ -87,15 +96,11 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
             <Badge variant={PATIENT_STATUS_BADGE[patient.status]}>
               {PATIENT_STATUS_LABELS[patient.status]}
             </Badge>
+            {patient.fetalDeath && <Badge variant="destructive">Óbito fetal</Badge>}
             {patient.bed && <span className="text-sm text-muted-foreground">Leito {patient.bed}</span>}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/pre-parto/${patient.id}/editar`}>
-            <Button size="sm" variant="outline">
-              <Pencil className="h-4 w-4" /> Editar
-            </Button>
-          </Link>
           <Link href={`/pre-parto/${patient.id}/rotina`}>
             <Button size="sm" variant="outline">
               <CalendarClock className="h-4 w-4" /> Planejar rotina
@@ -125,7 +130,14 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Identificação</CardTitle>
+          <CardTitle className="flex items-center justify-between text-base">
+            <span>Identificação</span>
+            <Link href={`/pre-parto/${patient.id}/editar`}>
+              <Button size="sm" variant="outline">
+                <Pencil className="h-4 w-4" /> Editar
+              </Button>
+            </Link>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
