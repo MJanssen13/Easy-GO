@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Activity, LogOut } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { ModuleTheme } from "@/components/module-theme";
-import { Button } from "@/components/ui/button";
 import { signOut } from "./actions";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -12,15 +11,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <ModuleTheme className="app-surface flex min-h-screen flex-col">
-      <header className="sticky top-0 z-20 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-gradient-to-r from-navy-900 via-navy-800 to-primary text-white shadow-soft">
+        <div className="flex h-14 w-full items-center gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/20 backdrop-blur">
               <Activity className="h-5 w-5" />
             </span>
-            <span className="text-lg font-bold tracking-tight">
-              Easy<span className="text-primary">-GO</span>
-            </span>
+            <span className="text-lg font-bold tracking-tight text-white">Easy-GO</span>
           </Link>
 
           <div className="hidden flex-1 md:block">
@@ -29,20 +26,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium leading-tight">{displayName}</p>
-              <p className="text-xs text-muted-foreground">HC-UFTM</p>
+              <p className="text-sm font-medium leading-tight text-white">{displayName}</p>
+              <p className="text-xs text-white/60">HC-UFTM</p>
             </div>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-sm font-bold text-white ring-1 ring-white/20">
               {initial}
             </span>
             <form action={signOut}>
-              <Button type="submit" variant="ghost" size="icon" title="Sair">
+              <button
+                type="submit"
+                title="Sair"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
                 <LogOut className="h-4 w-4" />
-              </Button>
+              </button>
             </form>
           </div>
         </div>
-        <div className="border-t px-2 py-1 md:hidden">
+        <div className="border-t border-white/10 px-2 py-1 md:hidden">
           <DashboardNav />
         </div>
       </header>
