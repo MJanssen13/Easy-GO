@@ -1,10 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  ClipboardList,
+  Plus,
+  CalendarClock,
+  Activity,
+  Pencil,
+  CheckCircle2,
+  RotateCcw,
+} from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
 import { renderCtgLine } from "@/core/ctg/render";
-import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE } from "@/core/patients/status";
+import {
+  PATIENT_STATUS_LABELS,
+  PATIENT_STATUS_BADGE,
+  PATIENT_OUTCOME_LABELS,
+  RESOLVED_STATUSES,
+} from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
 import { renderObservationLine } from "@/core/prontuario/preparto";
 import { upcomingTasks } from "@/core/schedule/planner";
@@ -12,9 +27,14 @@ import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { CopyButton } from "@/components/copy-button";
 import { ShiftEvolution } from "../_components/shift-evolution";
-import { removePatient, removeCtg } from "../actions";
+import { removePatient, removeCtg, resolvePatientAction, reopenPatientAction } from "../actions";
+
+const selectClass =
+  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 function hhmm(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
@@ -119,6 +139,55 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                 </Badge>
               ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Desfecho</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {RESOLVED_STATUSES.includes(patient.status) ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <Badge variant="success">{PATIENT_OUTCOME_LABELS[patient.outcome]}</Badge>
+                {patient.dischargeTime && (
+                  <span className="ml-2 text-muted-foreground">
+                    {new Date(patient.dischargeTime).toLocaleString("pt-BR")}
+                  </span>
+                )}
+              </div>
+              <form action={reopenPatientAction}>
+                <input type="hidden" name="id" value={patient.id} />
+                <Button type="submit" size="sm" variant="outline">
+                  <RotateCcw className="h-4 w-4" /> Reabrir
+                </Button>
+              </form>
+            </div>
+          ) : (
+            <form action={resolvePatientAction} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="id" value={patient.id} />
+              <div className="space-y-1">
+                <Label className="text-xs">Desfecho</Label>
+                <select name="outcome" required defaultValue="" className={selectClass}>
+                  <option value="" disabled>
+                    Selecione…
+                  </option>
+                  <option value="vaginal_delivery">Parto normal</option>
+                  <option value="c_section">Cesárea</option>
+                  <option value="transfer">Transferência</option>
+                  <option value="discharge">Alta</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Data/hora (opcional)</Label>
+                <Input type="datetime-local" name="dischargeTime" className="w-52" />
+              </div>
+              <Button type="submit" size="sm">
+                <CheckCircle2 className="h-4 w-4" /> Resolver
+              </Button>
+            </form>
           )}
         </CardContent>
       </Card>

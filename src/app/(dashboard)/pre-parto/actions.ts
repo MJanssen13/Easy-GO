@@ -6,6 +6,8 @@ import { z } from "zod";
 import {
   createPatient,
   updatePatient,
+  resolvePatient,
+  reopenPatient,
   deletePatient,
   addObservation,
   updateSchedule,
@@ -23,6 +25,7 @@ import type {
   UpdatePatientInput,
   NewObservationInput,
   PatientStatus,
+  PatientOutcome,
   VitalSigns,
   ObstetricData,
   Medication,
@@ -608,6 +611,42 @@ export async function editPatient(
   revalidatePath(`/pre-parto/${d.id}`);
   revalidatePath("/pre-parto");
   redirect(`/pre-parto/${d.id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Desfecho / reabertura
+// ---------------------------------------------------------------------------
+
+const RESOLVE_OUTCOMES = ["vaginal_delivery", "c_section", "discharge", "transfer"] as const;
+
+export async function resolvePatientAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  const outcome = String(formData.get("outcome") ?? "");
+  const dischargeRaw = opt(formData.get("dischargeTime"));
+  if (!id || !RESOLVE_OUTCOMES.includes(outcome as (typeof RESOLVE_OUTCOMES)[number])) return;
+
+  const iso = dischargeRaw ? new Date(dischargeRaw).toISOString() : undefined;
+  try {
+    await resolvePatient(id, outcome as PatientOutcome, iso);
+  } catch {
+    // best-effort; surfaced on reload
+  }
+  revalidatePath("/pre-parto");
+  revalidatePath(`/pre-parto/${id}`);
+  redirect(`/pre-parto/${id}`);
+}
+
+export async function reopenPatientAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  try {
+    await reopenPatient(id);
+  } catch {
+    // best-effort
+  }
+  revalidatePath("/pre-parto");
+  revalidatePath(`/pre-parto/${id}`);
+  redirect(`/pre-parto/${id}`);
 }
 
 export async function removePatient(formData: FormData): Promise<void> {
