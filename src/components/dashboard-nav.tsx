@@ -21,8 +21,8 @@ export function DashboardNav() {
             className={cn(
               "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               active
-                ? "bg-primary text-primary-foreground shadow-soft"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                ? "bg-white text-primary shadow-soft"
+                : "text-white/75 hover:bg-white/10 hover:text-white",
             )}
           >
             <Icon className="h-4 w-4" />
