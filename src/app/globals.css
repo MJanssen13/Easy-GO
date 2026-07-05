@@ -27,6 +27,11 @@
     --accent: 327 73% 97%;
     --accent-foreground: 335 78% 38%;
     --ring: 331 74% 51%;
+    /* Gradiente da barra superior — mesma família da cor do módulo (tom mais
+       profundo → base → tom mais claro), nunca azul-marinho. */
+    --grad-from: 331 80% 44%;
+    --grad-via: 331 74% 52%;
+    --grad-to: 331 78% 63%;
   }
 
   /* ---- Temas por módulo (aplicados por rota) ---- */
@@ -36,6 +41,9 @@
     --accent: 327 73% 97%;
     --accent-foreground: 335 78% 38%;
     --ring: 331 74% 51%;
+    --grad-from: 331 80% 44%;
+    --grad-via: 331 74% 52%;
+    --grad-to: 331 78% 63%;
   }
   .theme-red {
     --primary: 0 74% 50%;
@@ -43,6 +51,9 @@
     --accent: 0 86% 97%;
     --accent-foreground: 0 74% 42%;
     --ring: 0 74% 50%;
+    --grad-from: 0 78% 44%;
+    --grad-via: 0 74% 51%;
+    --grad-to: 0 80% 64%;
   }
   .theme-purple {
     --primary: 271 76% 53%;
@@ -50,6 +61,9 @@
     --accent: 270 100% 98%;
     --accent-foreground: 272 72% 44%;
     --ring: 271 76% 53%;
+    --grad-from: 272 74% 46%;
+    --grad-via: 271 76% 54%;
+    --grad-to: 271 82% 66%;
   }
   .theme-teal {
     --primary: 174 92% 30%;
@@ -57,6 +71,9 @@
     --accent: 168 76% 95%;
     --accent-foreground: 175 84% 26%;
     --ring: 174 92% 30%;
+    --grad-from: 176 88% 22%;
+    --grad-via: 174 92% 30%;
+    --grad-to: 172 74% 41%;
   }
 }
 

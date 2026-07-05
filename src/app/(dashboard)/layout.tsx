@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <ModuleTheme className="app-surface flex min-h-screen flex-col">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-gradient-to-r from-navy-900 via-navy-800 to-primary text-white shadow-soft">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-[linear-gradient(105deg,hsl(var(--grad-from)),hsl(var(--grad-via))_52%,hsl(var(--grad-to)))] text-white shadow-soft">
         <div className="flex h-14 w-full items-center gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/20 backdrop-blur">
