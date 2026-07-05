@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Activity, Plus, AlertTriangle, CalendarClock } from "lucide-react";
-import { listPatients } from "@/core/patients/repository";
+import { listPatients, listObservationsSince } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
-import type { Patient } from "@/core/patients/types";
+import { get24hStats, type Stats24h } from "@/core/patients/stats";
+import type { Patient, Observation } from "@/core/patients/types";
 import { buttonVariants } from "@/components/ui/button";
 import { PatientCard } from "./_components/patient-card";
 
@@ -20,6 +21,23 @@ export default async function PrePartoBoard() {
 
   const active = patients.filter((p) => !RESOLVED_STATUSES.includes(p.status));
   const resolved = patients.filter((p) => RESOLVED_STATUSES.includes(p.status));
+
+  // Faixas de BCF/PA das últimas 24h para o card (uma query só).
+  const statsByPatient: Record<string, Stats24h | null> = {};
+  if (active.length > 0) {
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    try {
+      const obs = await listObservationsSince(
+        active.map((p) => p.id),
+        since,
+      );
+      const grouped: Record<string, Observation[]> = {};
+      for (const o of obs) (grouped[o.patientId] ||= []).push(o);
+      for (const p of active) statsByPatient[p.id] = get24hStats(grouped[p.id]);
+    } catch {
+      // sem stats se a consulta falhar
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -63,9 +81,9 @@ export default async function PrePartoBoard() {
       )}
 
       {active.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {active.map((p) => (
-            <PatientCard key={p.id} patient={p} />
+            <PatientCard key={p.id} patient={p} stats={statsByPatient[p.id]} />
           ))}
         </div>
       )}

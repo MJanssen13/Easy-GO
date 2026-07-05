@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <header className="sticky top-0 z-20 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
+        <div className="flex h-14 w-full items-center gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Activity className="h-5 w-5" />
@@ -46,7 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
+      <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
 
       <footer className="border-t bg-white px-4 py-3 text-center text-xs text-muted-foreground">
         Easy-GO · Ferramenta de apoio à decisão clínica. Não substitui o julgamento médico. Todo

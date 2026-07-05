@@ -73,6 +73,23 @@ export async function getPatient(id: string): Promise<Patient | null> {
   return patient;
 }
 
+/** Observations of several patients since a timestamp (for board 24h stats). */
+export async function listObservationsSince(
+  patientIds: string[],
+  sinceISO: string,
+): Promise<Observation[]> {
+  if (patientIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("observations")
+    .select("*")
+    .in("patient_id", patientIds)
+    .gte("recorded_at", sinceISO)
+    .order("recorded_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []).map(dbToObservation);
+}
+
 export async function createPatient(input: NewPatientInput): Promise<Patient> {
   const supabase = await createClient();
   const userId = await currentUserId();

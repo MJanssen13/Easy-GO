@@ -10,6 +10,7 @@ import {
   Pencil,
   CheckCircle2,
   RotateCcw,
+  TrendingUp,
 } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
@@ -31,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CopyButton } from "@/components/copy-button";
 import { ShiftEvolution } from "../_components/shift-evolution";
+import { VitalCharts } from "../_components/vital-charts";
 import { removePatient, removeCtg, resolvePatientAction, reopenPatientAction } from "../actions";
 
 const selectClass =
@@ -70,7 +72,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
   ];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="space-y-5">
       <Link
         href="/pre-parto"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -117,6 +119,9 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           </form>
         </div>
       </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="space-y-5">
 
       <Card>
         <CardHeader>
@@ -193,6 +198,23 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
       </Card>
 
       <ShiftEvolution patient={patient} observations={patient.observations ?? []} />
+
+      </div>
+
+      <div className="space-y-5">
+
+      {patient.observations && patient.observations.length >= 2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4 text-primary" /> Tendências
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VitalCharts observations={patient.observations} />
+          </CardContent>
+        </Card>
+      )}
 
       {(() => {
         const next = upcomingTasks(patient.schedule ?? [], 6);
@@ -316,6 +338,9 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           )}
         </CardContent>
       </Card>
+
+      </div>
+      </div>
     </div>
   );
 }
