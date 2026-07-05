@@ -1,18 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity, FileText } from "lucide-react";
+import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
 import { renderCtgLine } from "@/core/ctg/render";
 import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE } from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
-import { renderConsolidatedProntuario, renderObservationLine } from "@/core/prontuario/preparto";
+import { renderObservationLine } from "@/core/prontuario/preparto";
 import { upcomingTasks } from "@/core/schedule/planner";
 import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
+import { ShiftEvolution } from "../_components/shift-evolution";
 import { removePatient, removeCtg } from "../actions";
 
 function hhmm(iso: string): string {
@@ -117,25 +118,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </CardContent>
       </Card>
 
-      {(() => {
-        const prontuario = renderConsolidatedProntuario(patient, patient.observations ?? [], ctgs);
-        if (!prontuario.trim()) return null;
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-base">
-                <span className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" /> Prontuário
-                </span>
-                <CopyButton text={prontuario} label="Copiar prontuário" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <pre className="prontuario-text max-h-[60vh] overflow-y-auto text-sm">{prontuario}</pre>
-            </CardContent>
-          </Card>
-        );
-      })()}
+      <ShiftEvolution patient={patient} observations={patient.observations ?? []} />
 
       {(() => {
         const next = upcomingTasks(patient.schedule ?? [], 6);
