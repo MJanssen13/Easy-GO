@@ -4,44 +4,59 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 40% 98%;
+    --foreground: 222 45% 16%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 199 89% 42%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 44%;
-    --accent: 199 89% 96%;
-    --accent-foreground: 199 89% 28%;
+    --card-foreground: 222 45% 16%;
+
+    --secondary: 214 32% 95%;
+    --secondary-foreground: 222 40% 22%;
+    --muted: 214 32% 95%;
+    --muted-foreground: 219 20% 46%;
+
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 199 89% 42%;
-    --radius: 0.6rem;
+
+    --border: 214 30% 90%;
+    --input: 214 30% 87%;
+    --radius: 0.85rem;
+
+    /* Accent principal — ROSA (pré-parto/puerpério é o padrão da plataforma) */
+    --primary: 331 74% 51%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 327 73% 97%;
+    --accent-foreground: 335 78% 38%;
+    --ring: 331 74% 51%;
   }
 
-  .dark {
-    --background: 222.2 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 47% 8%;
-    --card-foreground: 210 40% 98%;
-    --primary: 199 89% 52%;
-    --primary-foreground: 222.2 47% 6%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 50%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 20%;
-    --input: 217.2 32.6% 20%;
-    --ring: 199 89% 52%;
+  /* ---- Temas por módulo (aplicados por rota) ---- */
+  .theme-pink {
+    --primary: 331 74% 51%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 327 73% 97%;
+    --accent-foreground: 335 78% 38%;
+    --ring: 331 74% 51%;
+  }
+  .theme-red {
+    --primary: 0 74% 50%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 0 86% 97%;
+    --accent-foreground: 0 74% 42%;
+    --ring: 0 74% 50%;
+  }
+  .theme-purple {
+    --primary: 271 76% 53%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 270 100% 98%;
+    --accent-foreground: 272 72% 44%;
+    --ring: 271 76% 53%;
+  }
+  .theme-teal {
+    --primary: 174 92% 30%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 168 76% 95%;
+    --accent-foreground: 175 84% 26%;
+    --ring: 174 92% 30%;
   }
 }
 
@@ -50,10 +65,26 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family:
-      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-      Arial, "Noto Sans", sans-serif;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  /* Superfície do app: fundo com atmosfera sutil tingida pela cor do módulo. */
+  .app-surface {
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(
+        48rem 48rem at 100% -12%,
+        hsl(var(--primary) / 0.07),
+        transparent 60%
+      ),
+      radial-gradient(40rem 40rem at -12% -6%, hsl(222 47% 32% / 0.05), transparent 55%);
+    background-attachment: fixed;
   }
 }
 
