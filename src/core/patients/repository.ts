@@ -70,7 +70,15 @@ export async function listPatients(module: PatientModule): Promise<Patient[]> {
 /** One patient with its observations (most recent first). */
 export async function getPatient(id: string): Promise<Patient | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("patients").select("*").eq("id", id).single();
+  // Paciente e observações em paralelo — a query de observações só depende do id.
+  const [{ data, error }, { data: obsRows }] = await Promise.all([
+    supabase.from("patients").select("*").eq("id", id).single(),
+    supabase
+      .from("observations")
+      .select("*")
+      .eq("patient_id", id)
+      .order("recorded_at", { ascending: false }),
+  ]);
 
   if (error) {
     if (error.code === "PGRST116") return null; // no rows
@@ -79,13 +87,6 @@ export async function getPatient(id: string): Promise<Patient | null> {
   if (!data) return null;
 
   const patient = dbToPatient(data);
-
-  const { data: obsRows } = await supabase
-    .from("observations")
-    .select("*")
-    .eq("patient_id", id)
-    .order("recorded_at", { ascending: false });
-
   const observations: Observation[] = (obsRows ?? []).map(dbToObservation);
   patient.observations = observations;
   patient.lastObservation = observations[0] ?? null;

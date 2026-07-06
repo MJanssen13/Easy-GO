@@ -102,6 +102,36 @@ export function tasksFromRoutine(
     }));
 }
 
+/**
+ * Expand several routines together, merging parameters that fall on the same
+ * timestamp into a single task. Used to seed a default routine at admission
+ * (base phase + protocols like diabetes).
+ */
+export function tasksFromRoutines(
+  routines: MonitoringRoutine[],
+  start: Date,
+  end: Date,
+): ScheduledTask[] {
+  const byTime = new Map<number, Set<string>>();
+  for (const routine of routines) {
+    for (const rule of routine.rules) {
+      for (let t = start.getTime(); t <= end.getTime(); t += rule.intervalMin * 60000) {
+        const set = byTime.get(t) ?? new Set<string>();
+        rule.params.forEach((p) => set.add(p));
+        byTime.set(t, set);
+      }
+    }
+  }
+  return [...byTime.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([time, params]) => ({
+      id: uuid(),
+      timestamp: new Date(time).toISOString(),
+      focus: [...params],
+      status: "pending" as const,
+    }));
+}
+
 /** Build tasks from an explicit map of slotISO → params (manual grid). */
 export function tasksFromGrid(grid: Record<string, string[]>): ScheduledTask[] {
   return Object.entries(grid)

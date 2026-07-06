@@ -55,10 +55,9 @@ function formatBR(iso?: string | null): string {
 
 export default async function PatientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const patient = await getPatient(id);
+  // Busca paciente e CTGs em paralelo (economiza uma ida ao banco).
+  const [patient, ctgs] = await Promise.all([getPatient(id), listCtgs(id).catch(() => [])]);
   if (!patient) notFound();
-
-  const ctgs = await listCtgs(id).catch(() => []);
   const ga = currentGaLabel(patient);
   const datingLabel =
     patient.datingMethod === "ultrasound"
@@ -102,18 +101,18 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex items-center gap-2">
           <Link href={`/pre-parto/${patient.id}/rotina`}>
+            <Button size="sm">
+              <CalendarClock className="h-4 w-4" /> Editar Rotina
+            </Button>
+          </Link>
+          <Link href={`/pre-parto/${patient.id}/evolucao`}>
             <Button size="sm" variant="outline">
-              <CalendarClock className="h-4 w-4" /> Planejar rotina
+              <Plus className="h-4 w-4" /> Nova evolução
             </Button>
           </Link>
           <Link href={`/pre-parto/${patient.id}/ctg`}>
             <Button size="sm" variant="outline">
               <Activity className="h-4 w-4" /> CTG
-            </Button>
-          </Link>
-          <Link href={`/pre-parto/${patient.id}/evolucao`}>
-            <Button size="sm">
-              <Plus className="h-4 w-4" /> Nova evolução
             </Button>
           </Link>
           <form action={removePatient}>

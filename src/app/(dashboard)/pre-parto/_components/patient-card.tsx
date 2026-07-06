@@ -24,6 +24,12 @@ export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stat
         </div>
 
         <p className="mt-2 truncate text-base font-bold text-foreground">{patient.name}</p>
+        {(patient.babyName || patient.babyName2) && (
+          <p className="truncate text-sm text-muted-foreground">
+            <span className="text-amber-500">★</span>{" "}
+            {[patient.babyName, patient.babyName2].filter(Boolean).join(" · ")}
+          </p>
+        )}
 
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {ga && (

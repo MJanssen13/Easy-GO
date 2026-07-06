@@ -14,7 +14,15 @@ import {
   getSchedule,
   RepositoryError,
 } from "@/core/patients/repository";
-import { mergeSchedule, markCompleted, setTaskStatus } from "@/core/schedule/planner";
+import {
+  mergeSchedule,
+  markCompleted,
+  setTaskStatus,
+  tasksFromRoutines,
+  nextHalfHour,
+  shiftEnd,
+} from "@/core/schedule/planner";
+import { getRoutine, hasDiabetesRisk } from "@/core/schedule/routines";
 import { createCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
 import { computeCtgScore, suggestConclusion } from "@/core/ctg/scoring";
 import type { NewCtgInput } from "@/core/ctg/types";
@@ -120,8 +128,9 @@ export async function admitPatient(
     input.datingMethod = dating.datingMethod;
   }
 
+  let created;
   try {
-    await createPatient(input);
+    created = await createPatient(input);
   } catch (err) {
     const message =
       err instanceof RepositoryError
@@ -130,8 +139,25 @@ export async function admitPatient(
     return { error: message };
   }
 
+  // Rotina de aferições já na admissão (editável depois): fase de base pela
+  // situação + protocolo de diabetes se houver DMG/Overt nos fatores de risco.
+  try {
+    const baseId = d.status === "active_labor" ? "active_phase" : "latent_induction";
+    const routines = [getRoutine(baseId)!];
+    if (hasDiabetesRisk(input.riskFactors ?? [])) {
+      const diabetes = getRoutine("diabetes");
+      if (diabetes) routines.push(diabetes);
+    }
+    const from = nextHalfHour();
+    const tasks = tasksFromRoutines(routines, from, shiftEnd(from));
+    if (tasks.length > 0) await updateSchedule(created.id, tasks);
+  } catch {
+    // best-effort: a rotina pode ser criada/ajustada depois em "Editar Rotina"
+  }
+
   revalidatePath("/pre-parto");
-  redirect("/pre-parto");
+  revalidatePath(`/pre-parto/${created.id}`);
+  redirect(`/pre-parto/${created.id}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -150,6 +176,7 @@ const intNum = z.coerce.number().int().optional();
 const observationSchema = z.object({
   patientId: z.string().min(1),
   taskId: z.string().optional(),
+  returnTo: z.string().trim().optional(),
   recordedAt: z.string().optional(),
   examinerName: z.string().trim().optional(),
   // vitais
@@ -199,6 +226,7 @@ export async function recordObservation(
   const raw = {
     patientId: formData.get("patientId"),
     taskId: opt(formData.get("taskId")),
+    returnTo: opt(formData.get("returnTo")),
     recordedAt: opt(formData.get("recordedAt")),
     examinerName: opt(formData.get("examinerName")),
     paSystolic: opt(formData.get("paSystolic")),
@@ -320,7 +348,10 @@ export async function recordObservation(
 
   revalidatePath(`/pre-parto/${d.patientId}`);
   revalidatePath("/pre-parto/cronograma");
-  redirect(`/pre-parto/${d.patientId}`);
+  // Volta para a origem (ex.: cronograma na escrita rápida) quando informado.
+  const dest =
+    d.returnTo && d.returnTo.startsWith("/pre-parto") ? d.returnTo : `/pre-parto/${d.patientId}`;
+  redirect(dest);
 }
 
 // ---------------------------------------------------------------------------

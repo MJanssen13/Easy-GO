@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileText } from "lucide-react";
 import type { Patient, Observation } from "@/core/patients/types";
 import {
@@ -15,9 +15,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
+import { readShiftTeam, hasAnyTeam } from "./shift-team-store";
 
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+const TEAM_ROLES: Array<[keyof TeamInput, string]> = [
+  ["chefia", "Chefia"],
+  ["r3", "R3"],
+  ["r2", "R2"],
+  ["r1", "R1"],
+  ["internos", "Internos"],
+];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -40,8 +49,11 @@ export function ShiftEvolution({
   const set = (patch: Partial<ShiftNoteInput>) => setInput((i) => ({ ...i, ...patch }));
   const setInd = (patch: Partial<InductionInput>) =>
     setInput((i) => ({ ...i, induction: { ...i.induction, ...patch } }));
-  const setTeam = (patch: Partial<TeamInput>) =>
-    setInput((i) => ({ ...i, team: { ...i.team, ...patch } }));
+
+  // Equipe de plantão vem do card compartilhado (aba Leitos) e alimenta a nota.
+  useEffect(() => {
+    setInput((i) => ({ ...i, team: readShiftTeam() }));
+  }, []);
 
   const text = useMemo(
     () => renderShiftEvolution(patient, observations, input),
@@ -92,31 +104,25 @@ export function ShiftEvolution({
           </Field>
         </div>
 
-        {/* Equipe de plantão — cabeçalho comum a todas as evoluções do plantão */}
-        <div className="rounded-md border p-2">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">
-            Equipe de plantão (vários nomes por vírgula; cargos vazios não entram na evolução)
-          </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-            <Field label="Chefia">
-              <Input value={input.team.chefia} onChange={(e) => setTeam({ chefia: e.target.value })} />
-            </Field>
-            <Field label="R3">
-              <Input value={input.team.r3} onChange={(e) => setTeam({ r3: e.target.value })} />
-            </Field>
-            <Field label="R2">
-              <Input value={input.team.r2} onChange={(e) => setTeam({ r2: e.target.value })} />
-            </Field>
-            <Field label="R1">
-              <Input value={input.team.r1} onChange={(e) => setTeam({ r1: e.target.value })} />
-            </Field>
-            <Field label="Internos">
-              <Input
-                value={input.team.internos}
-                onChange={(e) => setTeam({ internos: e.target.value })}
-              />
-            </Field>
-          </div>
+        {/* Equipe de plantão — definida no card da aba Leitos, comum a todas as evoluções */}
+        <div className="rounded-md border bg-muted/30 p-2 text-xs">
+          <p className="font-semibold text-muted-foreground">Equipe de plantão</p>
+          {hasAnyTeam(input.team) ? (
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+              {TEAM_ROLES.map(([k, label]) =>
+                input.team[k].trim() ? (
+                  <span key={k}>
+                    <span className="font-semibold">{label}:</span> {input.team[k]}
+                  </span>
+                ) : null,
+              )}
+            </div>
+          ) : (
+            <p className="mt-1 text-muted-foreground">
+              Nenhum cargo preenchido. Defina no card <strong>Equipe de plantão</strong> na aba
+              Leitos — ela entra automaticamente aqui.
+            </p>
+          )}
         </div>
 
         <Field label="Motivo da admissão">

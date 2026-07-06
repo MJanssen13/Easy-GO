@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Loader2, Save, Target, Calculator } from "lucide-react";
 import { recordObservation, type ObservationState } from "../actions";
 import type { Patient } from "@/core/patients/types";
-import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
+import { MONITOR_PARAMS, paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import {
   bishopScore,
   bishopInterpretation,
@@ -25,6 +25,9 @@ const initialState: ObservationState = {};
 
 const VITAL_PARAMS = ["PA", "FC", "TAX", "Sat", "DXT"];
 const MG_PARAMS = ["Reflexo", "Diurese", "FR"];
+
+/** Só o que o formulário realmente usa da paciente (permite reuso inline). */
+type EvolutionPatient = Pick<Patient, "id" | "useMethyldopa" | "useMagnesiumSulfate">;
 
 /** Local "YYYY-MM-DDTHH:mm" for a datetime-local default value. */
 function nowLocal(): string {
@@ -57,23 +60,30 @@ export function EvolutionForm({
   taskId,
   focus = [],
   defaultRecordedAt,
+  returnTo,
+  onCancel,
 }: {
-  patient: Patient;
+  patient: EvolutionPatient;
   taskId?: string;
   focus?: string[];
   defaultRecordedAt?: string;
+  returnTo?: string;
+  onCancel?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(recordObservation, initialState);
 
-  // Sem foco (evolução livre) → mostra tudo. Com foco → só o cronograma, com
-  // opção de "coletar outros".
-  const hasFocus = focus.length > 0;
-  const [showAll, setShowAll] = useState(!hasFocus);
-  const show = (p: string) => showAll || focus.includes(p);
-
-  const [mgEnabled, setMgEnabled] = useState(
-    patient.useMagnesiumSulfate || focus.some((f) => MG_PARAMS.includes(f)),
+  // Seleção de parâmetros: o cronograma (focus) começa selecionado; clicar em
+  // qualquer chip abre/fecha o campo correspondente.
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set([...focus, ...(patient.useMagnesiumSulfate ? MG_PARAMS : [])]),
   );
+  const show = (p: string) => selected.has(p);
+  const toggle = (p: string) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      n.has(p) ? n.delete(p) : n.add(p);
+      return n;
+    });
 
   // Toque controlado → índice de Bishop automático.
   const [dilation, setDilation] = useState("");
@@ -94,46 +104,47 @@ export function EvolutionForm({
     [dilation, effacement, station, cervixConsistency, cervixPosition],
   );
 
-  const showVitais = showAll || VITAL_PARAMS.some((p) => focus.includes(p));
-  const showBcfDin = showAll || focus.includes("BCF") || focus.includes("Dinâmica");
-  const showToque = showAll || focus.includes("Toque");
-  const showMed = showAll || focus.includes("Medicação");
-  const showMg = showAll || patient.useMagnesiumSulfate || focus.some((f) => MG_PARAMS.includes(f));
+  const showVitais = VITAL_PARAMS.some(show);
+  const showBcfDin = show("BCF") || show("Dinâmica");
+  const showToque = show("Toque");
+  const showMed = show("Medicação");
+  const showMg = MG_PARAMS.some(show) || patient.useMagnesiumSulfate;
 
   return (
     <form action={formAction} className="space-y-5">
       <input type="hidden" name="patientId" value={patient.id} />
       {taskId && <input type="hidden" name="taskId" value={taskId} />}
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
-      {/* Aferições solicitadas pela rotina */}
-      {hasFocus && (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
-              <Target className="h-4 w-4" /> Aferir nesta tarefa
-            </p>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={showAll}
-                onChange={(e) => setShowAll(e.target.checked)}
-                className="h-4 w-4 rounded border-input"
-              />
-              Coletar outros parâmetros
-            </label>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {focus.map((f) => (
-              <span
-                key={f}
-                className={`rounded border px-2 py-0.5 text-xs font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
+      {/* Seletor de aferições — todas disponíveis; cronograma em destaque */}
+      <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
+          <Target className="h-4 w-4" /> Aferir nesta tarefa
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {MONITOR_PARAMS.map((p) => {
+            const scheduled = focus.includes(p.id);
+            const sel = selected.has(p.id);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => toggle(p.id)}
+                title={scheduled ? "Aferição do cronograma agora" : "Adicionar aferição"}
+                className={`rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${
+                  sel ? GROUP_ACCENT[p.group] : "bg-background text-muted-foreground"
+                } ${scheduled ? "ring-2 ring-primary/70 ring-offset-1" : ""}`}
               >
-                {f}
-              </span>
-            ))}
-          </div>
+                {p.label}
+              </button>
+            );
+          })}
         </div>
-      )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Em destaque (contorno): aferições do cronograma agora. Toque em qualquer parâmetro para
+          abrir ou fechar seus campos.
+        </p>
+      </div>
 
       {/* Cabeçalho do registro */}
       <Card>
@@ -375,43 +386,31 @@ export function EvolutionForm({
       {showMg && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="magnesiumEnabled"
-                  checked={mgEnabled}
-                  onChange={(e) => setMgEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
-                />
-                Monitorização de MgSO₄
-              </label>
-            </CardTitle>
+            <CardTitle className="text-base">Monitorização de MgSO₄</CardTitle>
           </CardHeader>
-          {mgEnabled && (
-            <CardContent>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <Field label="Reflexo patelar" htmlFor="mgReflex">
-                  <select id="mgReflex" name="mgReflex" className={selectClass} defaultValue="present">
-                    <option value="present">Presente</option>
-                    <option value="decreased">Diminuído</option>
-                    <option value="increased">Aumentado</option>
-                    <option value="absent">Ausente</option>
-                  </select>
-                </Field>
-                <Field label="Diurese" htmlFor="mgDiuresis">
-                  <Input id="mgDiuresis" name="mgDiuresis" placeholder="ex.: 50 ml/h" />
-                </Field>
-                <Field label="FR" htmlFor="mgRespiratoryRate">
-                  <Input id="mgRespiratoryRate" name="mgRespiratoryRate" type="number" inputMode="numeric" placeholder="irpm" />
-                </Field>
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Critérios de suspensão: reflexo patelar ausente, FR &lt; 12 irpm ou diurese &lt; 25
-                ml/h. Apoio à decisão — validar com a equipe.
-              </p>
-            </CardContent>
-          )}
+          <CardContent>
+            <input type="hidden" name="magnesiumEnabled" value="on" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Reflexo patelar" htmlFor="mgReflex">
+                <select id="mgReflex" name="mgReflex" className={selectClass} defaultValue="present">
+                  <option value="present">Presente</option>
+                  <option value="decreased">Diminuído</option>
+                  <option value="increased">Aumentado</option>
+                  <option value="absent">Ausente</option>
+                </select>
+              </Field>
+              <Field label="Diurese" htmlFor="mgDiuresis">
+                <Input id="mgDiuresis" name="mgDiuresis" placeholder="ex.: 50 ml/h" />
+              </Field>
+              <Field label="FR" htmlFor="mgRespiratoryRate">
+                <Input id="mgRespiratoryRate" name="mgRespiratoryRate" type="number" inputMode="numeric" placeholder="irpm" />
+              </Field>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Critérios de suspensão: reflexo patelar ausente, FR &lt; 12 irpm ou diurese &lt; 25
+              ml/h. Apoio à decisão — validar com a equipe.
+            </p>
+          </CardContent>
         </Card>
       )}
 
@@ -463,12 +462,22 @@ export function EvolutionForm({
       )}
 
       <div className="flex justify-end gap-2">
-        <Link
-          href={`/pre-parto/${patient.id}`}
-          className="self-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          Cancelar
-        </Link>
+        {onCancel ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="self-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            Cancelar
+          </button>
+        ) : (
+          <Link
+            href={`/pre-parto/${patient.id}`}
+            className="self-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            Cancelar
+          </Link>
+        )}
         <Button type="submit" disabled={pending}>
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Salvar evolução
