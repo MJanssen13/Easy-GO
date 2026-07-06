@@ -1,22 +1,26 @@
 /**
- * Biometria fetal — peso estimado e percentis.
+ * Biometria fetal — percentil de PESO e de CIRCUNFERÊNCIA ABDOMINAL por IG.
  *
- * - PFE a partir da biometria: Hadlock (1985).
- * - Percentil de PESO por IG: Hadlock FP et al., "In utero analysis of fetal
- *   growth: a sonographic weight standard", Radiology 1991;181:129-33
- *   (PMID 1887021).
- * - Percentil de CIRC. ABDOMINAL por IG: Hadlock FP et al., "Estimating fetal
- *   age: computer-assisted analysis of multiple fetal growth parameters",
- *   Radiology 1984;152:497-501 (PMID 6739822).
+ * Replica exatamente a calculadora "Fetal Biometry 5.0" (Perinatology.com),
+ * baseada em Hadlock:
+ *
+ * - PESO: tabela de mediana (p50) de Hadlock FP et al., "In utero analysis of
+ *   fetal growth: a sonographic weight standard", Radiology 1991;181:129-33
+ *   (PMID 1887021), interpolada linearmente entre semanas (10–40). Percentil
+ *   log-normal: z = (ln(PFE) − ln(p50)) / 0,127. O peso é DADO pelo laudo — a
+ *   plataforma só determina o percentil, não estima o peso.
+ * - CIRC. ABDOMINAL: Hadlock FP et al., "Estimating fetal age...", Radiology
+ *   1984;152:497-501 (PMID 6739822). Média (cm) = −13,3 + 1,61·IG − 0,00998·IG²
+ *   (IG limitada a 12–42 sem), DP = 1,34 cm (13,4 mm); z normal.
  * - CC e CF: referência FMF (fetalmedicine.org).
  *
- * Entradas de biometria em mm e IG em DIAS, salvo indicado. Apoio à decisão.
+ * IG em DIAS; biometria em mm. Percentil pela CDF normal padrão. Apoio à decisão.
  */
 import { zToCentile } from "./centile";
 
 const log10 = (x: number) => Math.log(x) / Math.LN10;
 
-/** Peso fetal estimado (g) por Hadlock 1985 (CC, CA, CF). Entradas em mm. */
+/** Peso fetal estimado (g) por Hadlock 1985 (CC, CA, CF) — entradas em mm. */
 export function efwFromHcAcFl(hcMm: number, acMm: number, flMm: number): number | null {
   const hc = hcMm / 10;
   const ac = acMm / 10;
@@ -25,43 +29,60 @@ export function efwFromHcAcFl(hcMm: number, acMm: number, flMm: number): number 
   return Math.pow(10, 1.326 - 0.00326 * ac * fl + 0.0107 * hc + 0.0438 * ac + 0.158 * fl);
 }
 
-// --- Padrão de peso fetal por IG (Hadlock 1991, PMID 1887021) ---
-// Mediana (g) = exp(0.578 + 0.332·GA − 0.00354·GA²), GA em semanas.
-// Distribuição normal com coeficiente de variação constante de 11,7%, que
-// reproduz os percentis publicados (3/10/90/97 ≈ 0,78/0,85/1,15/1,22 × mediana).
-const EFW_CV = 0.117;
+// --- PESO: padrão de peso de Hadlock 1991 (tabela p50), como no Fetal Biometry 5.0 ---
+// Mediana (g) por semana completa; entre semanas usa-se interpolação linear.
+const HADLOCK_P50_WEEKS = [
+  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+  34, 35, 36, 37, 38, 39, 40,
+];
+const HADLOCK_P50_G = [
+  35, 45, 58, 73, 93, 117, 146, 181, 223, 273, 331, 399, 478, 568, 670, 785, 913, 1055, 1210, 1379,
+  1559, 1751, 1953, 2162, 2377, 2595, 2813, 3028, 3236, 3435, 3619,
+];
+const EFW_SD_LN = 0.127; // DP na escala ln (Fetal Biometry 5.0)
 
-/** Peso fetal esperado (mediana, g) para a IG — Hadlock 1991. */
-export function expectedEfw(gaDays: number): number | null {
-  const w = gaDays / 7;
-  if (w < 10 || w > 42) return null;
-  return Math.exp(0.578 + 0.332 * w - 0.00354 * w * w);
+/** Interpolação linear da mediana (p50) de peso; IG (semanas) limitada a 10–40. */
+function hadlockP50(gaWeeks: number): number {
+  const w = HADLOCK_P50_WEEKS;
+  const g = Math.max(w[0], Math.min(w[w.length - 1], gaWeeks));
+  let i = 0;
+  while (i < w.length - 1 && w[i + 1] < g) i++;
+  const j = Math.min(i + 1, w.length - 1);
+  if (w[j] === w[i]) return HADLOCK_P50_G[i];
+  return (
+    HADLOCK_P50_G[i] + ((g - w[i]) * (HADLOCK_P50_G[j] - HADLOCK_P50_G[i])) / (w[j] - w[i])
+  );
 }
 
-/** Z-score do peso estimado (g) para a IG (dias) — Hadlock 1991. */
+/** Peso fetal esperado (mediana, g) para a IG — Hadlock 1991 (tabela). */
+export function expectedEfw(gaDays: number): number | null {
+  if (!Number.isFinite(gaDays)) return null;
+  return hadlockP50(gaDays / 7);
+}
+
+/** Z-score do peso (g) para a IG (dias) — log-normal, DP ln = 0,127. */
 export function efwZ(weightG: number, gaDays: number): number | null {
   if (!weightG || weightG <= 0) return null;
-  const median = expectedEfw(gaDays);
-  if (median === null) return null;
-  return (weightG - median) / (EFW_CV * median);
+  const p50 = expectedEfw(gaDays);
+  if (p50 === null || p50 <= 0) return null;
+  return (Math.log(weightG) - Math.log(p50)) / EFW_SD_LN;
 }
 
 export function efwCentile(weightG: number, gaDays: number): number | null {
   return zToCentile(efwZ(weightG, gaDays));
 }
 
-// --- Circunferência abdominal por IG (Hadlock 1984, PMID 6739822) ---
-// CA média (cm) = −13.3 + 1.61·GA − 0.00998·GA²; DP = 13,4 mm (constante).
-const AC_SD_MM = 13.4;
+// --- CIRC. ABDOMINAL: Hadlock 1984, como no Fetal Biometry 5.0 ---
+const AC_SD_MM = 13.4; // DP = 1,34 cm
 
-/** CA esperada (mediana, mm) para a IG — Hadlock 1984. */
+/** CA esperada (mediana, mm) para a IG — Hadlock 1984 (IG limitada a 12–42 sem). */
 export function expectedAc(gaDays: number): number | null {
-  const w = gaDays / 7;
-  if (w < 12 || w > 42) return null;
-  return (-13.3 + 1.61 * w - 0.00998 * w * w) * 10;
+  if (!Number.isFinite(gaDays)) return null;
+  const g = Math.max(12, Math.min(42, gaDays / 7));
+  return (-13.3 + 1.61 * g - 0.00998 * g * g) * 10;
 }
 
-/** Z-score da circunferência abdominal (mm) para a IG (dias) — Hadlock 1984. */
+/** Z-score da circunferência abdominal (mm) para a IG (dias) — normal, DP 13,4 mm. */
 export function acZ(acMm: number, gaDays: number): number | null {
   if (!acMm || acMm <= 0) return null;
   const mean = expectedAc(gaDays);
