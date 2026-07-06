@@ -10,6 +10,8 @@ export const SEROLOGY_ANALYTES = [
   "HIV",
   "HTLV",
   "VDRL",
+  "TR-SÍFILIS",
+  "FTA-ABS",
   "ANTIHBS",
   "HBSAG",
   "ANTIHCV",

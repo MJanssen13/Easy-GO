@@ -724,15 +724,24 @@ export function PsgoGenerator() {
                           }
                           return (
                             <td key={c.id} className="border-b p-1">
-                              <select
-                                className={`${selectClass} h-7 w-20 text-xs`}
-                                value={val}
-                                onChange={(e) => setSerologyValue(a, c.id, e.target.value)}
-                              >
-                                <option value="">—</option>
-                                <option value="NR">NR</option>
-                                <option value="REAG">REAG</option>
-                              </select>
+                              <div className="inline-flex rounded-md border p-0.5">
+                                {(["NR", "REAG"] as const).map((opt) => (
+                                  <button
+                                    key={opt}
+                                    type="button"
+                                    onClick={() => setSerologyValue(a, c.id, val === opt ? "" : opt)}
+                                    className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                                      val === opt
+                                        ? opt === "REAG"
+                                          ? "bg-rose-600 text-white"
+                                          : "bg-emerald-600 text-white"
+                                        : "text-muted-foreground hover:bg-muted"
+                                    }`}
+                                  >
+                                    {opt}
+                                  </button>
+                                ))}
+                              </div>
                             </td>
                           );
                         })}
