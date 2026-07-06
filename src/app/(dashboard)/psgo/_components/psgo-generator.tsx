@@ -103,25 +103,6 @@ export function PsgoGenerator() {
     update({ priorPregnancies: form.priorPregnancies.filter((p) => p.id !== id) });
   }
 
-  // USGs
-  function addUsg() {
-    update({
-      usgExams: [
-        ...form.usgExams,
-        { id: uid(), date: "", gaWeeks: undefined, gaDays: undefined, useForDating: form.usgExams.length === 0 },
-      ],
-    });
-  }
-  function updateUsg(id: string, patch: Partial<PsgoForm["usgExams"][number]>) {
-    update({ usgExams: form.usgExams.map((u) => (u.id === id ? { ...u, ...patch } : u)) });
-  }
-  function removeUsg(id: string) {
-    update({ usgExams: form.usgExams.filter((u) => u.id !== id) });
-  }
-  function setDatingUsg(id: string) {
-    update({ usgExams: form.usgExams.map((u) => ({ ...u, useForDating: u.id === id })) });
-  }
-
   // Medicamentos
   function addMed(label: string) {
     if (form.medications.some((m) => m.label === label)) return;
@@ -179,6 +160,11 @@ export function PsgoGenerator() {
   }
   function removeImaging(id: string) {
     update({ imagingExams: form.imagingExams.filter((e) => e.id !== id) });
+  }
+  function setDatingImaging(id: string) {
+    update({
+      imagingExams: form.imagingExams.map((e) => ({ ...e, useForDating: e.id === id })),
+    });
   }
   function numOrUndef(v: string): number | undefined {
     return v === "" ? undefined : Number(v);
@@ -295,12 +281,7 @@ export function PsgoGenerator() {
         {/* Datação + dados do Robson */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
-              Datação e dados obstétricos
-              <Button type="button" size="sm" variant="outline" onClick={addUsg}>
-                <Plus className="h-4 w-4" /> USG
-              </Button>
-            </CardTitle>
+            <CardTitle className="text-base">Datação e dados obstétricos</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -329,46 +310,10 @@ export function PsgoGenerator() {
               DUM incerta (datar pelo US)
             </label>
 
-            {form.usgExams.map((u) => (
-              <div key={u.id} className="flex flex-wrap items-end gap-2 rounded-md border p-2">
-                <Field label="Data do US">
-                  <Input
-                    type="date"
-                    className="w-40"
-                    value={u.date ?? ""}
-                    onChange={(e) => updateUsg(u.id, { date: e.target.value })}
-                  />
-                </Field>
-                <Field label="IG sem">
-                  <Input
-                    type="number"
-                    className="w-20"
-                    value={u.gaWeeks ?? ""}
-                    onChange={(e) => updateUsg(u.id, { gaWeeks: e.target.value ? Number(e.target.value) : undefined })}
-                  />
-                </Field>
-                <Field label="IG dias">
-                  <Input
-                    type="number"
-                    className="w-20"
-                    value={u.gaDays ?? ""}
-                    onChange={(e) => updateUsg(u.id, { gaDays: e.target.value ? Number(e.target.value) : undefined })}
-                  />
-                </Field>
-                <label className="flex items-center gap-1 text-xs">
-                  <input
-                    type="radio"
-                    name="datingUsg"
-                    checked={!!u.useForDating}
-                    onChange={() => setDatingUsg(u.id)}
-                  />
-                  Datar
-                </label>
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeUsg(u.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
+            <p className="rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+              O USG usado para datação é escolhido no quadro <strong>Exames de imagem</strong> (linha
+              &ldquo;Datar&rdquo;).
+            </p>
 
             <div className="grid grid-cols-3 gap-3">
               <Field label="Nº de fetos">
@@ -848,6 +793,22 @@ export function PsgoGenerator() {
                               onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
                             />
                           </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Datar</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <input
+                              type="radio"
+                              name="imgDating"
+                              checked={!!e.useForDating}
+                              onChange={() => setDatingImaging(e.id)}
+                            />
+                            usar p/ datação
+                          </label>
                         </td>
                       ))}
                     </tr>

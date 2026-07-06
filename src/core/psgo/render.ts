@@ -45,7 +45,12 @@ export interface PsgoComputed {
 
 export function computePsgo(form: PsgoForm): PsgoComputed {
   const parity = formatParity(form.priorPregnancies);
-  const dating = resolvePsgoDating(form);
+  const dating = resolvePsgoDating({
+    lmp: form.lmp,
+    lmpUncertain: form.lmpUncertain,
+    usgExams: form.imagingExams,
+    preference: form.datingPreference,
+  });
   const robson = classifyRobson({
     parity: parity.multipara ? "multipara" : "nullipara",
     priorCesarean: parity.cesareanCount >= 1,
@@ -61,7 +66,12 @@ export function renderPsgo(form: PsgoForm): string {
   const L: string[] = [];
 
   const parity = formatParity(form.priorPregnancies);
-  const dating = resolvePsgoDating(form);
+  const dating = resolvePsgoDating({
+    lmp: form.lmp,
+    lmpUncertain: form.lmpUncertain,
+    usgExams: form.imagingExams,
+    preference: form.datingPreference,
+  });
   const weight = form.weight ? Number(form.weight) : null;
   const height = form.height ? Number(form.height) : null;
   const bmi = classifyBmi(weight, height);

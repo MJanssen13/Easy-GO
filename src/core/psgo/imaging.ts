@@ -16,6 +16,7 @@ export interface ImagingExam {
   date?: string;
   gaWeeks?: number;
   gaDays?: number;
+  useForDating?: boolean; // USG escolhido para datação
   presentation?: string; // APRESENTAÇÃO (cefálica/pélvica/córmica)
   efw?: string; // PESO — PFE (g)
   ac?: string; // CIRC. ABDOMINAL (mm)

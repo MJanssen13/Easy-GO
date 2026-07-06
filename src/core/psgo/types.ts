@@ -40,11 +40,10 @@ export interface PsgoForm {
   // paridade
   priorPregnancies: PriorPregnancy[];
 
-  // datação
+  // datação (o USG usado para datar vem do quadro de exames de imagem)
   lmp: string;
   lmpUncertain: boolean;
   datingPreference: DatingPreference;
-  usgExams: UsgExam[];
 
   // dados clínicos para Robson
   presentation: RobsonPresentation | "";
@@ -122,7 +121,6 @@ export function emptyPsgoForm(): PsgoForm {
     lmp: "",
     lmpUncertain: false,
     datingPreference: "auto",
-    usgExams: [],
     presentation: "",
     fetuses: "",
     laborOnset: "",
