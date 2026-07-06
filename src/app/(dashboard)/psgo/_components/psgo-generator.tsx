@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Siren } from "lucide-react";
+import { Plus, Trash2, Siren, Info } from "lucide-react";
 import { emptyPsgoForm, HABITS, COMPANION_RELATIONS, type PsgoForm } from "@/core/psgo/types";
 import { renderPsgo, computePsgo } from "@/core/psgo/render";
 import { PRIOR_TYPE_LABELS, type PriorPregnancyType } from "@/core/psgo/parity";
@@ -62,6 +62,60 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+/** Ícone "i" com um informativo curto em popover (clique para abrir/fechar). */
+function InfoTip({ title, children }: { title?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        aria-label={title ?? "Mais informações"}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-6 z-40 w-72 rounded-md border bg-background p-3 text-xs shadow-lg">
+          {title && <p className="mb-1.5 font-semibold text-foreground">{title}</p>}
+          <div className="space-y-1.5 text-muted-foreground">{children}</div>
+        </div>
+      )}
+    </span>
+  );
+}
+
+/** Segmented control (chave) para escolher entre valores mutuamente exclusivos. */
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  return (
+    <div className="inline-flex w-full rounded-md border bg-background p-0.5">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
+            value === opt.value
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -288,17 +342,37 @@ export function PsgoGenerator() {
               <Field label="DUM">
                 <Input type="date" value={form.lmp} onChange={(e) => update({ lmp: e.target.value })} />
               </Field>
-              <Field label="Datação">
-                <select
-                  className={selectClass}
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs">Datação</Label>
+                  <InfoTip title="Como é feita a datação">
+                    <p>
+                      O USG usado é o marcado em <strong>&ldquo;Datar&rdquo;</strong> no quadro de
+                      exames de imagem.
+                    </p>
+                    <p>
+                      <strong>DUM</strong> — regra de Naegele (DUM + 280 dias).
+                    </p>
+                    <p>
+                      <strong>USG</strong> — pela IG do exame (data + IG do USG).
+                    </p>
+                    <p>
+                      <strong>Auto (ACOG)</strong> — mantém a DUM, mas <em>redata pela USG</em> se a
+                      diferença passar do limite da IG no exame: 5d (≤8s), 7d (até 16s), 10d (até
+                      22s), 14d (até 28s), 21d (≥28s). Committee Opinion 700.
+                    </p>
+                  </InfoTip>
+                </div>
+                <Segmented
                   value={form.datingPreference}
-                  onChange={(e) => update({ datingPreference: e.target.value as PsgoForm["datingPreference"] })}
-                >
-                  <option value="auto">Automática (ACOG)</option>
-                  <option value="lmp">Pela DUM</option>
-                  <option value="us">Pelo US</option>
-                </select>
-              </Field>
+                  onChange={(v) => update({ datingPreference: v })}
+                  options={[
+                    { value: "lmp", label: "DUM" },
+                    { value: "us", label: "USG" },
+                    { value: "auto", label: "Auto (ACOG)" },
+                  ]}
+                />
+              </div>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input
