@@ -59,6 +59,35 @@ export function examCpr(e: ImagingExam): number | null {
   return cprValue(num(e.mcaPi), num(e.uaPi));
 }
 
+export interface ImagingCentiles {
+  efw: string; // "P 50" ou ""
+  ac: string;
+  uaPi: string;
+  mcaPi: string;
+  cpr: string;
+}
+
+/** Rótulos de percentil ("P X") de cada medida do exame, para exibição no quadro. */
+export function examCentiles(e: ImagingExam): ImagingCentiles {
+  const gaDays = examGaDays(e);
+  const lab = (c: number | null) => {
+    const f = formatCentile(c);
+    return f ? `P ${f}` : "";
+  };
+  const efw = num(e.efw);
+  const ac = num(e.ac);
+  const uaPi = num(e.uaPi);
+  const mcaPi = num(e.mcaPi);
+  const cpr = examCpr(e);
+  return {
+    efw: gaDays != null && efw != null ? lab(efwCentile(efw, gaDays)) : "",
+    ac: gaDays != null && ac != null ? lab(acCentile(ac, gaDays)) : "",
+    uaPi: gaDays != null && uaPi != null ? lab(uaPiCentile(uaPi, gaDays)) : "",
+    mcaPi: gaDays != null && mcaPi != null ? lab(mcaPiCentile(mcaPi, gaDays)) : "",
+    cpr: gaDays != null && cpr != null ? lab(cprCentile(cpr, gaDays)) : "",
+  };
+}
+
 export function hasImagingData(e: ImagingExam): boolean {
   return Boolean(
     e.date ||
