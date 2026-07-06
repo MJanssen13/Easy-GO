@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Plus, Trash2, Siren, Info } from "lucide-react";
 import { emptyPsgoForm, HABITS, COMPANION_RELATIONS, type PsgoForm } from "@/core/psgo/types";
 import { renderPsgo, computePsgo } from "@/core/psgo/render";
+import { datingDisplay } from "@/core/psgo/dating";
 import { PRIOR_TYPE_LABELS, type PriorPregnancyType } from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
@@ -129,6 +130,16 @@ export function PsgoGenerator() {
   const imagingCentiles = useMemo(
     () => Object.fromEntries(form.imagingExams.map((e) => [e.id, examCentiles(e)])),
     [form.imagingExams],
+  );
+  const datingView = useMemo(
+    () =>
+      datingDisplay({
+        lmp: form.lmp,
+        lmpUncertain: form.lmpUncertain,
+        usgExams: form.imagingExams,
+        preference: form.datingPreference,
+      }),
+    [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference],
   );
   const bmi = classifyBmi(
     form.weight ? Number(form.weight) : null,
@@ -384,47 +395,112 @@ export function PsgoGenerator() {
               DUM incerta (datar pelo US)
             </label>
 
-            <p className="rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
-              O USG usado para datação é escolhido no quadro <strong>Exames de imagem</strong> (linha
-              &ldquo;Datar&rdquo;).
-            </p>
+            {/* IG pela DUM × pela USG (o usado para a HD fica destacado) */}
+            <div className="grid grid-cols-2 gap-2">
+              <div
+                className={`rounded-lg border p-2.5 transition-colors ${
+                  datingView.chosen === "DUM" ? "border-primary/60 bg-primary/5" : "bg-background"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    IG pela DUM
+                  </span>
+                  {datingView.chosen === "DUM" && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                      usada
+                    </span>
+                  )}
+                </div>
+                {datingView.dum ? (
+                  <>
+                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
+                      {datingView.dum.ga.weeks}
+                      <span className="text-sm font-medium text-muted-foreground">s </span>
+                      {datingView.dum.ga.days}
+                      <span className="text-sm font-medium text-muted-foreground">d</span>
+                    </p>
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      DPP {datingView.dum.eddBR}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[11px] text-muted-foreground">Informe a DUM acima.</p>
+                )}
+              </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Nº de fetos">
-                <select
-                  className={selectClass}
+              <div
+                className={`rounded-lg border p-2.5 transition-colors ${
+                  datingView.chosen === "US" ? "border-primary/60 bg-primary/5" : "bg-background"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    IG pela USG
+                  </span>
+                  {datingView.chosen === "US" && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                      usada
+                    </span>
+                  )}
+                </div>
+                {datingView.usg ? (
+                  <>
+                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
+                      {datingView.usg.currentGa.weeks}
+                      <span className="text-sm font-medium text-muted-foreground">s </span>
+                      {datingView.usg.currentGa.days}
+                      <span className="text-sm font-medium text-muted-foreground">d</span>
+                    </p>
+                    <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                      Exame {datingView.usg.dateBR} · {datingView.usg.gaAtExam.weeks}s
+                      {datingView.usg.gaAtExam.days}d na data
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                    Marque um USG em &ldquo;Datar&rdquo; no quadro de imagem.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Nº de fetos</Label>
+                <Segmented
                   value={form.fetuses}
-                  onChange={(e) => update({ fetuses: e.target.value as PsgoForm["fetuses"] })}
-                >
-                  <option value="">—</option>
-                  <option value="single">Único</option>
-                  <option value="multiple">Múltiplos</option>
-                </select>
-              </Field>
-              <Field label="Apresentação">
-                <select
-                  className={selectClass}
+                  onChange={(v) => update({ fetuses: v })}
+                  options={[
+                    { value: "single", label: "Único" },
+                    { value: "multiple", label: "Múltiplos" },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Apresentação</Label>
+                <Segmented
                   value={form.presentation}
-                  onChange={(e) => update({ presentation: e.target.value as PsgoForm["presentation"] })}
-                >
-                  <option value="">—</option>
-                  <option value="cephalic">Cefálica</option>
-                  <option value="breech">Pélvica</option>
-                  <option value="transverse">Córmica</option>
-                </select>
-              </Field>
-              <Field label="Início do TP">
-                <select
-                  className={selectClass}
+                  onChange={(v) => update({ presentation: v })}
+                  options={[
+                    { value: "cephalic", label: "Cefálica" },
+                    { value: "breech", label: "Pélvica" },
+                    { value: "transverse", label: "Córmica" },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Início do TP</Label>
+                <Segmented
                   value={form.laborOnset}
-                  onChange={(e) => update({ laborOnset: e.target.value as PsgoForm["laborOnset"] })}
-                >
-                  <option value="">—</option>
-                  <option value="spontaneous">Espontâneo</option>
-                  <option value="induced">Induzido</option>
-                  <option value="cesarean_before_labor">Cesárea antes do TP</option>
-                </select>
-              </Field>
+                  onChange={(v) => update({ laborOnset: v })}
+                  options={[
+                    { value: "spontaneous", label: "Espontâneo" },
+                    { value: "induced", label: "Induzido" },
+                    { value: "cesarean_before_labor", label: "Cesárea pré-TP" },
+                  ]}
+                />
+              </div>
             </div>
             {robsonMissing.length > 0 && (
               <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
