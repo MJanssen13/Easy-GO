@@ -236,9 +236,9 @@ export function PsgoGenerator() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      {/* ----- Formulário ----- */}
-      <div className="space-y-4">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* ----- Formulário (2/3) ----- */}
+      <div className="space-y-4 lg:col-span-2">
         {/* Identificação */}
         <Card>
           <CardHeader>

@@ -48,7 +48,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
+      <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
 
       <footer className="border-t bg-white/70 px-4 py-3 text-center text-xs text-muted-foreground">
         Easy-GO · Ferramenta de apoio à decisão clínica. Não substitui o julgamento médico. Todo
