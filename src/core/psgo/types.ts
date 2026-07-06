@@ -7,6 +7,8 @@ import type { RobsonPresentation, RobsonFetuses, RobsonOnset } from "./robson";
 import type { SerologyGrid } from "./serology";
 import { emptySerologyGrid } from "./serology";
 import type { ImagingExam } from "./imaging";
+import type { GynecoState } from "./gyneco-exam";
+import { emptyGynecoState } from "./gyneco-exam";
 
 export const HABITS = ["NEGA", "UDI", "TBG", "ÁLCOOL"];
 
@@ -78,6 +80,7 @@ export interface PsgoForm {
   height: string;
   vitals: ExamVitals;
   exam: Record<string, ExamSystemState>;
+  gyneco: GynecoState;
 
   // CTG
   ctg: string;
@@ -141,6 +144,7 @@ export function emptyPsgoForm(): PsgoForm {
     height: "",
     vitals: {},
     exam,
+    gyneco: emptyGynecoState(),
     ctg: "",
     cd: "",
     serologyPasted: "",

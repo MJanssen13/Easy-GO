@@ -31,8 +31,6 @@ export const EXAM_SYSTEMS: ExamSystemDef[] = [
   { id: "geral", label: "Geral" },
   { id: "ar", label: "Ap. respiratório" },
   { id: "acv", label: "Ap. cardiovascular" },
-  { id: "abd", label: "Abdome (gravídico)" },
-  { id: "toque", label: "Toque vaginal" },
   { id: "mmii", label: "MMII" },
 ];
 

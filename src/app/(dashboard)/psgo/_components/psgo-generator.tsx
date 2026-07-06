@@ -5,6 +5,7 @@ import { Plus, Trash2, Siren, Info } from "lucide-react";
 import { emptyPsgoForm, HABITS, COMPANION_RELATIONS, type PsgoForm } from "@/core/psgo/types";
 import { renderPsgo, computePsgo } from "@/core/psgo/render";
 import { datingDisplay } from "@/core/psgo/dating";
+import { ABD_FIELDS, TOQUE_FIELDS, ESP_FIELDS, type GyField } from "@/core/psgo/gyneco-exam";
 import { PRIOR_TYPE_LABELS, type PriorPregnancyType } from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
@@ -234,6 +235,30 @@ export function PsgoGenerator() {
   function numOrUndef(v: string): number | undefined {
     return v === "" ? undefined : Number(v);
   }
+
+  // Exame ginecológico
+  function setGyneco(patch: Partial<PsgoForm["gyneco"]>) {
+    update({ gyneco: { ...form.gyneco, ...patch } });
+  }
+  function setGynecoValue(fieldId: string, label: string) {
+    update({ gyneco: { ...form.gyneco, values: { ...form.gyneco.values, [fieldId]: label } } });
+  }
+  const gyField = (field: GyField) => (
+    <div key={field.id} className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{field.label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {field.options.map((op) => (
+          <Chip
+            key={op.label}
+            active={form.gyneco.values[field.id] === op.label}
+            onClick={() => setGynecoValue(field.id, op.label)}
+          >
+            {op.label}
+          </Chip>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -725,22 +750,32 @@ export function PsgoGenerator() {
                           return (
                             <td key={c.id} className="border-b p-1">
                               <div className="inline-flex rounded-md border p-0.5">
-                                {(["NR", "REAG"] as const).map((opt) => (
-                                  <button
-                                    key={opt}
-                                    type="button"
-                                    onClick={() => setSerologyValue(a, c.id, val === opt ? "" : opt)}
-                                    className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-colors ${
-                                      val === opt
-                                        ? opt === "REAG"
-                                          ? "bg-rose-600 text-white"
-                                          : "bg-emerald-600 text-white"
-                                        : "text-muted-foreground hover:bg-muted"
-                                    }`}
-                                  >
-                                    {opt}
-                                  </button>
-                                ))}
+                                {[
+                                  { v: "", label: "—", title: "Não realizado" },
+                                  { v: "NR", label: "NR", title: "Não reagente" },
+                                  { v: "REAG", label: "REAG", title: "Reagente" },
+                                ].map((o) => {
+                                  const active = val === o.v;
+                                  return (
+                                    <button
+                                      key={o.v || "nd"}
+                                      type="button"
+                                      title={o.title}
+                                      onClick={() => setSerologyValue(a, c.id, o.v)}
+                                      className={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                                        active
+                                          ? o.v === "REAG"
+                                            ? "bg-rose-600 text-white"
+                                            : o.v === "NR"
+                                              ? "bg-emerald-600 text-white"
+                                              : "bg-muted text-foreground"
+                                          : "text-muted-foreground hover:bg-muted"
+                                      }`}
+                                    >
+                                      {o.label}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </td>
                           );
@@ -867,6 +902,74 @@ export function PsgoGenerator() {
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+
+        {/* Exame ginecológico e obstétrico */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Exame ginecológico e obstétrico</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Abdome */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Abdome (gravídico)</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{ABD_FIELDS.map(gyField)}</div>
+              <p className="text-xs text-muted-foreground">
+                AU e BCF vêm dos sinais vitais do exame físico.
+              </p>
+            </div>
+
+            {/* Toque vaginal */}
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Toque vaginal</p>
+                <div className="w-52">
+                  <Segmented
+                    value={form.gyneco.toqueRealizado ? "sim" : "nao"}
+                    onChange={(v) => setGyneco({ toqueRealizado: v === "sim" })}
+                    options={[
+                      { value: "sim", label: "Realizado" },
+                      { value: "nao", label: "Não realizado" },
+                    ]}
+                  />
+                </div>
+              </div>
+              {form.gyneco.toqueRealizado && (
+                <>
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={form.gyneco.toqueAutorizado}
+                      onChange={(e) => setGyneco({ toqueAutorizado: e.target.checked })}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    Autorizado pela paciente
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{TOQUE_FIELDS.map(gyField)}</div>
+                </>
+              )}
+            </div>
+
+            {/* Exame especular */}
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Exame especular</p>
+                <div className="w-52">
+                  <Segmented
+                    value={form.gyneco.espRealizado ? "sim" : "nao"}
+                    onChange={(v) => setGyneco({ espRealizado: v === "sim" })}
+                    options={[
+                      { value: "sim", label: "Realizado" },
+                      { value: "nao", label: "Não realizado" },
+                    ]}
+                  />
+                </div>
+              </div>
+              {form.gyneco.espRealizado && (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{ESP_FIELDS.map(gyField)}</div>
+              )}
+            </div>
           </CardContent>
         </Card>
 

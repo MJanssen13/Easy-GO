@@ -9,6 +9,7 @@ import { resolvePsgoDating } from "./dating";
 import { autoComorbidities, classifyBmi } from "./comorbidities";
 import { formatMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
+import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
 import { renderImaging } from "./imaging";
 
@@ -154,6 +155,10 @@ export function renderPsgo(form: PsgoForm): string {
     `PESO: ${form.weight} KG // ALTURA: ${form.height} M // IMC: ${bmi ? bmi.imc : ""} KG/M²`,
   );
   for (const s of EXAM_SYSTEMS) {
+    // Exame ginecológico/obstétrico (ABD, toque, especular) antes de MMII.
+    if (s.id === "mmii") {
+      for (const line of renderGyneco(form.gyneco, form.vitals)) L.push(line);
+    }
     L.push(buildExamLine(s.id, form.exam[s.id], form.vitals));
   }
 
