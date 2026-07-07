@@ -54,54 +54,65 @@ export const ABD_FIELDS: GyField[] = [
   },
 ];
 
-// --- Toque vaginal ---
+// --- Toque vaginal (notação do pré-parto) ---
+const cmOptions: GyOption[] = [
+  o("Impérvio", "OE IMPÉRVIO"),
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => o(`${n} cm`, `DILATAÇÃO ${n} CM`)),
+];
+const deLeeOptions: GyOption[] = [
+  o("Alto e móvel", "ALTO E MÓVEL"),
+  ...[-3, -2, -1, 0, 1, 2, 3, 4].map((n) => o(`${n > 0 ? `+${n}` : n}`, `DE LEE ${n > 0 ? `+${n}` : n}`)),
+];
+
 export const TOQUE_FIELDS: GyField[] = [
-  {
-    id: "toqueConsistencia",
-    label: "Consistência do colo",
-    options: [o("Grosso"), o("Médio"), o("Fino"), o("Apagado")],
-  },
   {
     id: "toquePosicao",
     label: "Posição do colo",
-    options: [o("Posterior"), o("Intermediário"), o("Centralizado"), o("Anterior")],
+    options: [o("Posterior"), o("Intermediário"), o("Centralizado")],
   },
   {
-    id: "toqueDilatacao",
-    label: "Dilatação",
+    id: "toqueConsistencia",
+    label: "Consistência do colo",
+    options: [o("Firme"), o("Intermediária"), o("Amolecido")],
+  },
+  {
+    id: "toqueApagamento",
+    label: "Apagamento (colo grosso→apagado ou %)",
     options: [
-      o("Impérvio", "OE IMPÉRVIO"),
-      o("1 cm", "1 CM"),
-      o("2 cm", "2 CM"),
-      o("3 cm", "3 CM"),
-      o("4 cm", "4 CM"),
-      o("5 cm", "5 CM"),
-      o("6 cm", "6 CM"),
-      o("7 cm", "7 CM"),
-      o("8 cm", "8 CM"),
-      o("9 cm", "9 CM"),
-      o("10 cm", "10 CM"),
+      o("Grosso"),
+      o("Médio"),
+      o("Fino"),
+      o("Apagado"),
+      o("25%", "ESVAECIMENTO 25%"),
+      o("50%", "ESVAECIMENTO 50%"),
+      o("75%", "ESVAECIMENTO 75%"),
+      o("100%", "ESVAECIMENTO 100%"),
     ],
   },
+  { id: "toqueDilatacao", label: "Dilatação", options: cmOptions },
+  { id: "toqueDeLee", label: "Altura (De Lee)", options: deLeeOptions },
   {
     id: "toqueApresentacao",
     label: "Apresentação",
     options: [
-      o("Alta e móvel", "APRESENTAÇÃO ALTA E MÓVEL"),
-      o("Insinuada", "APRESENTAÇÃO INSINUADA"),
       o("Cefálica", "APRESENTAÇÃO CEFÁLICA"),
       o("Pélvica", "APRESENTAÇÃO PÉLVICA"),
+      o("Córmica", "APRESENTAÇÃO CÓRMICA"),
     ],
   },
   {
     id: "toqueBolsa",
     label: "Bolsa",
-    options: [o("Íntegra", "BOLSA ÍNTEGRA"), o("Rota", "BOLSA ROTA"), o("Não avaliada", "BOLSA NÃO AVALIADA")],
+    options: [
+      o("Íntegra", "BOLSA ÍNTEGRA"),
+      o("Rota, claro", "BOLSA ROTA, LÍQUIDO CLARO"),
+      o("Rota, meconial", "BOLSA ROTA, LÍQUIDO MECONIAL"),
+    ],
   },
   {
     id: "toqueSangramento",
-    label: "Sangramento",
-    options: [o("Sem sangue", "SEM SANGUE EM DEDO DE LUVA"), o("Com sangue", "COM SANGUE EM DEDO DE LUVA")],
+    label: "Sangue na luva",
+    options: [o("Sem sangue", "SEM SANGUE NA LUVA"), o("Com sangue", "COM SANGUE NA LUVA")],
   },
 ];
 
@@ -180,8 +191,9 @@ export function renderGyneco(st: GynecoState, vitals: ExamVitals): string[] {
   } else {
     const t = (id: string) => pick(TOQUE_FIELDS.find((f) => f.id === id)!, v);
     const auth = st.toqueAutorizado ? " (AUTORIZADO PELA PACIENTE)" : "";
+    const colo = `COLO ${t("toquePosicao")}, ${t("toqueConsistencia")}, ${t("toqueApagamento")}`;
     lines.push(
-      `TOQUE VAGINAL${auth}: COLO ${t("toqueConsistencia")}, ${t("toquePosicao")}, ${t("toqueDilatacao")}, ${t("toqueApresentacao")}, ${t("toqueBolsa")}, ${t("toqueSangramento")}`,
+      `TOQUE VAGINAL${auth}: ${colo}, ${t("toqueDilatacao")}, ${t("toqueDeLee")}, ${t("toqueApresentacao")}, ${t("toqueBolsa")}, ${t("toqueSangramento")}`,
     );
   }
 
