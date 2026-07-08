@@ -20,6 +20,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   admissões; `/psgo/admissao` = gerador (nova/edição via `?id=`);
   `/psgo/[id]` = **detalhe** da paciente (prontuário + editar). Salvar
   redireciona para o detalhe.
+- **Transferência** no detalhe do PSGO: botão "Transferir para…"
+  (Pré-Parto / Puerpério / Onco-Ginecologia) usando `transferPatient` —
+  troca o `module` e registra em `patient_transfers`; os dados comuns e a
+  admissão viajam com a paciente.
 
 ### Colaboração
 
