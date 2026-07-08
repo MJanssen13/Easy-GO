@@ -93,6 +93,8 @@ export interface Patient {
   magnesiumSulfateStartTime?: string | null;
   magnesiumSulfateEndTime?: string | null;
   schedule: ScheduledTask[];
+  /** Dados específicos do módulo (JSON). Ex.: admissão completa do PSGO. */
+  clinicalSummary?: Record<string, unknown> | null;
   admissionDate: string;
   dischargeTime?: string | null;
   createdAt: string;
@@ -117,6 +119,7 @@ export interface NewPatientInput {
   gaDays?: number | null;
   status?: PatientStatus;
   riskFactors?: string[];
+  clinicalSummary?: Record<string, unknown> | null;
 }
 
 /** Campos editáveis de uma paciente (edição + protocolos). */
@@ -140,6 +143,7 @@ export interface UpdatePatientInput {
   useMagnesiumSulfate?: boolean;
   magnesiumSulfateStartTime?: string | null;
   magnesiumSulfateEndTime?: string | null;
+  clinicalSummary?: Record<string, unknown> | null;
 }
 
 export interface NewObservationInput {

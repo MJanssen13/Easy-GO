@@ -5,6 +5,26 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — admissão persistida (Fase 1)
+
+- O modelo de paciente compartilhado passa a gravar/ler `clinical_summary`
+  (JSON) em `Patient`/mappers — sem quebrar os módulos existentes.
+- Mapeador `PsgoForm ↔ Patient` (`src/core/psgo/patient-mapper.ts`): campos
+  comuns (nome, RG, idade, paridade, tipo sanguíneo, DUM/DPP/IG, fatores de
+  risco) vão nas colunas; a admissão completa + Robson + prontuário ficam em
+  `clinical_summary`. Datação pelas colunas segue o método ACOG escolhido.
+- Action `savePsgoAdmission` e botão **"Salvar admissão"** no gerador do PSGO:
+  cria/atualiza uma paciente com `module = "psgo"` (base para transferir aos
+  outros módulos). *(Requer Supabase configurado.)*
+- Rotas do PSGO reestruturadas (como o pré-parto): `/psgo` = **board** de
+  admissões; `/psgo/admissao` = gerador (nova/edição via `?id=`);
+  `/psgo/[id]` = **detalhe** da paciente (prontuário + editar). Salvar
+  redireciona para o detalhe.
+- **Transferência** no detalhe do PSGO: botão "Transferir para…"
+  (Pré-Parto / Puerpério / Onco-Ginecologia) usando `transferPatient` —
+  troca o `module` e registra em `patient_transfers`; os dados comuns e a
+  admissão viajam com a paciente.
+
 ### Colaboração
 
 - `CLAUDE.md`, `CONTRIBUTING.md`, template de PR, `docs/ROADMAP.md` e este changelog.
