@@ -14,12 +14,20 @@ import {
   getSchedule,
   RepositoryError,
 } from "@/core/patients/repository";
-import { mergeSchedule, markCompleted, setTaskStatus } from "@/core/schedule/planner";
+import {
+  mergeSchedule,
+  markCompleted,
+  setTaskStatus,
+  tasksFromRoutines,
+  nextHalfHour,
+  shiftEnd,
+} from "@/core/schedule/planner";
+import { getRoutine, hasDiabetesRisk } from "@/core/schedule/routines";
 import { createCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
 import { computeCtgScore, suggestConclusion } from "@/core/ctg/scoring";
 import type { NewCtgInput } from "@/core/ctg/types";
 import type { ScheduledTask } from "@/core/patients/types";
-import { eddFromLMP, gaFromLMP } from "@/core/obstetric/gestational-age";
+import { datingFromGestationalAges } from "@/core/obstetric/gestational-age";
 import type {
   NewPatientInput,
   UpdatePatientInput,
@@ -32,11 +40,9 @@ import type {
   MagnesiumData,
 } from "@/core/patients/types";
 
-function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+/** Fatores de risco separados por vírgula ou "+". */
+function splitRiskFactors(s?: string): string[] {
+  return s ? s.split(/[,+]/).map((x) => x.trim()).filter(Boolean) : [];
 }
 
 const admissionSchema = z.object({
@@ -46,10 +52,16 @@ const admissionSchema = z.object({
   age: z.coerce.number().int().min(0).max(120).optional(),
   parity: z.string().trim().optional(),
   bloodType: z.string().trim().optional(),
-  lmp: z.string().trim().optional(),
-  gaWeeks: z.coerce.number().int().min(0).max(45).optional(),
-  gaDays: z.coerce.number().int().min(0).max(6).optional(),
-  status: z.enum(["admission", "induction", "active_labor"]).default("admission"),
+  babyName: z.string().trim().optional(),
+  babyName2: z.string().trim().optional(),
+  fetalDeath: z.boolean().optional(),
+  dumWeeks: z.coerce.number().int().min(0).max(45).optional(),
+  dumDays: z.coerce.number().int().min(0).max(6).optional(),
+  usWeeks: z.coerce.number().int().min(0).max(45).optional(),
+  usDays: z.coerce.number().int().min(0).max(6).optional(),
+  status: z
+    .enum(["induction", "conduction", "active_labor", "scheduled_c_section"])
+    .default("induction"),
   riskFactors: z.string().trim().optional(),
 });
 
@@ -66,10 +78,14 @@ export async function admitPatient(
     age: formData.get("age") || undefined,
     parity: formData.get("parity") || undefined,
     bloodType: formData.get("bloodType") || undefined,
-    lmp: formData.get("lmp") || undefined,
-    gaWeeks: formData.get("gaWeeks") || undefined,
-    gaDays: formData.get("gaDays") || undefined,
-    status: formData.get("status") || "admission",
+    babyName: formData.get("babyName") || undefined,
+    babyName2: formData.get("babyName2") || undefined,
+    fetalDeath: formData.get("fetalDeath") === "on",
+    dumWeeks: formData.get("dumWeeks") || undefined,
+    dumDays: formData.get("dumDays") || undefined,
+    usWeeks: formData.get("usWeeks") || undefined,
+    usDays: formData.get("usDays") || undefined,
+    status: formData.get("status") || "induction",
     riskFactors: formData.get("riskFactors") || undefined,
   };
 
@@ -87,29 +103,34 @@ export async function admitPatient(
     age: d.age ?? null,
     parity: d.parity ?? null,
     bloodType: d.bloodType ?? null,
+    babyName: d.babyName ?? null,
+    babyName2: d.babyName2 ?? null,
+    fetalDeath: d.fetalDeath ?? false,
     status: d.status as PatientStatus,
-    riskFactors: d.riskFactors
-      ? d.riskFactors.split(",").map((s) => s.trim()).filter(Boolean)
-      : [],
+    riskFactors: splitRiskFactors(d.riskFactors),
   };
 
-  // Dating: prefer DUM (auto-computes DPP + IG snapshot); else manual IG.
-  if (d.lmp) {
-    const lmpDate = new Date(`${d.lmp}T00:00:00`);
-    if (!Number.isNaN(lmpDate.getTime())) {
-      const ga = gaFromLMP(lmpDate);
-      input.lmp = d.lmp;
-      input.edd = toISODate(eddFromLMP(lmpDate));
-      input.gaWeeks = ga.weeks;
-      input.gaDays = ga.days;
-    }
-  } else if (d.gaWeeks != null) {
-    input.gaWeeks = d.gaWeeks;
-    input.gaDays = d.gaDays ?? 0;
+  // Datação: IG por DUM e/ou USG (semanas + dias). Guarda um LMP-equivalente
+  // para que a IG avance ao longo do tempo (ACOG CO-700 quando ambos presentes).
+  const dating = datingFromGestationalAges({
+    dumWeeks: d.dumWeeks,
+    dumDays: d.dumDays,
+    usWeeks: d.usWeeks,
+    usDays: d.usDays,
+  });
+  if (dating) {
+    input.lmp = dating.lmp;
+    input.edd = dating.edd;
+    input.gaWeeks = dating.gaWeeks;
+    input.gaDays = dating.gaDays;
+    input.usGaWeeks = dating.usGaWeeks;
+    input.usGaDays = dating.usGaDays;
+    input.datingMethod = dating.datingMethod;
   }
 
+  let created;
   try {
-    await createPatient(input);
+    created = await createPatient(input);
   } catch (err) {
     const message =
       err instanceof RepositoryError
@@ -118,8 +139,25 @@ export async function admitPatient(
     return { error: message };
   }
 
+  // Rotina de aferições já na admissão (editável depois): fase de base pela
+  // situação + protocolo de diabetes se houver DMG/Overt nos fatores de risco.
+  try {
+    const baseId = d.status === "active_labor" ? "active_phase" : "latent_induction";
+    const routines = [getRoutine(baseId)!];
+    if (hasDiabetesRisk(input.riskFactors ?? [])) {
+      const diabetes = getRoutine("diabetes");
+      if (diabetes) routines.push(diabetes);
+    }
+    const from = nextHalfHour();
+    const tasks = tasksFromRoutines(routines, from, shiftEnd(from));
+    if (tasks.length > 0) await updateSchedule(created.id, tasks);
+  } catch {
+    // best-effort: a rotina pode ser criada/ajustada depois em "Editar Rotina"
+  }
+
   revalidatePath("/pre-parto");
-  redirect("/pre-parto");
+  revalidatePath(`/pre-parto/${created.id}`);
+  redirect(`/pre-parto/${created.id}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +176,7 @@ const intNum = z.coerce.number().int().optional();
 const observationSchema = z.object({
   patientId: z.string().min(1),
   taskId: z.string().optional(),
+  returnTo: z.string().trim().optional(),
   recordedAt: z.string().optional(),
   examinerName: z.string().trim().optional(),
   // vitais
@@ -173,6 +212,7 @@ const observationSchema = z.object({
   misoprostolCount: intNum,
   oxytocinDose: num,
   antibiotic: z.string().trim().optional(),
+  medicationOther: z.string().trim().optional(),
   // conduta
   notes: z.string().trim().optional(),
 });
@@ -186,6 +226,7 @@ export async function recordObservation(
   const raw = {
     patientId: formData.get("patientId"),
     taskId: opt(formData.get("taskId")),
+    returnTo: opt(formData.get("returnTo")),
     recordedAt: opt(formData.get("recordedAt")),
     examinerName: opt(formData.get("examinerName")),
     paSystolic: opt(formData.get("paSystolic")),
@@ -216,6 +257,7 @@ export async function recordObservation(
     misoprostolCount: opt(formData.get("misoprostolCount")),
     oxytocinDose: opt(formData.get("oxytocinDose")),
     antibiotic: opt(formData.get("antibiotic")),
+    medicationOther: opt(formData.get("medicationOther")),
     notes: opt(formData.get("notes")),
   };
 
@@ -254,12 +296,13 @@ export async function recordObservation(
   };
 
   let medication: Medication | undefined;
-  if (d.misoprostolDose != null || d.oxytocinDose != null || d.antibiotic) {
+  if (d.misoprostolDose != null || d.oxytocinDose != null || d.antibiotic || d.medicationOther) {
     medication = {
       misoprostolDose: d.misoprostolDose,
       misoprostolCount: d.misoprostolCount,
       oxytocinDose: d.oxytocinDose,
       antibiotic: d.antibiotic,
+      other: d.medicationOther,
     };
   }
 
@@ -305,7 +348,10 @@ export async function recordObservation(
 
   revalidatePath(`/pre-parto/${d.patientId}`);
   revalidatePath("/pre-parto/cronograma");
-  redirect(`/pre-parto/${d.patientId}`);
+  // Volta para a origem (ex.: cronograma na escrita rápida) quando informado.
+  const dest =
+    d.returnTo && d.returnTo.startsWith("/pre-parto") ? d.returnTo : `/pre-parto/${d.patientId}`;
+  redirect(dest);
 }
 
 // ---------------------------------------------------------------------------
@@ -504,14 +550,19 @@ const editSchema = z.object({
   parity: z.string().trim().optional(),
   bloodType: z.string().trim().optional(),
   babyName: z.string().trim().optional(),
-  lmp: z.string().trim().optional(),
-  gaWeeks: z.coerce.number().int().min(0).max(45).optional(),
-  gaDays: z.coerce.number().int().min(0).max(6).optional(),
+  babyName2: z.string().trim().optional(),
+  fetalDeath: z.boolean().optional(),
+  dumWeeks: z.coerce.number().int().min(0).max(45).optional(),
+  dumDays: z.coerce.number().int().min(0).max(6).optional(),
+  usWeeks: z.coerce.number().int().min(0).max(45).optional(),
+  usDays: z.coerce.number().int().min(0).max(6).optional(),
   status: z
     .enum([
       "admission",
       "active_labor",
       "induction",
+      "conduction",
+      "scheduled_c_section",
       "expectant",
       "observation",
       "inpatient",
@@ -543,9 +594,12 @@ export async function editPatient(
     parity: opt(formData.get("parity")),
     bloodType: opt(formData.get("bloodType")),
     babyName: opt(formData.get("babyName")),
-    lmp: opt(formData.get("lmp")),
-    gaWeeks: opt(formData.get("gaWeeks")),
-    gaDays: opt(formData.get("gaDays")),
+    babyName2: opt(formData.get("babyName2")),
+    fetalDeath: formData.get("fetalDeath") === "on",
+    dumWeeks: opt(formData.get("dumWeeks")),
+    dumDays: opt(formData.get("dumDays")),
+    usWeeks: opt(formData.get("usWeeks")),
+    usDays: opt(formData.get("usDays")),
     status: opt(formData.get("status")),
     riskFactors: opt(formData.get("riskFactors")),
     useMethyldopa: formData.get("useMethyldopa") === "on",
@@ -570,10 +624,10 @@ export async function editPatient(
     parity: d.parity ?? null,
     bloodType: d.bloodType ?? null,
     babyName: d.babyName ?? null,
+    babyName2: d.babyName2 ?? null,
+    fetalDeath: d.fetalDeath ?? false,
     status: d.status as PatientStatus | undefined,
-    riskFactors: d.riskFactors
-      ? d.riskFactors.split(",").map((s) => s.trim()).filter(Boolean)
-      : [],
+    riskFactors: splitRiskFactors(d.riskFactors),
     useMethyldopa: d.useMethyldopa ?? false,
     methyldopaStartTime: d.methyldopaStartTime ?? null,
     methyldopaEndTime: d.methyldopaEndTime ?? null,
@@ -582,22 +636,29 @@ export async function editPatient(
     magnesiumSulfateEndTime: d.magnesiumSulfateEndTime ?? null,
   };
 
-  // Datação: DUM recalcula DPP + IG; senão usa IG manual.
-  if (d.lmp) {
-    const lmpDate = new Date(`${d.lmp}T00:00:00`);
-    if (!Number.isNaN(lmpDate.getTime())) {
-      const ga = gaFromLMP(lmpDate);
-      input.lmp = d.lmp;
-      input.edd = toISODate(eddFromLMP(lmpDate));
-      input.gaWeeks = ga.weeks;
-      input.gaDays = ga.days;
-    }
+  // Datação: IG por DUM e/ou USG (semanas + dias). Sem IG → limpa a datação.
+  const dating = datingFromGestationalAges({
+    dumWeeks: d.dumWeeks,
+    dumDays: d.dumDays,
+    usWeeks: d.usWeeks,
+    usDays: d.usDays,
+  });
+  if (dating) {
+    input.lmp = dating.lmp;
+    input.edd = dating.edd;
+    input.gaWeeks = dating.gaWeeks;
+    input.gaDays = dating.gaDays;
+    input.usGaWeeks = dating.usGaWeeks;
+    input.usGaDays = dating.usGaDays;
+    input.datingMethod = dating.datingMethod;
   } else {
     input.lmp = null;
-    if (d.gaWeeks != null) {
-      input.gaWeeks = d.gaWeeks;
-      input.gaDays = d.gaDays ?? 0;
-    }
+    input.edd = null;
+    input.gaWeeks = null;
+    input.gaDays = null;
+    input.usGaWeeks = null;
+    input.usGaDays = null;
+    input.datingMethod = null;
   }
 
   try {

@@ -8,6 +8,19 @@ import type { CtgRecord } from "@/core/ctg/types";
 import { renderCtgLine } from "@/core/ctg/render";
 import { currentGaLabel } from "@/core/patients/display";
 import { PATIENT_OUTCOME_LABELS } from "@/core/patients/status";
+import { bishopScore, bishopInterpretation } from "@/core/obstetric/bishop";
+
+/** Bishop a partir dos campos do toque (só quando os 5 componentes existem). */
+function bishopFromObstetric(o: ObstetricData): number | null {
+  const b = bishopScore({
+    dilation: o.dilation,
+    effacement: o.effacement,
+    station: o.station,
+    consistency: o.cervixConsistency,
+    position: o.cervixPosition,
+  });
+  return b.complete ? b.total : null;
+}
 
 const PRESENTATION_LABELS: Record<string, string> = {
   cephalic: "cefálica",
@@ -151,6 +164,8 @@ export function renderEvolution(patient: Patient, obs: Observation): string {
     if (tvHead) lines.push(tvHead);
     if (tvColo) lines.push(tvColo.charAt(0).toUpperCase() + tvColo.slice(1));
     if (tvExtra) lines.push(tvExtra);
+    const bishop = bishopFromObstetric(o);
+    if (bishop != null) lines.push(`Índice de Bishop: ${bishop} (${bishopInterpretation(bishop)})`);
     if (o.cervixObservation) lines.push(o.cervixObservation);
   }
 
@@ -177,6 +192,7 @@ export function renderEvolution(patient: Patient, obs: Observation): string {
         : null,
       md.oxytocinDose != null ? `Ocitocina ${md.oxytocinDose} ml/h` : null,
       md.antibiotic ? `ATB ${md.antibiotic}` : null,
+      md.other ? md.other : null,
       md.notes ?? null,
     ]);
     if (med) {
@@ -228,6 +244,8 @@ export function renderToqueCompact(o: ObstetricData): string {
 
   if (o.membranes && MEMBRANE_ABBR[o.membranes]) parts.push(MEMBRANE_ABBR[o.membranes]);
   if (o.bloodOnGlove !== undefined) parts.push(o.bloodOnGlove ? "SDL" : "SSDL");
+  const bishop = bishopFromObstetric(o);
+  if (bishop != null) parts.push(`BISHOP ${bishop}`);
   if (o.cervixObservation) parts.push(`OBS: ${o.cervixObservation}`);
 
   return parts.length > 0 ? `TOQUE: ${parts.join(", ")}` : "";
@@ -267,6 +285,7 @@ export function renderObservationLine(obs: Observation): string {
     }
     if (md.oxytocinDose != null) parts.push(`OCITOCINA ${md.oxytocinDose} ML/H`);
     if (md.antibiotic) parts.push(`ATB ${md.antibiotic}`);
+    if (md.other) parts.push(md.other);
   }
 
   if (obs.magnesiumData) {

@@ -4,8 +4,12 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, Save, ShieldPlus } from "lucide-react";
 import { editPatient, type EditPatientState } from "../actions";
+import {
+  datingFromGestationalAges,
+  formatDateBR,
+  gaFromLMP,
+} from "@/core/obstetric/gestational-age";
 import type { Patient } from "@/core/patients/types";
-import { resolveDating, formatDateBR } from "@/core/obstetric/gestational-age";
 import { EDITABLE_STATUS_OPTIONS, PATIENT_STATUS_LABELS } from "@/core/patients/status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +22,24 @@ const selectClass =
 
 const initialState: EditPatientState = {};
 
+function num(v: string): number | undefined {
+  return v.trim() === "" ? undefined : Number(v);
+}
+
+/** IG atual (hoje) da paciente em semanas/dias, a partir do LMP-equivalente. */
+function currentGaParts(patient: Patient): { w: string; d: string } {
+  if (patient.lmp) {
+    try {
+      const ga = gaFromLMP(new Date(`${patient.lmp}T00:00:00`));
+      return { w: String(ga.weeks), d: String(ga.days) };
+    } catch {
+      /* ignore */
+    }
+  }
+  if (patient.gaWeeks != null) return { w: String(patient.gaWeeks), d: String(patient.gaDays ?? 0) };
+  return { w: "", d: "" };
+}
+
 /** Slice a stored datetime/text to the value a datetime-local input accepts. */
 function dtLocal(v?: string | null): string {
   return v ? v.slice(0, 16) : "";
@@ -25,20 +47,30 @@ function dtLocal(v?: string | null): string {
 
 export function EditPatientForm({ patient }: { patient: Patient }) {
   const [state, formAction, pending] = useActionState(editPatient, initialState);
-  const [lmp, setLmp] = useState(patient.lmp ?? "");
+
+  // A IG vigente (hoje) preenche o método atual; o outro fica em branco.
+  const current = currentGaParts(patient);
+  const isUs = patient.datingMethod === "ultrasound";
+  const [dumWeeks, setDumWeeks] = useState(isUs ? "" : current.w);
+  const [dumDays, setDumDays] = useState(isUs ? "" : current.d);
+  const [usWeeks, setUsWeeks] = useState(isUs ? current.w : "");
+  const [usDays, setUsDays] = useState(isUs ? current.d : "");
+
   const [methyldopa, setMethyldopa] = useState(patient.useMethyldopa);
   const [mgso4, setMgso4] = useState(patient.useMagnesiumSulfate);
 
   const dating = useMemo(() => {
-    if (!lmp) return null;
-    const d = new Date(`${lmp}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return null;
     try {
-      return resolveDating({ lmp: d });
+      return datingFromGestationalAges({
+        dumWeeks: num(dumWeeks),
+        dumDays: num(dumDays),
+        usWeeks: num(usWeeks),
+        usDays: num(usDays),
+      });
     } catch {
       return null;
     }
-  }, [lmp]);
+  }, [dumWeeks, dumDays, usWeeks, usDays]);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -104,31 +136,82 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
               <Input id="babyName" name="babyName" defaultValue={patient.babyName ?? ""} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lmp">DUM</Label>
-              <Input id="lmp" name="lmp" type="date" value={lmp} onChange={(e) => setLmp(e.target.value)} />
+              <Label htmlFor="babyName2">Nome do 2º bebê (gemelar)</Label>
+              <Input
+                id="babyName2"
+                name="babyName2"
+                defaultValue={patient.babyName2 ?? ""}
+                placeholder="opcional"
+              />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="gaWeeks">IG (sem)</Label>
+            {/* Datação — IG por DUM e por USG (semanas + dias) */}
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>IG (DUM)</Label>
+              <div className="grid grid-cols-2 gap-2">
                 <Input
-                  id="gaWeeks"
-                  name="gaWeeks"
+                  aria-label="IG DUM semanas"
+                  name="dumWeeks"
                   type="number"
                   min={0}
                   max={45}
-                  defaultValue={patient.gaWeeks ?? ""}
-                  placeholder="se sem DUM"
+                  placeholder="semanas"
+                  value={dumWeeks}
+                  onChange={(e) => setDumWeeks(e.target.value)}
+                />
+                <Input
+                  aria-label="IG DUM dias"
+                  name="dumDays"
+                  type="number"
+                  min={0}
+                  max={6}
+                  placeholder="dias"
+                  value={dumDays}
+                  onChange={(e) => setDumDays(e.target.value)}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="gaDays">IG (dias)</Label>
-                <Input id="gaDays" name="gaDays" type="number" min={0} max={6} defaultValue={patient.gaDays ?? ""} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>IG (US)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  aria-label="IG US semanas"
+                  name="usWeeks"
+                  type="number"
+                  min={0}
+                  max={45}
+                  placeholder="semanas"
+                  value={usWeeks}
+                  onChange={(e) => setUsWeeks(e.target.value)}
+                />
+                <Input
+                  aria-label="IG US dias"
+                  name="usDays"
+                  type="number"
+                  min={0}
+                  max={6}
+                  placeholder="dias"
+                  value={usDays}
+                  onChange={(e) => setUsDays(e.target.value)}
+                />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Informe a IG atual (hoje). A IG avança automaticamente a partir daqui.
+              </p>
             </div>
 
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                name="fetalDeath"
+                defaultChecked={patient.fetalDeath}
+                className="h-4 w-4 rounded border-input"
+              />
+              Óbito fetal
+            </label>
+
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="riskFactors">Fatores de risco (separados por vírgula)</Label>
+              <Label htmlFor="riskFactors">Fatores de risco (separados por vírgula ou +)</Label>
               <Input
                 id="riskFactors"
                 name="riskFactors"
@@ -140,7 +223,9 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
 
           {dating && (
             <div className="mt-4 rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground">
-              IG estimada hoje: <strong>{dating.ga.label}</strong> · DPP <strong>{formatDateBR(dating.edd)}</strong>
+              IG estimada hoje: <strong>{dating.gaWeeks}+{dating.gaDays}</strong> (
+              {dating.datingMethod === "ultrasound" ? "USG" : "DUM"}) · DPP{" "}
+              <strong>{formatDateBR(new Date(`${dating.edd}T00:00:00`))}</strong>
             </div>
           )}
         </CardContent>
@@ -188,6 +273,9 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
                 </div>
               </div>
             )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Com Metildopa, a PA é aferida em pé e sentada na evolução.
+            </p>
           </div>
 
           {/* MgSO4 */}

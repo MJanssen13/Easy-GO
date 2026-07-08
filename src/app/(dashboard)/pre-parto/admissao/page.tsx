@@ -4,9 +4,8 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, UserPlus } from "lucide-react";
 import { admitPatient, type AdmissionState } from "../actions";
-import { resolveDating, formatDateBR } from "@/core/obstetric/gestational-age";
-import { ADMISSION_STATUS_OPTIONS } from "@/core/patients/status";
-import { PATIENT_STATUS_LABELS } from "@/core/patients/status";
+import { datingFromGestationalAges, formatDateBR } from "@/core/obstetric/gestational-age";
+import { ADMISSION_STATUS_OPTIONS, PATIENT_STATUS_LABELS } from "@/core/patients/status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,20 +17,29 @@ const selectClass =
 
 const initialState: AdmissionState = {};
 
+function num(v: string): number | undefined {
+  return v.trim() === "" ? undefined : Number(v);
+}
+
 export default function AdmissionPage() {
   const [state, formAction, pending] = useActionState(admitPatient, initialState);
-  const [lmp, setLmp] = useState("");
+  const [dumWeeks, setDumWeeks] = useState("");
+  const [dumDays, setDumDays] = useState("");
+  const [usWeeks, setUsWeeks] = useState("");
+  const [usDays, setUsDays] = useState("");
 
   const dating = useMemo(() => {
-    if (!lmp) return null;
-    const d = new Date(`${lmp}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return null;
     try {
-      return resolveDating({ lmp: d });
+      return datingFromGestationalAges({
+        dumWeeks: num(dumWeeks),
+        dumDays: num(dumDays),
+        usWeeks: num(usWeeks),
+        usDays: num(usDays),
+      });
     } catch {
       return null;
     }
-  }, [lmp]);
+  }, [dumWeeks, dumDays, usWeeks, usDays]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -87,7 +95,7 @@ export default function AdmissionPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="status">Situação inicial</Label>
-                <select id="status" name="status" className={selectClass} defaultValue="admission">
+                <select id="status" name="status" className={selectClass} defaultValue="induction">
                   {ADMISSION_STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
                       {PATIENT_STATUS_LABELS[s]}
@@ -97,43 +105,86 @@ export default function AdmissionPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="lmp">DUM</Label>
-                <Input
-                  id="lmp"
-                  name="lmp"
-                  type="date"
-                  value={lmp}
-                  onChange={(e) => setLmp(e.target.value)}
-                />
+                <Label htmlFor="babyName">Nome do bebê</Label>
+                <Input id="babyName" name="babyName" autoComplete="off" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="gaWeeks">IG (sem)</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="babyName2">Nome do 2º bebê (gemelar)</Label>
+                <Input id="babyName2" name="babyName2" autoComplete="off" placeholder="opcional" />
+              </div>
+
+              {/* Datação — IG por DUM e por USG (semanas + dias) */}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>IG (DUM)</Label>
+                <div className="grid grid-cols-2 gap-2">
                   <Input
-                    id="gaWeeks"
-                    name="gaWeeks"
+                    aria-label="IG DUM semanas"
+                    name="dumWeeks"
                     type="number"
                     min={0}
                     max={45}
-                    placeholder="se sem DUM"
+                    inputMode="numeric"
+                    placeholder="semanas"
+                    value={dumWeeks}
+                    onChange={(e) => setDumWeeks(e.target.value)}
+                  />
+                  <Input
+                    aria-label="IG DUM dias"
+                    name="dumDays"
+                    type="number"
+                    min={0}
+                    max={6}
+                    inputMode="numeric"
+                    placeholder="dias"
+                    value={dumDays}
+                    onChange={(e) => setDumDays(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="gaDays">IG (dias)</Label>
-                  <Input id="gaDays" name="gaDays" type="number" min={0} max={6} />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>IG (US)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    aria-label="IG US semanas"
+                    name="usWeeks"
+                    type="number"
+                    min={0}
+                    max={45}
+                    inputMode="numeric"
+                    placeholder="semanas"
+                    value={usWeeks}
+                    onChange={(e) => setUsWeeks(e.target.value)}
+                  />
+                  <Input
+                    aria-label="IG US dias"
+                    name="usDays"
+                    type="number"
+                    min={0}
+                    max={6}
+                    inputMode="numeric"
+                    placeholder="dias"
+                    value={usDays}
+                    onChange={(e) => setUsDays(e.target.value)}
+                  />
                 </div>
               </div>
 
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                <input type="checkbox" name="fetalDeath" className="h-4 w-4 rounded border-input" />
+                Óbito fetal
+              </label>
+
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="riskFactors">Fatores de risco (separados por vírgula)</Label>
+                <Label htmlFor="riskFactors">Fatores de risco (separados por vírgula ou +)</Label>
                 <Input id="riskFactors" name="riskFactors" placeholder="DHEG, DMG, ..." />
               </div>
             </div>
 
             {dating && (
               <div className="rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground">
-                IG estimada hoje: <strong>{dating.ga.label}</strong> · DPP{" "}
-                <strong>{formatDateBR(dating.edd)}</strong>
+                IG estimada hoje: <strong>{dating.gaWeeks}+{dating.gaDays}</strong> (
+                {dating.datingMethod === "ultrasound" ? "USG" : "DUM"}) · DPP{" "}
+                <strong>{formatDateBR(new Date(`${dating.edd}T00:00:00`))}</strong>
               </div>
             )}
 

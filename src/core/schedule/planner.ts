@@ -19,6 +19,20 @@ function uuid(): string {
   });
 }
 
+/**
+ * Round a date up to the next exact hour or half-hour (:00 or :30). Used to
+ * anchor routine generation so the 30-min cadence lands on clean times.
+ */
+export function nextHalfHour(from: Date = new Date()): Date {
+  const d = new Date(from);
+  const m = d.getMinutes();
+  const onAnchor = (m === 0 || m === 30) && d.getSeconds() === 0 && d.getMilliseconds() === 0;
+  d.setSeconds(0, 0);
+  if (onAnchor) return d;
+  d.setMinutes(m < 30 ? 30 : 60); // setMinutes(60) rolls to the next hour at :00
+  return d;
+}
+
 /** Round a date up to the next 15-minute slot. */
 export function nextSlotStart(from: Date = new Date()): Date {
   const d = new Date(from);
@@ -78,6 +92,36 @@ export function tasksFromRoutine(
     }
   }
 
+  return [...byTime.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([time, params]) => ({
+      id: uuid(),
+      timestamp: new Date(time).toISOString(),
+      focus: [...params],
+      status: "pending" as const,
+    }));
+}
+
+/**
+ * Expand several routines together, merging parameters that fall on the same
+ * timestamp into a single task. Used to seed a default routine at admission
+ * (base phase + protocols like diabetes).
+ */
+export function tasksFromRoutines(
+  routines: MonitoringRoutine[],
+  start: Date,
+  end: Date,
+): ScheduledTask[] {
+  const byTime = new Map<number, Set<string>>();
+  for (const routine of routines) {
+    for (const rule of routine.rules) {
+      for (let t = start.getTime(); t <= end.getTime(); t += rule.intervalMin * 60000) {
+        const set = byTime.get(t) ?? new Set<string>();
+        rule.params.forEach((p) => set.add(p));
+        byTime.set(t, set);
+      }
+    }
+  }
   return [...byTime.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([time, params]) => ({

@@ -41,7 +41,12 @@ export function dbToPatient(row: PatientRow): Patient {
     edd: row.edd,
     gaWeeks: row.ga_weeks,
     gaDays: row.ga_days,
+    usGaWeeks: row.us_ga_weeks,
+    usGaDays: row.us_ga_days,
+    datingMethod: (row.dating_method as "lmp" | "ultrasound" | null) ?? null,
     babyName: row.baby_name,
+    babyName2: row.baby_name_2,
+    fetalDeath: row.fetal_death ?? false,
     status: row.status,
     outcome: row.outcome,
     riskFactors: row.risk_factors ?? [],
@@ -73,6 +78,12 @@ export function newPatientToInsert(input: NewPatientInput, createdBy: string | n
     edd: input.edd ?? null,
     ga_weeks: input.gaWeeks ?? null,
     ga_days: input.gaDays ?? null,
+    us_ga_weeks: input.usGaWeeks ?? null,
+    us_ga_days: input.usGaDays ?? null,
+    dating_method: input.datingMethod ?? null,
+    baby_name: input.babyName ?? null,
+    baby_name_2: input.babyName2 ?? null,
+    fetal_death: input.fetalDeath ?? false,
     status: input.status ?? "admission",
     risk_factors: input.riskFactors ?? [],
     clinical_summary: input.clinicalSummary ? toJson(input.clinicalSummary) : null,
@@ -90,10 +101,15 @@ export function updatePatientToDb(input: UpdatePatientInput): PatientUpdate {
   if (input.parity !== undefined) p.parity = input.parity;
   if (input.bloodType !== undefined) p.blood_type = input.bloodType;
   if (input.babyName !== undefined) p.baby_name = input.babyName;
+  if (input.babyName2 !== undefined) p.baby_name_2 = input.babyName2;
+  if (input.fetalDeath !== undefined) p.fetal_death = input.fetalDeath;
   if (input.lmp !== undefined) p.lmp = input.lmp;
   if (input.edd !== undefined) p.edd = input.edd;
   if (input.gaWeeks !== undefined) p.ga_weeks = input.gaWeeks;
   if (input.gaDays !== undefined) p.ga_days = input.gaDays;
+  if (input.usGaWeeks !== undefined) p.us_ga_weeks = input.usGaWeeks;
+  if (input.usGaDays !== undefined) p.us_ga_days = input.usGaDays;
+  if (input.datingMethod !== undefined) p.dating_method = input.datingMethod;
   if (input.status !== undefined) p.status = input.status;
   if (input.riskFactors !== undefined) p.risk_factors = input.riskFactors;
   if (input.useMethyldopa !== undefined) p.use_methyldopa = input.useMethyldopa;

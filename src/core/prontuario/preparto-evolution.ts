@@ -21,6 +21,15 @@ export interface InductionInput {
   pressureCurve: boolean; // "CURVA PRESSÓRICA"
 }
 
+/** Equipe de plantão — um campo por cargo; vários nomes separados por vírgula. */
+export interface TeamInput {
+  chefia: string;
+  r3: string;
+  r2: string;
+  r1: string;
+  internos: string;
+}
+
 export interface ShiftNoteInput {
   shift: ShiftPeriod;
   noteDate: string; // ISO
@@ -30,8 +39,16 @@ export interface ShiftNoteInput {
   induction: InductionInput;
   reviewOfSystems: string; // "NEGA PERDAS..."
   window: ParamsWindow;
-  team: string;
+  team: TeamInput;
 }
+
+const TEAM_ROLE_LABELS: Array<[keyof TeamInput, string]> = [
+  ["chefia", "CHEFIA"],
+  ["r3", "R3"],
+  ["r2", "R2"],
+  ["r1", "R1"],
+  ["internos", "INTERNOS"],
+];
 
 const DEFAULT_CLINICAL =
   "PACIENTE SE ENCONTRA EM BEG, REFERINDO ENRIJECIMENTO ABDOMINAL ESPORÁDICO COM DOR DURANTE AS CONTRAÇÕES.";
@@ -63,7 +80,7 @@ export function defaultShiftInput(patient: Patient): ShiftNoteInput {
     },
     reviewOfSystems: DEFAULT_ROS,
     window: "12H",
-    team: "",
+    team: { chefia: "", r3: "", r2: "", r1: "", internos: "" },
   };
 }
 
@@ -75,19 +92,29 @@ function dateShort(iso?: string | null): string {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${y}`;
 }
 
-/** IG atual em "X SEMANAS E Y DIAS" + método (DUM/US). */
+/** IG atual em "X SEMANAS E Y DIAS" + método (DUM/USG). */
 function gaPhrase(patient: Patient): { phrase: string; method: string } | null {
+  // Método vigente: usa o registrado; senão infere (lmp → DUM).
+  const method =
+    patient.datingMethod === "ultrasound"
+      ? "USG"
+      : patient.datingMethod === "lmp"
+        ? "DUM"
+        : patient.lmp
+          ? "DUM"
+          : "USG";
+
   if (patient.lmp) {
     try {
       const ga = resolveDating({ lmp: new Date(`${patient.lmp}T00:00:00`) }).ga;
-      return { phrase: `${ga.weeks} SEMANAS E ${ga.days} DIAS`, method: "DUM" };
+      return { phrase: `${ga.weeks} SEMANAS E ${ga.days} DIAS`, method };
     } catch {
       const ga = gaFromLMP(new Date(`${patient.lmp}T00:00:00`));
-      return { phrase: `${ga.weeks} SEMANAS E ${ga.days} DIAS`, method: "DUM" };
+      return { phrase: `${ga.weeks} SEMANAS E ${ga.days} DIAS`, method };
     }
   }
   if (patient.gaWeeks != null) {
-    return { phrase: `${patient.gaWeeks} SEMANAS E ${patient.gaDays ?? 0} DIAS`, method: "USG" };
+    return { phrase: `${patient.gaWeeks} SEMANAS E ${patient.gaDays ?? 0} DIAS`, method };
   }
   return null;
 }
@@ -154,7 +181,17 @@ export function renderShiftEvolution(
 
   L.push("");
   L.push("MANTENHO VIGILÂNCIA CLÍNICA E OBSTÉTRICA");
-  if (input.team.trim()) L.push(`EQUIPE DE PLANTÃO: ${input.team.trim()}`);
+
+  // Equipe de plantão — só os cargos preenchidos.
+  const teamLines = TEAM_ROLE_LABELS.flatMap(([key, label]) => {
+    const value = (input.team[key] ?? "").trim();
+    return value ? [`${label}: ${value}`] : [];
+  });
+  if (teamLines.length > 0) {
+    L.push("");
+    L.push("EQUIPE DE PLANTÃO:");
+    for (const line of teamLines) L.push(line);
+  }
 
   return L.join("\n").replace(/\n{3,}/g, "\n\n").trim().toUpperCase();
 }

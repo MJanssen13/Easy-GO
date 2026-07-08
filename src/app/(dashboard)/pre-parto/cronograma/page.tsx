@@ -21,6 +21,8 @@ export default async function CronogramaPage() {
           bed: p.bed ?? null,
           timestamp: t.timestamp,
           focus: t.focus,
+          useMethyldopa: p.useMethyldopa,
+          useMagnesiumSulfate: p.useMagnesiumSulfate,
         })),
       );
   } catch {
@@ -28,7 +30,7 @@ export default async function CronogramaPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5 lg:max-w-none">
       <Link
         href="/pre-parto"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

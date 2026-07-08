@@ -17,6 +17,8 @@ export type PatientStatus =
   | "admission"
   | "active_labor"
   | "induction"
+  | "conduction"
+  | "scheduled_c_section"
   | "expectant"
   | "postpartum"
   | "observation"
@@ -61,7 +63,12 @@ type PatientRow = {
   edd: string | null;
   ga_weeks: number | null;
   ga_days: number | null;
+  us_ga_weeks: number | null;
+  us_ga_days: number | null;
+  dating_method: string | null;
   baby_name: string | null;
+  baby_name_2: string | null;
+  fetal_death: boolean;
   status: PatientStatus;
   outcome: PatientOutcome;
   risk_factors: string[] | null;
@@ -93,7 +100,12 @@ type PatientInsert = {
   edd?: string | null;
   ga_weeks?: number | null;
   ga_days?: number | null;
+  us_ga_weeks?: number | null;
+  us_ga_days?: number | null;
+  dating_method?: string | null;
   baby_name?: string | null;
+  baby_name_2?: string | null;
+  fetal_death?: boolean;
   status?: PatientStatus;
   outcome?: PatientOutcome;
   risk_factors?: string[] | null;

@@ -27,6 +27,25 @@ export class RepositoryError extends Error {
   }
 }
 
+/**
+ * Extrai detalhes legíveis de um erro do Supabase/PostgREST (code, message,
+ * details, hint) para expor a causa real em vez de uma mensagem genérica.
+ */
+function supabaseErrorDetail(error: unknown): string {
+  if (error && typeof error === "object") {
+    const e = error as { message?: string; code?: string; details?: string; hint?: string };
+    const parts = [e.code, e.message, e.details, e.hint].filter(Boolean);
+    if (parts.length > 0) return parts.join(" · ");
+  }
+  return "";
+}
+
+/** Monta a mensagem final anexando a causa do banco, quando houver. */
+function withDetail(base: string, error: unknown): string {
+  const detail = supabaseErrorDetail(error);
+  return detail ? `${base} (${detail})` : base;
+}
+
 async function currentUserId(): Promise<string | null> {
   const supabase = await createClient();
   const {
@@ -51,7 +70,15 @@ export async function listPatients(module: PatientModule): Promise<Patient[]> {
 /** One patient with its observations (most recent first). */
 export async function getPatient(id: string): Promise<Patient | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("patients").select("*").eq("id", id).single();
+  // Paciente e observações em paralelo — a query de observações só depende do id.
+  const [{ data, error }, { data: obsRows }] = await Promise.all([
+    supabase.from("patients").select("*").eq("id", id).single(),
+    supabase
+      .from("observations")
+      .select("*")
+      .eq("patient_id", id)
+      .order("recorded_at", { ascending: false }),
+  ]);
 
   if (error) {
     if (error.code === "PGRST116") return null; // no rows
@@ -60,13 +87,6 @@ export async function getPatient(id: string): Promise<Patient | null> {
   if (!data) return null;
 
   const patient = dbToPatient(data);
-
-  const { data: obsRows } = await supabase
-    .from("observations")
-    .select("*")
-    .eq("patient_id", id)
-    .order("recorded_at", { ascending: false });
-
   const observations: Observation[] = (obsRows ?? []).map(dbToObservation);
   patient.observations = observations;
   patient.lastObservation = observations[0] ?? null;
@@ -99,7 +119,10 @@ export async function createPatient(input: NewPatientInput): Promise<Patient> {
     .select()
     .single();
 
-  if (error || !data) throw new RepositoryError("Não foi possível admitir a paciente.", error);
+  if (error || !data) {
+    console.error("createPatient failed:", error);
+    throw new RepositoryError(withDetail("Não foi possível admitir a paciente.", error), error);
+  }
   return dbToPatient(data);
 }
 
@@ -111,7 +134,10 @@ export async function updatePatient(id: string, input: UpdatePatientInput): Prom
     .eq("id", id)
     .select()
     .single();
-  if (error || !data) throw new RepositoryError("Não foi possível atualizar a paciente.", error);
+  if (error || !data) {
+    console.error("updatePatient failed:", error);
+    throw new RepositoryError(withDetail("Não foi possível atualizar a paciente.", error), error);
+  }
   return dbToPatient(data);
 }
 
@@ -190,7 +216,10 @@ export async function addObservation(input: NewObservationInput): Promise<Observ
     .select()
     .single();
 
-  if (error || !data) throw new RepositoryError("Não foi possível registrar a evolução.", error);
+  if (error || !data) {
+    console.error("addObservation failed:", error);
+    throw new RepositoryError(withDetail("Não foi possível registrar a evolução.", error), error);
+  }
   return dbToObservation(data);
 }
 
