@@ -52,6 +52,7 @@ export function dbToPatient(row: PatientRow): Patient {
     magnesiumSulfateStartTime: row.magnesium_sulfate_start_time,
     magnesiumSulfateEndTime: row.magnesium_sulfate_end_time,
     schedule: asObject<ScheduledTask[]>(row.schedule, []),
+    clinicalSummary: (row.clinical_summary as Record<string, unknown> | null) ?? null,
     admissionDate: row.admission_date,
     dischargeTime: row.discharge_time,
     createdAt: row.created_at,
@@ -74,6 +75,7 @@ export function newPatientToInsert(input: NewPatientInput, createdBy: string | n
     ga_days: input.gaDays ?? null,
     status: input.status ?? "admission",
     risk_factors: input.riskFactors ?? [],
+    clinical_summary: input.clinicalSummary ? toJson(input.clinicalSummary) : null,
     created_by: createdBy,
   };
 }
@@ -102,6 +104,8 @@ export function updatePatientToDb(input: UpdatePatientInput): PatientUpdate {
     p.magnesium_sulfate_start_time = input.magnesiumSulfateStartTime;
   if (input.magnesiumSulfateEndTime !== undefined)
     p.magnesium_sulfate_end_time = input.magnesiumSulfateEndTime;
+  if (input.clinicalSummary !== undefined)
+    p.clinical_summary = input.clinicalSummary ? toJson(input.clinicalSummary) : null;
   return p;
 }
 

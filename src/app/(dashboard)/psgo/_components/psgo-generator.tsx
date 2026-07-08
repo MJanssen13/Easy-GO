@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Plus, Trash2, Siren, Info } from "lucide-react";
 import { emptyPsgoForm, HABITS, COMPANION_RELATIONS, type PsgoForm } from "@/core/psgo/types";
 import { renderPsgo, computePsgo } from "@/core/psgo/render";
 import { datingDisplay } from "@/core/psgo/dating";
 import { ABD_FIELDS, TOQUE_FIELDS, ESP_FIELDS, type GyField } from "@/core/psgo/gyneco-exam";
+import { savePsgoAdmission } from "../actions";
 import { PRIOR_TYPE_LABELS, type PriorPregnancyType } from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
@@ -123,8 +124,22 @@ function Segmented<T extends string>({
 
 export function PsgoGenerator() {
   const [form, setForm] = useState<PsgoForm>(emptyPsgoForm);
+  const [saving, startSaving] = useTransition();
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
+
+  function handleSave() {
+    setSaveMsg(null);
+    startSaving(async () => {
+      const res = await savePsgoAdmission(form);
+      setSaveMsg(
+        res.error
+          ? { ok: false, text: res.error }
+          : { ok: true, text: "Admissão salva no PSGO." },
+      );
+    });
+  }
 
   const text = useMemo(() => renderPsgo(form), [form]);
   const { robsonMissing } = useMemo(() => computePsgo(form), [form]);
@@ -1269,10 +1284,32 @@ export function PsgoGenerator() {
               <span className="flex items-center gap-2">
                 <Siren className="h-4 w-4 text-rose-600" /> Prontuário
               </span>
-              <CopyButton text={text} />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving || !form.name.trim()}
+                  title={!form.name.trim() ? "Informe o nome para salvar" : "Salvar admissão"}
+                >
+                  {saving ? "Salvando…" : "Salvar admissão"}
+                </Button>
+                <CopyButton text={text} />
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {saveMsg && (
+              <p
+                className={`mb-2 rounded px-2 py-1 text-xs ${
+                  saveMsg.ok
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-rose-50 text-rose-700"
+                }`}
+              >
+                {saveMsg.text}
+              </p>
+            )}
             <pre className="prontuario-text max-h-[70vh] overflow-y-auto text-xs">{text}</pre>
           </CardContent>
         </Card>
