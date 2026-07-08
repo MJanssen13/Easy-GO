@@ -45,7 +45,9 @@ export interface PsgoComputed {
 }
 
 export function computePsgo(form: PsgoForm): PsgoComputed {
-  const parity = formatParity(form.priorPregnancies);
+  // Robson classifica o parto da gestação atual — não se aplica a não gestantes.
+  if (!form.pregnant) return { robsonGroup: null, robsonMissing: [] };
+  const parity = formatParity(form.priorPregnancies, form.pregnant);
   const dating = resolvePsgoDating({
     lmp: form.lmp,
     lmpUncertain: form.lmpUncertain,
@@ -66,7 +68,7 @@ export function computePsgo(form: PsgoForm): PsgoComputed {
 export function renderPsgo(form: PsgoForm): string {
   const L: string[] = [];
 
-  const parity = formatParity(form.priorPregnancies);
+  const parity = formatParity(form.priorPregnancies, form.pregnant);
   const dating = resolvePsgoDating({
     lmp: form.lmp,
     lmpUncertain: form.lmpUncertain,
@@ -76,15 +78,6 @@ export function renderPsgo(form: PsgoForm): string {
   const weight = form.weight ? Number(form.weight) : null;
   const height = form.height ? Number(form.height) : null;
   const bmi = classifyBmi(weight, height);
-
-  const robson = classifyRobson({
-    parity: parity.multipara ? "multipara" : "nullipara",
-    priorCesarean: parity.cesareanCount >= 1,
-    presentation: form.presentation || null,
-    fetuses: form.fetuses || null,
-    term: dating.term,
-    onset: form.laborOnset || null,
-  });
 
   // Cabeçalho
   L.push(`## PSGO - ${dateBR(form.date)} ##`);
@@ -97,20 +90,37 @@ export function renderPsgo(form: PsgoForm): string {
   L.push(
     `ACOMPANHANTE: ${form.companion}${form.companionRelation ? ` (${form.companionRelation})` : ""}`,
   );
-  L.push(
-    `CONSULTAS PRÉ-NATAL: ${form.prenatalCount}${form.prenatalPlace ? ` - ${form.prenatalPlace}` : ""}`,
-  );
 
-  // Robson
-  L.push(`CLASSIFICAÇÃO DE ROBSON: ${robson.group ?? ""}`);
+  if (form.pregnant) {
+    L.push(
+      `CONSULTAS PRÉ-NATAL: ${form.prenatalCount}${form.prenatalPlace ? ` - ${form.prenatalPlace}` : ""}`,
+    );
+
+    // Robson
+    const robson = classifyRobson({
+      parity: parity.multipara ? "multipara" : "nullipara",
+      priorCesarean: parity.cesareanCount >= 1,
+      presentation: form.presentation || null,
+      fetuses: form.fetuses || null,
+      term: dating.term,
+      onset: form.laborOnset || null,
+    });
+    L.push(`CLASSIFICAÇÃO DE ROBSON: ${robson.group ?? ""}`);
+  } else {
+    L.push("NÃO GESTANTE NO MOMENTO");
+  }
 
   // Paridade
   L.push(`PARIDADE: ${parity.summary}`);
   for (const line of parity.lines) L.push(line);
 
-  // Datação
-  L.push(dating.dumLine ?? "DUM:");
-  L.push(dating.igUsLine ?? "IG US :");
+  // Datação (para não gestantes registra-se apenas a DUM, sem IG)
+  if (form.pregnant) {
+    L.push(dating.dumLine ?? "DUM:");
+    L.push(dating.igUsLine ?? "IG US :");
+  } else {
+    L.push(`DUM: ${dateBR(form.lmp)}`);
+  }
 
   // Tipo sanguíneo / Coombs
   L.push(`TIPO SANGUÍNEO: ${form.bloodType}`);
@@ -157,7 +167,7 @@ export function renderPsgo(form: PsgoForm): string {
   for (const s of EXAM_SYSTEMS) {
     // Exame ginecológico/obstétrico (ABD, toque, especular) antes de MMII.
     if (s.id === "mmii") {
-      for (const line of renderGyneco(form.gyneco, form.vitals)) L.push(line);
+      for (const line of renderGyneco(form.gyneco, form.vitals, form.pregnant)) L.push(line);
     }
     L.push(buildExamLine(s.id, form.exam[s.id], form.vitals));
   }
@@ -166,23 +176,27 @@ export function renderPsgo(form: PsgoForm): string {
   L.push("EXAMES LABORATORIAIS:");
   if (form.labs.trim()) L.push(form.labs.trim());
 
-  // Exames de imagem (seção própria, em quadro)
-  const imaging = renderImaging(form.imagingExams);
+  // Exames de imagem (seção própria, em quadro; o quadro USG é obstétrico)
+  const imaging = form.pregnant ? renderImaging(form.imagingExams) : "";
   if (imaging.trim()) {
     L.push("EXAMES DE IMAGEM (USG):");
     L.push(imaging);
   } else {
-    L.push("EXAMES DE IMAGEM (ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):");
+    L.push(form.pregnant ? "EXAMES DE IMAGEM (ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):" : "EXAMES DE IMAGEM:");
   }
 
-  // CTG
-  L.push(`CTG: ${form.ctg}`);
+  // CTG (monitorização fetal — só para gestantes)
+  if (form.pregnant) L.push(`CTG: ${form.ctg}`);
 
   // HD
-  const gaPart = dating.gaPhrase ? `GESTAÇÃO DE ${dating.gaPhrase}` : "GESTAÇÃO DE";
-  const method = dating.methodTag ? ` (${dating.methodTag})` : "";
-  const hdComorb = cmb.length > 0 ? ` + ${cmb.join(" + ")}` : "";
-  L.push(`HD: ${gaPart}${method}${hdComorb}`);
+  if (form.pregnant) {
+    const gaPart = dating.gaPhrase ? `GESTAÇÃO DE ${dating.gaPhrase}` : "GESTAÇÃO DE";
+    const method = dating.methodTag ? ` (${dating.methodTag})` : "";
+    const hdComorb = cmb.length > 0 ? ` + ${cmb.join(" + ")}` : "";
+    L.push(`HD: ${gaPart}${method}${hdComorb}`);
+  } else {
+    L.push(`HD: ${cmb.join(" + ")}`);
+  }
 
   // Conduta
   L.push(`CD: ${form.cd ? `${form.cd} ` : ""}DISCUTIDO COM PLANTÃO QUE ORIENTA:`);

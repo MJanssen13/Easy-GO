@@ -5,6 +5,24 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — gestante/não gestante + notação de paridade do serviço
+
+- **Chave "Gestante no momento?"** no topo da admissão (o PSGO também atende
+  pessoas não gestantes). Quando "Não gestante": G não soma a gestação atual;
+  somem pré-natal, Robson, IG/datação (fica só a DUM), AU/BCF, campos
+  obstétricos do abdome/toque, quadro de USG obstétrico e CTG; o prontuário
+  registra "NÃO GESTANTE NO MOMENTO" e a HD passa a listar só as comorbidades.
+  Admissões antigas continuam abrindo como gestantes.
+- **Notação de paridade na convenção do serviço**: `G{g}P{p}(detalhe)`, em que
+  **P soma todos os desfechos** (N normal, C cesárea, F fórceps e A abortos) e
+  as **ectópicas ficam aninhadas em A** — ex.: `G5P4(N1C2A1)`,
+  `G5P5(N2C1A2(E1))`. **Gemelares** (novo controle por gestação prévia, com via
+  do 2º gemelar): 1 gestação; via vaginal conta 1 parto por feto e cesárea
+  conta 1 para os dois — ex.: `G2P3(N3(GEM2))`, `G3P2(N1C1(GEM2))`,
+  `G3P3(N2C1(GEM2[N1C1]))`. O "i" do card documenta a convenção e a divergência
+  do GPA/GTPAL clássico (ACOG/Williams: abortos não somam em P; gemelar = 1
+  parto) — *apoio à documentação, validar com a equipe*.
+
 ### PSGO — Fase 2 (revisão da admissão)
 
 - **Paridade** com interface mais dinâmica: botões de adição rápida por tipo

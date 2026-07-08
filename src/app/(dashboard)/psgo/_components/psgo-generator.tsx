@@ -6,9 +6,16 @@ import { Plus, Trash2, Siren, Info } from "lucide-react";
 import { emptyPsgoForm, HABITS, COMPANION_RELATIONS, type PsgoForm } from "@/core/psgo/types";
 import { renderPsgo, computePsgo } from "@/core/psgo/render";
 import { datingDisplay } from "@/core/psgo/dating";
-import { ABD_FIELDS, TOQUE_FIELDS, ESP_FIELDS, type GyField } from "@/core/psgo/gyneco-exam";
+import { abdFieldsFor, toqueFieldsFor, ESP_FIELDS, type GyField } from "@/core/psgo/gyneco-exam";
 import { savePsgoAdmission } from "../actions";
-import { PRIOR_TYPE_LABELS, formatParity, type PriorPregnancyType } from "@/core/psgo/parity";
+import {
+  PRIOR_TYPE_LABELS,
+  BIRTH_ROUTE_LABELS,
+  formatParity,
+  isBirthType,
+  type BirthRoute,
+  type PriorPregnancyType,
+} from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
@@ -158,7 +165,10 @@ export function PsgoGenerator({
     () => Object.fromEntries(form.imagingExams.map((e) => [e.id, examCentiles(e)])),
     [form.imagingExams],
   );
-  const parityView = useMemo(() => formatParity(form.priorPregnancies), [form.priorPregnancies]);
+  const parityView = useMemo(
+    () => formatParity(form.priorPregnancies, form.pregnant),
+    [form.priorPregnancies, form.pregnant],
+  );
   const datingView = useMemo(
     () =>
       datingDisplay({
@@ -291,6 +301,28 @@ export function PsgoGenerator({
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
+        {/* Gestante no momento? (o PSGO também atende pessoas não gestantes) */}
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <p className="text-sm font-semibold">Gestante no momento?</p>
+              <p className="text-xs text-muted-foreground">
+                Também atendemos pessoas não gestantes — o formulário e o prontuário se ajustam.
+              </p>
+            </div>
+            <div className="w-64 max-w-full">
+              <Segmented
+                value={form.pregnant ? "sim" : "nao"}
+                onChange={(v) => update({ pregnant: v === "sim" })}
+                options={[
+                  { value: "sim", label: "Gestante" },
+                  { value: "nao", label: "Não gestante" },
+                ]}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Identificação */}
         <Card>
           <CardHeader>
@@ -332,16 +364,20 @@ export function PsgoGenerator({
                 ))}
               </select>
             </Field>
-            <Field label="Consultas pré-natal (nº)">
-              <Input
-                value={form.prenatalCount}
-                onChange={(e) => update({ prenatalCount: e.target.value })}
-                inputMode="numeric"
-              />
-            </Field>
-            <Field label="Local do pré-natal">
-              <Input value={form.prenatalPlace} onChange={(e) => update({ prenatalPlace: e.target.value })} />
-            </Field>
+            {form.pregnant && (
+              <>
+                <Field label="Consultas pré-natal (nº)">
+                  <Input
+                    value={form.prenatalCount}
+                    onChange={(e) => update({ prenatalCount: e.target.value })}
+                    inputMode="numeric"
+                  />
+                </Field>
+                <Field label="Local do pré-natal">
+                  <Input value={form.prenatalPlace} onChange={(e) => update({ prenatalPlace: e.target.value })} />
+                </Field>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -351,18 +387,24 @@ export function PsgoGenerator({
             <CardTitle className="flex items-center justify-between gap-2 text-base">
               <span className="flex items-center gap-1.5">
                 Paridade
-                <InfoTip title="Como codificar a paridade">
+                <InfoTip title="Como codificar a paridade (convenção do serviço)">
                   <p>
-                    <strong>G</strong> = gestações (inclui a atual); <strong>P</strong> = partos.
+                    <strong>G</strong> = gestações (gemelar = 1; soma a atual se gestante).{" "}
+                    <strong>P</strong> = todos os desfechos: partos <strong>N</strong> (normal),{" "}
+                    <strong>C</strong> (cesárea) e <strong>F</strong> (fórceps) e também abortos{" "}
+                    <strong>A</strong>, com as ectópicas <strong>E</strong> aninhadas em A.
                   </p>
                   <p>
-                    Os partos são discriminados pela via: <strong>N</strong> normal, <strong>F</strong>{" "}
-                    fórceps, <strong>C</strong> cesárea. Somam-se <strong>A</strong> abortos (perda &lt;
-                    20–22 sem, inclui ectópicas em alguns serviços) e <strong>E</strong> ectópicas.
+                    Gemelar: via vaginal conta 1 parto por feto; cesárea conta 1 parto para os dois
+                    fetos.
                   </p>
                   <p>
-                    Equivale ao <strong>GPA</strong> (gesta–para–aborto) com a via de parto detalhada.
-                    Ex.: 4 gestações, 2 partos normais + 1 cesárea, 1 aborto → <strong>G4N2C1A1</strong>.
+                    Ex.: <strong>G5P4(N1C2A1)</strong> · <strong>G5P5(N2C1A2(E1))</strong> ·{" "}
+                    <strong>G2P3(N3(GEM2))</strong> · <strong>G3P3(N2C1(GEM2[N1C1]))</strong>.
+                  </p>
+                  <p>
+                    Difere do GPA/GTPAL clássico (ACOG/Williams), em que abortos não somam em P e
+                    gemelar conta 1 parto — validar com a equipe.
                   </p>
                 </InfoTip>
               </span>
@@ -390,7 +432,9 @@ export function PsgoGenerator({
 
             {form.priorPregnancies.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Primigesta (G1). Use os botões acima para registrar gestações prévias.
+                {form.pregnant
+                  ? "Primigesta (G1P0). Use os botões acima para registrar gestações prévias."
+                  : "Sem gestações prévias (G0P0). Use os botões acima para registrá-las."}
               </p>
             ) : (
               form.priorPregnancies.map((p, idx) => (
@@ -402,9 +446,14 @@ export function PsgoGenerator({
                     <select
                       className={`${selectClass} h-8 w-40`}
                       value={p.type}
-                      onChange={(e) =>
-                        updatePrior(p.id, { type: e.target.value as PriorPregnancyType })
-                      }
+                      onChange={(e) => {
+                        const type = e.target.value as PriorPregnancyType;
+                        // Gemelar só se aplica a desfechos de parto (N/F/C).
+                        updatePrior(
+                          p.id,
+                          isBirthType(type) ? { type } : { type, twin: false, twinRoute2: undefined },
+                        );
+                      }}
                     >
                       {(Object.keys(PRIOR_TYPE_LABELS) as PriorPregnancyType[]).map((t) => (
                         <option key={t} value={t}>
@@ -419,6 +468,25 @@ export function PsgoGenerator({
                       inputMode="numeric"
                       onChange={(e) => updatePrior(p.id, { year: e.target.value })}
                     />
+                    {isBirthType(p.type) && (
+                      <label className="flex items-center gap-1.5 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={!!p.twin}
+                          onChange={(e) =>
+                            updatePrior(p.id, {
+                              twin: e.target.checked,
+                              twinRoute2:
+                                e.target.checked && isBirthType(p.type)
+                                  ? (p.twinRoute2 ?? p.type)
+                                  : undefined,
+                            })
+                          }
+                          className="h-4 w-4 rounded border-input"
+                        />
+                        Gemelar
+                      </label>
+                    )}
                     <Button
                       type="button"
                       variant="ghost"
@@ -429,6 +497,21 @@ export function PsgoGenerator({
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
+                  {isBirthType(p.type) && p.twin && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Via do 2º gemelar:</span>
+                      <div className="w-56">
+                        <Segmented
+                          value={(p.twinRoute2 ?? p.type) as BirthRoute}
+                          onChange={(v) => updatePrior(p.id, { twinRoute2: v })}
+                          options={(Object.keys(BIRTH_ROUTE_LABELS) as BirthRoute[]).map((r) => ({
+                            value: r,
+                            label: BIRTH_ROUTE_LABELS[r],
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <Textarea
                     rows={2}
                     placeholder="Intercorrências / dados comemorativos (peso do RN, local, complicações, aleitamento…)"
@@ -441,16 +524,19 @@ export function PsgoGenerator({
           </CardContent>
         </Card>
 
-        {/* Datação + dados do Robson */}
+        {/* Datação + dados do Robson (não gestante: apenas a DUM) */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Datação e dados obstétricos</CardTitle>
+            <CardTitle className="text-base">
+              {form.pregnant ? "Datação e dados obstétricos" : "DUM"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label="DUM">
                 <Input type="date" value={form.lmp} onChange={(e) => update({ lmp: e.target.value })} />
               </Field>
+              {form.pregnant && (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
                   <Label className="text-xs">Datação</Label>
@@ -482,7 +568,10 @@ export function PsgoGenerator({
                   ]}
                 />
               </div>
+              )}
             </div>
+            {form.pregnant && (
+            <>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -604,6 +693,8 @@ export function PsgoGenerator({
               <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
                 Robson incompleto — faltam: {robsonMissing.join(", ")}.
               </p>
+            )}
+            </>
             )}
           </CardContent>
         </Card>
@@ -926,18 +1017,22 @@ export function PsgoGenerator({
                   onChange={(e) => update({ vitals: { ...form.vitals, fc: e.target.value } })}
                 />
               </Field>
-              <Field label="AU (cm)">
-                <Input
-                  value={form.vitals.au ?? ""}
-                  onChange={(e) => update({ vitals: { ...form.vitals, au: e.target.value } })}
-                />
-              </Field>
-              <Field label="BCF (bpm)">
-                <Input
-                  value={form.vitals.bcf ?? ""}
-                  onChange={(e) => update({ vitals: { ...form.vitals, bcf: e.target.value } })}
-                />
-              </Field>
+              {form.pregnant && (
+                <>
+                  <Field label="AU (cm)">
+                    <Input
+                      value={form.vitals.au ?? ""}
+                      onChange={(e) => update({ vitals: { ...form.vitals, au: e.target.value } })}
+                    />
+                  </Field>
+                  <Field label="BCF (bpm)">
+                    <Input
+                      value={form.vitals.bcf ?? ""}
+                      onChange={(e) => update({ vitals: { ...form.vitals, bcf: e.target.value } })}
+                    />
+                  </Field>
+                </>
+              )}
             </div>
 
             {EXAM_SYSTEMS.map((s) => {
@@ -981,16 +1076,22 @@ export function PsgoGenerator({
         {/* Exame ginecológico e obstétrico */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Exame ginecológico e obstétrico</CardTitle>
+            <CardTitle className="text-base">
+              {form.pregnant ? "Exame ginecológico e obstétrico" : "Exame ginecológico"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Abdome */}
             <div className="space-y-2">
-              <p className="text-sm font-semibold">Abdome (gravídico)</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{ABD_FIELDS.map(gyField)}</div>
-              <p className="text-xs text-muted-foreground">
-                AU e BCF vêm dos sinais vitais do exame físico.
-              </p>
+              <p className="text-sm font-semibold">{form.pregnant ? "Abdome (gravídico)" : "Abdome"}</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {abdFieldsFor(form.pregnant).map(gyField)}
+              </div>
+              {form.pregnant && (
+                <p className="text-xs text-muted-foreground">
+                  AU e BCF vêm dos sinais vitais do exame físico.
+                </p>
+              )}
             </div>
 
             {/* Toque vaginal */}
@@ -1019,7 +1120,9 @@ export function PsgoGenerator({
                     />
                     Autorizado pela paciente
                   </label>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{TOQUE_FIELDS.map(gyField)}</div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {toqueFieldsFor(form.pregnant).map(gyField)}
+                  </div>
                 </>
               )}
             </div>
@@ -1061,7 +1164,8 @@ export function PsgoGenerator({
           </CardContent>
         </Card>
 
-        {/* Exames de imagem (USG) — seção própria, em quadro */}
+        {/* Exames de imagem (USG obstétrico) — seção própria, em quadro */}
+        {form.pregnant && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
@@ -1317,16 +1421,19 @@ export function PsgoGenerator({
             ))}
           </CardContent>
         </Card>
+        )}
 
         {/* CTG / Conduta */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">CTG e conduta</CardTitle>
+            <CardTitle className="text-base">{form.pregnant ? "CTG e conduta" : "Conduta"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Field label="CTG">
-              <Input value={form.ctg} onChange={(e) => update({ ctg: e.target.value })} />
-            </Field>
+            {form.pregnant && (
+              <Field label="CTG">
+                <Input value={form.ctg} onChange={(e) => update({ ctg: e.target.value })} />
+              </Field>
+            )}
             <Field label="Conduta (CD)">
               <Textarea rows={2} value={form.cd} onChange={(e) => update({ cd: e.target.value })} />
             </Field>

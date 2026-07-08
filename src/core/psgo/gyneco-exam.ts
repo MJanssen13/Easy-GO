@@ -155,6 +155,25 @@ export const GYNECO_SECTIONS = [
   { id: "especular", title: "Exame especular", fields: ESP_FIELDS },
 ] as const;
 
+// Campos que só fazem sentido na gestação (escondidos para não gestantes).
+const OBSTETRIC_ABD_IDS = new Set(["abdDu", "abdTonus"]);
+const OBSTETRIC_TOQUE_IDS = new Set([
+  "toqueApagamento",
+  "toqueDeLee",
+  "toqueApresentacao",
+  "toqueBolsa",
+]);
+
+/** Campos do abdome conforme a pessoa está gestante ou não. */
+export function abdFieldsFor(pregnant: boolean): GyField[] {
+  return pregnant ? ABD_FIELDS : ABD_FIELDS.filter((f) => !OBSTETRIC_ABD_IDS.has(f.id));
+}
+
+/** Campos do toque vaginal conforme a pessoa está gestante ou não. */
+export function toqueFieldsFor(pregnant: boolean): GyField[] {
+  return pregnant ? TOQUE_FIELDS : TOQUE_FIELDS.filter((f) => !OBSTETRIC_TOQUE_IDS.has(f.id));
+}
+
 export interface GynecoState {
   /** fieldId → rótulo da opção selecionada. */
   values: Record<string, string>;
@@ -177,13 +196,16 @@ function pick(field: GyField, values: Record<string, string>): string {
 }
 
 /** Linhas ABD / TOQUE VAGINAL / EXAME ESPECULAR do prontuário. */
-export function renderGyneco(st: GynecoState, vitals: ExamVitals): string[] {
+export function renderGyneco(st: GynecoState, vitals: ExamVitals, pregnant = true): string[] {
   const v = st.values;
   const lines: string[] = [];
 
   const abd = (id: string) => pick(ABD_FIELDS.find((f) => f.id === id)!, v);
+  const abdBase = `ABD: ${abd("abdRha")}, ${abd("abdDor")}, ${abd("abdIrritacao")}`;
   lines.push(
-    `ABD: ${abd("abdRha")}, ${abd("abdDor")}, ${abd("abdIrritacao")}. GRAVÍDICO, ${abd("abdDu")}, ${abd("abdTonus")}, AU: ${vitals.au ?? ""} CM, BCF: ${vitals.bcf ?? ""} BPM`,
+    pregnant
+      ? `${abdBase}. GRAVÍDICO, ${abd("abdDu")}, ${abd("abdTonus")}, AU: ${vitals.au ?? ""} CM, BCF: ${vitals.bcf ?? ""} BPM`
+      : `${abdBase}.`,
   );
 
   if (!st.toqueRealizado) {
@@ -191,10 +213,16 @@ export function renderGyneco(st: GynecoState, vitals: ExamVitals): string[] {
   } else {
     const t = (id: string) => pick(TOQUE_FIELDS.find((f) => f.id === id)!, v);
     const auth = st.toqueAutorizado ? " (AUTORIZADO PELA PACIENTE)" : "";
-    const colo = `COLO ${t("toquePosicao")}, ${t("toqueConsistencia")}, ${t("toqueApagamento")}`;
-    lines.push(
-      `TOQUE VAGINAL${auth}: ${colo}, ${t("toqueDilatacao")}, ${t("toqueDeLee")}, ${t("toqueApresentacao")}, ${t("toqueBolsa")}, ${t("toqueSangramento")}`,
-    );
+    if (pregnant) {
+      const colo = `COLO ${t("toquePosicao")}, ${t("toqueConsistencia")}, ${t("toqueApagamento")}`;
+      lines.push(
+        `TOQUE VAGINAL${auth}: ${colo}, ${t("toqueDilatacao")}, ${t("toqueDeLee")}, ${t("toqueApresentacao")}, ${t("toqueBolsa")}, ${t("toqueSangramento")}`,
+      );
+    } else {
+      lines.push(
+        `TOQUE VAGINAL${auth}: COLO ${t("toquePosicao")}, ${t("toqueConsistencia")}, ${t("toqueDilatacao")}, ${t("toqueSangramento")}`,
+      );
+    }
   }
 
   if (!st.espRealizado) {
