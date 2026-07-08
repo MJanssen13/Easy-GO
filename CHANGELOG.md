@@ -5,6 +5,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Fase 2 (revisão da admissão)
+
+- **Paridade** com interface mais dinâmica: botões de adição rápida por tipo
+  (parto normal / cesárea / fórceps / aborto / ectópica), resumo ao vivo no
+  cabeçalho (ex.: `G5C1N2A1`) e um "i" explicando a codificação (GPA com via de
+  parto detalhada; TPAL/GTPAL como referência). Cada gestação ganhou um campo
+  amplo (textarea) para intercorrências e dados comemorativos; quebras de linha
+  são normalizadas na linha do prontuário.
+
 ### PSGO — admissão persistida (Fase 1)
 
 - O modelo de paciente compartilhado passa a gravar/ler `clinical_summary`

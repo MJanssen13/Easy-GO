@@ -8,7 +8,7 @@ import { renderPsgo, computePsgo } from "@/core/psgo/render";
 import { datingDisplay } from "@/core/psgo/dating";
 import { ABD_FIELDS, TOQUE_FIELDS, ESP_FIELDS, type GyField } from "@/core/psgo/gyneco-exam";
 import { savePsgoAdmission } from "../actions";
-import { PRIOR_TYPE_LABELS, type PriorPregnancyType } from "@/core/psgo/parity";
+import { PRIOR_TYPE_LABELS, formatParity, type PriorPregnancyType } from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
@@ -158,6 +158,7 @@ export function PsgoGenerator({
     () => Object.fromEntries(form.imagingExams.map((e) => [e.id, examCentiles(e)])),
     [form.imagingExams],
   );
+  const parityView = useMemo(() => formatParity(form.priorPregnancies), [form.priorPregnancies]);
   const datingView = useMemo(
     () =>
       datingDisplay({
@@ -181,9 +182,9 @@ export function PsgoGenerator({
   }
 
   // Paridade
-  function addPrior() {
+  function addPrior(type: PriorPregnancyType = "N") {
     update({
-      priorPregnancies: [...form.priorPregnancies, { id: uid(), type: "N", year: "", note: "" }],
+      priorPregnancies: [...form.priorPregnancies, { id: uid(), type, year: "", note: "" }],
     });
   }
   function updatePrior(id: string, patch: Partial<PsgoForm["priorPregnancies"][number]>) {
@@ -347,50 +348,96 @@ export function PsgoGenerator({
         {/* Paridade */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
-              Paridade
-              <Button type="button" size="sm" variant="outline" onClick={addPrior}>
-                <Plus className="h-4 w-4" /> Gestação
-              </Button>
+            <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <span className="flex items-center gap-1.5">
+                Paridade
+                <InfoTip title="Como codificar a paridade">
+                  <p>
+                    <strong>G</strong> = gestações (inclui a atual); <strong>P</strong> = partos.
+                  </p>
+                  <p>
+                    Os partos são discriminados pela via: <strong>N</strong> normal, <strong>F</strong>{" "}
+                    fórceps, <strong>C</strong> cesárea. Somam-se <strong>A</strong> abortos (perda &lt;
+                    20–22 sem, inclui ectópicas em alguns serviços) e <strong>E</strong> ectópicas.
+                  </p>
+                  <p>
+                    Equivale ao <strong>GPA</strong> (gesta–para–aborto) com a via de parto detalhada.
+                    Ex.: 4 gestações, 2 partos normais + 1 cesárea, 1 aborto → <strong>G4N2C1A1</strong>.
+                  </p>
+                </InfoTip>
+              </span>
+              {parityView.summary && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-bold tabular-nums text-primary">
+                  {parityView.summary}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {form.priorPregnancies.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Primigesta (G1). Adicione gestações prévias se houver.
-              </p>
-            )}
-            {form.priorPregnancies.map((p) => (
-              <div key={p.id} className="flex items-center gap-2">
-                <select
-                  className={`${selectClass} w-28`}
-                  value={p.type}
-                  onChange={(e) => updatePrior(p.id, { type: e.target.value as PriorPregnancyType })}
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {(["N", "C", "F", "A", "E"] as PriorPregnancyType[]).map((t) => (
+                <Button
+                  key={t}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => addPrior(t)}
                 >
-                  {(Object.keys(PRIOR_TYPE_LABELS) as PriorPregnancyType[]).map((t) => (
-                    <option key={t} value={t}>
-                      {t} — {PRIOR_TYPE_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  className="w-24"
-                  placeholder="Ano"
-                  value={p.year ?? ""}
-                  inputMode="numeric"
-                  onChange={(e) => updatePrior(p.id, { year: e.target.value })}
-                />
-                <Input
-                  className="flex-1"
-                  placeholder="Intercorrência"
-                  value={p.note ?? ""}
-                  onChange={(e) => updatePrior(p.id, { note: e.target.value })}
-                />
-                <Button type="button" variant="ghost" size="icon" onClick={() => removePrior(p.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  <Plus className="h-3.5 w-3.5" /> {PRIOR_TYPE_LABELS[t]}
                 </Button>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            {form.priorPregnancies.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Primigesta (G1). Use os botões acima para registrar gestações prévias.
+              </p>
+            ) : (
+              form.priorPregnancies.map((p, idx) => (
+                <div key={p.id} className="space-y-2 rounded-md border p-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {idx + 1}ª gestação
+                    </span>
+                    <select
+                      className={`${selectClass} h-8 w-40`}
+                      value={p.type}
+                      onChange={(e) =>
+                        updatePrior(p.id, { type: e.target.value as PriorPregnancyType })
+                      }
+                    >
+                      {(Object.keys(PRIOR_TYPE_LABELS) as PriorPregnancyType[]).map((t) => (
+                        <option key={t} value={t}>
+                          {t} — {PRIOR_TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      className="h-8 w-24"
+                      placeholder="Ano"
+                      value={p.year ?? ""}
+                      inputMode="numeric"
+                      onChange={(e) => updatePrior(p.id, { year: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="ml-auto"
+                      onClick={() => removePrior(p.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                  <Textarea
+                    rows={2}
+                    placeholder="Intercorrências / dados comemorativos (peso do RN, local, complicações, aleitamento…)"
+                    value={p.note ?? ""}
+                    onChange={(e) => updatePrior(p.id, { note: e.target.value })}
+                  />
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 

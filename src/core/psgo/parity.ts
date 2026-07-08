@@ -65,7 +65,8 @@ export function formatParity(prior: PriorPregnancy[], includesCurrent = true): P
     perTypeIndex[p.type] = (perTypeIndex[p.type] ?? 0) + 1;
     const tag = `${p.type}${perTypeIndex[p.type]}`;
     const when = p.year ? ` EM ${p.year}` : "";
-    const note = p.note ? `, ${p.note.toUpperCase()}` : "";
+    const noteText = p.note ? p.note.trim().replace(/\s*\n+\s*/g, "; ") : "";
+    const note = noteText ? `, ${noteText.toUpperCase()}` : "";
     return `${tag}${when}${note}`;
   });
 
