@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2, Siren, Info } from "lucide-react";
 import { emptyPsgoForm, HABITS, COMPANION_RELATIONS, type PsgoForm } from "@/core/psgo/types";
 import { renderPsgo, computePsgo } from "@/core/psgo/render";
@@ -122,8 +123,15 @@ function Segmented<T extends string>({
   );
 }
 
-export function PsgoGenerator() {
-  const [form, setForm] = useState<PsgoForm>(emptyPsgoForm);
+export function PsgoGenerator({
+  initialForm,
+  patientId,
+}: {
+  initialForm?: PsgoForm;
+  patientId?: string;
+} = {}) {
+  const router = useRouter();
+  const [form, setForm] = useState<PsgoForm>(initialForm ?? emptyPsgoForm);
   const [saving, startSaving] = useTransition();
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -132,12 +140,15 @@ export function PsgoGenerator() {
   function handleSave() {
     setSaveMsg(null);
     startSaving(async () => {
-      const res = await savePsgoAdmission(form);
-      setSaveMsg(
-        res.error
-          ? { ok: false, text: res.error }
-          : { ok: true, text: "Admissão salva no PSGO." },
-      );
+      const res = await savePsgoAdmission(form, patientId);
+      if (res.error) {
+        setSaveMsg({ ok: false, text: res.error });
+        return;
+      }
+      if (res.patientId) {
+        router.push(`/psgo/${res.patientId}`);
+        router.refresh();
+      }
     });
   }
 
@@ -1292,7 +1303,7 @@ export function PsgoGenerator() {
                   disabled={saving || !form.name.trim()}
                   title={!form.name.trim() ? "Informe o nome para salvar" : "Salvar admissão"}
                 >
-                  {saving ? "Salvando…" : "Salvar admissão"}
+                  {saving ? "Salvando…" : patientId ? "Salvar alterações" : "Salvar admissão"}
                 </Button>
                 <CopyButton text={text} />
               </div>

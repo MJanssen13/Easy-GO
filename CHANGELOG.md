@@ -16,6 +16,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - Action `savePsgoAdmission` e botão **"Salvar admissão"** no gerador do PSGO:
   cria/atualiza uma paciente com `module = "psgo"` (base para transferir aos
   outros módulos). *(Requer Supabase configurado.)*
+- Rotas do PSGO reestruturadas (como o pré-parto): `/psgo` = **board** de
+  admissões; `/psgo/admissao` = gerador (nova/edição via `?id=`);
+  `/psgo/[id]` = **detalhe** da paciente (prontuário + editar). Salvar
+  redireciona para o detalhe.
 
 ### Colaboração
 
