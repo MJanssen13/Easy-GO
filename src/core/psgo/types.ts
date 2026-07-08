@@ -7,6 +7,8 @@ import type { RobsonPresentation, RobsonFetuses, RobsonOnset } from "./robson";
 import type { SerologyGrid } from "./serology";
 import { emptySerologyGrid } from "./serology";
 import type { ImagingExam } from "./imaging";
+import type { GynecoState } from "./gyneco-exam";
+import { emptyGynecoState } from "./gyneco-exam";
 
 export const HABITS = ["NEGA", "UDI", "TBG", "ÁLCOOL"];
 
@@ -40,11 +42,10 @@ export interface PsgoForm {
   // paridade
   priorPregnancies: PriorPregnancy[];
 
-  // datação
+  // datação (o USG usado para datar vem do quadro de exames de imagem)
   lmp: string;
   lmpUncertain: boolean;
   datingPreference: DatingPreference;
-  usgExams: UsgExam[];
 
   // dados clínicos para Robson
   presentation: RobsonPresentation | "";
@@ -79,6 +80,7 @@ export interface PsgoForm {
   height: string;
   vitals: ExamVitals;
   exam: Record<string, ExamSystemState>;
+  gyneco: GynecoState;
 
   // CTG
   ctg: string;
@@ -122,7 +124,6 @@ export function emptyPsgoForm(): PsgoForm {
     lmp: "",
     lmpUncertain: false,
     datingPreference: "auto",
-    usgExams: [],
     presentation: "",
     fetuses: "",
     laborOnset: "",
@@ -143,6 +144,7 @@ export function emptyPsgoForm(): PsgoForm {
     height: "",
     vitals: {},
     exam,
+    gyneco: emptyGynecoState(),
     ctg: "",
     cd: "",
     serologyPasted: "",

@@ -6,7 +6,10 @@ import {
   gaFromLMP,
   gaFromUltrasound,
   resolveDating,
+  eddFromLMP,
+  eddFromUltrasound,
   formatDateBR,
+  type GestationalAge,
 } from "@/core/obstetric/gestational-age";
 
 export interface UsgExam {
@@ -93,4 +96,55 @@ export function resolvePsgoDating(
     gaWeeks: chosen ? chosen.ga.weeks : null,
     term: chosen ? chosen.ga.weeks >= 37 : null,
   };
+}
+
+export interface DatingDisplay {
+  /** IG atual pela DUM + DPP. */
+  dum: { ga: GestationalAge; eddBR: string } | null;
+  /** IG atual pelo USG, com a data do exame e a IG naquela data. */
+  usg: {
+    dateBR: string;
+    gaAtExam: { weeks: number; days: number };
+    currentGa: GestationalAge;
+    eddBR: string;
+  } | null;
+  /** Método efetivamente usado para a HD ("DUM" | "US"). */
+  chosen: "DUM" | "US" | null;
+}
+
+/** Dados estruturados de datação para exibição no card (IG por DUM e por USG). */
+export function datingDisplay(
+  input: {
+    lmp?: string | null;
+    lmpUncertain?: boolean;
+    usgExams: UsgExam[];
+    preference?: DatingPreference;
+  },
+  ref: Date = new Date(),
+): DatingDisplay {
+  const lmpDate = parseDate(input.lmp);
+  const datingUsg =
+    input.usgExams.find((u) => u.useForDating) ??
+    input.usgExams.find((u) => u.date && u.gaWeeks != null);
+  const scanDate = parseDate(datingUsg?.date);
+  const scanGa =
+    datingUsg && datingUsg.gaWeeks != null
+      ? { weeks: datingUsg.gaWeeks, days: datingUsg.gaDays ?? 0 }
+      : null;
+
+  const dum = lmpDate
+    ? { ga: gaFromLMP(lmpDate, ref), eddBR: formatDateBR(eddFromLMP(lmpDate)) }
+    : null;
+
+  const usg =
+    scanDate && scanGa
+      ? {
+          dateBR: formatDateBR(scanDate),
+          gaAtExam: scanGa,
+          currentGa: gaFromUltrasound(scanDate, scanGa, ref),
+          eddBR: formatDateBR(eddFromUltrasound(scanDate, scanGa)),
+        }
+      : null;
+
+  return { dum, usg, chosen: resolvePsgoDating(input, ref).methodTag };
 }

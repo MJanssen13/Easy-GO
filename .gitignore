@@ -36,8 +36,9 @@ yarn-error.log*
 /supabase/.branches
 /supabase/.temp
 
-# claude code (local-only)
-.claude/
+# claude code — versiona settings.json e hooks (compartilhados); ignora o local
+.claude/settings.local.json
+.claude/*.local.json
 
 # modelos clínicos de referência (podem conter dados de equipe/pacientes)
 /Modelos/

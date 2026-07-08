@@ -1,9 +1,14 @@
 /**
- * Exames de imagem (USG obstétrico) do PSGO: cada exame tem IG própria e a
- * plataforma calcula percentis de PFE/CA (Hadlock) e Doppler (FMF).
+ * Exames de imagem (USG obstétrico) do PSGO. Seção própria, em quadro: cada
+ * exame tem IG própria e a plataforma calcula os percentis de PESO/CA
+ * (Hadlock) e da tríade Doppler do CIUR (IP-AUmb, IP-ACM, RCP — FMF/Ciobanu).
+ *
+ * Linha do prontuário (MODELO PS):
+ *   -(DATA): IG: XX / APRESENTAÇÃO / PESO (P X) / CIRC. ABDOMINAL (P X) /
+ *    PLACENTA E SUA INSERÇÃO, GRAU / MBV / IP AUMB (P X) / IP ACM (P X) / RCP (P X)
  */
 import { efwCentile, acCentile } from "@/core/fmf/biometry";
-import { utpiCentile, mcaPsvCentile, mcaPsvMoM, dvpiCentile } from "@/core/fmf/doppler";
+import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr";
 import { formatCentile } from "@/core/fmf/centile";
 
 export interface ImagingExam {
@@ -11,14 +16,15 @@ export interface ImagingExam {
   date?: string;
   gaWeeks?: number;
   gaDays?: number;
-  efw?: string; // PFE (g)
-  ac?: string; // CA (mm)
-  utpi?: string; // IP médio das aa. uterinas
-  mcaPsv?: string; // ACM-PSV (cm/s)
-  dvpi?: string; // DV-IP
-  ila?: string;
-  placenta?: string;
-  presentation?: string;
+  useForDating?: boolean; // USG escolhido para datação
+  presentation?: string; // APRESENTAÇÃO (cefálica/pélvica/córmica)
+  efw?: string; // PESO — PFE (g)
+  ac?: string; // CIRC. ABDOMINAL (mm)
+  placentaSite?: string; // inserção (anterior/posterior/fúndica/prévia…)
+  placentaGrade?: string; // grau (0/I/II/III)
+  mbv?: string; // maior bolsão vertical (cm)
+  uaPi?: string; // IP AUMB — IP da artéria umbilical
+  mcaPi?: string; // IP ACM — IP da artéria cerebral média
   notes?: string;
 }
 
@@ -27,9 +33,15 @@ export function examGaDays(e: Pick<ImagingExam, "gaWeeks" | "gaDays">): number |
   return e.gaWeeks * 7 + (e.gaDays ?? 0);
 }
 
+function num(s?: string): number | null {
+  if (s == null || s.trim() === "") return null;
+  const n = Number(s.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
 function pctSuffix(c: number | null): string {
   const f = formatCentile(c);
-  return f ? ` (p${f})` : "";
+  return f ? ` (P ${f})` : "";
 }
 
 function dateBR(iso?: string): string {
@@ -38,53 +50,112 @@ function dateBR(iso?: string): string {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR");
 }
 
-/** Linha de prontuário de um exame de imagem, com percentis calculados. */
+function igLabel(e: ImagingExam): string {
+  if (e.gaWeeks == null) return "";
+  return `IG: ${e.gaWeeks}s${e.gaDays ? `${e.gaDays}d` : ""}`;
+}
+
+/** RCP (valor) calculado a partir de IP-ACM / IP-AUmb. */
+export function examCpr(e: ImagingExam): number | null {
+  return cprValue(num(e.mcaPi), num(e.uaPi));
+}
+
+export interface ImagingCentiles {
+  efw: string; // "P 50" ou ""
+  ac: string;
+  uaPi: string;
+  mcaPi: string;
+  cpr: string;
+}
+
+/** Rótulos de percentil ("P X") de cada medida do exame, para exibição no quadro. */
+export function examCentiles(e: ImagingExam): ImagingCentiles {
+  const gaDays = examGaDays(e);
+  const lab = (c: number | null) => {
+    const f = formatCentile(c);
+    return f ? `P ${f}` : "";
+  };
+  const efw = num(e.efw);
+  const ac = num(e.ac);
+  const uaPi = num(e.uaPi);
+  const mcaPi = num(e.mcaPi);
+  const cpr = examCpr(e);
+  return {
+    efw: gaDays != null && efw != null ? lab(efwCentile(efw, gaDays)) : "",
+    ac: gaDays != null && ac != null ? lab(acCentile(ac, gaDays)) : "",
+    uaPi: gaDays != null && uaPi != null ? lab(uaPiCentile(uaPi, gaDays)) : "",
+    mcaPi: gaDays != null && mcaPi != null ? lab(mcaPiCentile(mcaPi, gaDays)) : "",
+    cpr: gaDays != null && cpr != null ? lab(cprCentile(cpr, gaDays)) : "",
+  };
+}
+
+export function hasImagingData(e: ImagingExam): boolean {
+  return Boolean(
+    e.date ||
+      e.efw ||
+      e.ac ||
+      e.uaPi ||
+      e.mcaPi ||
+      e.mbv ||
+      e.placentaSite ||
+      e.placentaGrade ||
+      e.presentation ||
+      e.notes,
+  );
+}
+
+/** Linha de prontuário de um exame, no formato do MODELO PS, com percentis. */
 export function renderImagingExam(e: ImagingExam): string {
   const gaDays = examGaDays(e);
-  const head: string[] = [];
-  const datePart = dateBR(e.date);
-  const gaPart = e.gaWeeks != null ? `IG ${e.gaWeeks}s${e.gaDays ? ` ${e.gaDays}d` : ""}` : "";
-  const label = [datePart, gaPart].filter(Boolean).join(" - ");
+  const fields: string[] = [];
 
-  const efw = e.efw ? Number(e.efw) : null;
-  if (efw) {
+  const ig = igLabel(e);
+  if (ig) fields.push(ig);
+  if (e.presentation) fields.push(e.presentation);
+
+  const efw = num(e.efw);
+  if (efw != null) {
     const c = gaDays != null ? efwCentile(efw, gaDays) : null;
-    head.push(`PFE ${e.efw}G${pctSuffix(c)}`);
+    fields.push(`PESO ${e.efw}g${pctSuffix(c)}`);
   }
-  const ac = e.ac ? Number(e.ac) : null;
-  if (ac) {
+
+  const ac = num(e.ac);
+  if (ac != null) {
     const c = gaDays != null ? acCentile(ac, gaDays) : null;
-    head.push(`CA ${e.ac}MM${pctSuffix(c)}`);
+    fields.push(`CIRC. ABDOMINAL ${e.ac}mm${pctSuffix(c)}`);
   }
-  if (e.ila) head.push(`ILA ${e.ila}`);
-  if (e.placenta) head.push(`PLACENTA ${e.placenta}`);
-  if (e.presentation) head.push(`APRESENTAÇÃO ${e.presentation}`);
 
-  const utpi = e.utpi ? Number(e.utpi) : null;
-  if (utpi) {
-    const c = gaDays != null ? utpiCentile(utpi, gaDays) : null;
-    head.push(`IP-AUT ${e.utpi}${pctSuffix(c)}`);
+  if (e.placentaSite || e.placentaGrade) {
+    const site = e.placentaSite ? ` ${e.placentaSite}` : "";
+    const grade = e.placentaGrade ? `, GRAU ${e.placentaGrade}` : "";
+    fields.push(`PLACENTA${site}${grade}`);
   }
-  const mca = e.mcaPsv ? Number(e.mcaPsv) : null;
-  if (mca) {
-    const c = gaDays != null ? mcaPsvCentile(mca, gaDays) : null;
-    const mom = gaDays != null ? mcaPsvMoM(mca, gaDays) : null;
-    const momPart = mom ? ` / ${mom.toFixed(2)} MoM` : "";
-    head.push(`ACM-PSV ${e.mcaPsv}${pctSuffix(c)}${momPart}`);
-  }
-  const dv = e.dvpi ? Number(e.dvpi) : null;
-  if (dv) {
-    const c = gaDays != null ? dvpiCentile(dv, gaDays) : null;
-    head.push(`DV-IP ${e.dvpi}${pctSuffix(c)}`);
-  }
-  if (e.notes) head.push(e.notes);
 
-  return `-(${label}): ${head.join(" / ")}`;
+  if (e.mbv) fields.push(`MBV ${e.mbv}`);
+
+  const uaPi = num(e.uaPi);
+  if (uaPi != null) {
+    const c = gaDays != null ? uaPiCentile(uaPi, gaDays) : null;
+    fields.push(`IP AUMB ${e.uaPi}${pctSuffix(c)}`);
+  }
+
+  const mcaPi = num(e.mcaPi);
+  if (mcaPi != null) {
+    const c = gaDays != null ? mcaPiCentile(mcaPi, gaDays) : null;
+    fields.push(`IP ACM ${e.mcaPi}${pctSuffix(c)}`);
+  }
+
+  const cpr = examCpr(e);
+  if (cpr != null) {
+    const c = gaDays != null ? cprCentile(cpr, gaDays) : null;
+    fields.push(`RCP ${cpr.toFixed(2)}${pctSuffix(c)}`);
+  }
+
+  if (e.notes) fields.push(e.notes);
+
+  return `-(${dateBR(e.date)}): ${fields.join(" / ")}`;
 }
 
 export function renderImaging(exams: ImagingExam[]): string {
-  return exams
-    .filter((e) => e.date || e.efw || e.ac || e.utpi || e.mcaPsv || e.dvpi || e.ila || e.notes)
-    .map(renderImagingExam)
-    .join("\n");
+  return exams.filter(hasImagingData).map(renderImagingExam).join("\n");
 }

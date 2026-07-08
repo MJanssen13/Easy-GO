@@ -9,6 +9,7 @@ import { resolvePsgoDating } from "./dating";
 import { autoComorbidities, classifyBmi } from "./comorbidities";
 import { formatMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
+import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
 import { renderImaging } from "./imaging";
 
@@ -45,7 +46,12 @@ export interface PsgoComputed {
 
 export function computePsgo(form: PsgoForm): PsgoComputed {
   const parity = formatParity(form.priorPregnancies);
-  const dating = resolvePsgoDating(form);
+  const dating = resolvePsgoDating({
+    lmp: form.lmp,
+    lmpUncertain: form.lmpUncertain,
+    usgExams: form.imagingExams,
+    preference: form.datingPreference,
+  });
   const robson = classifyRobson({
     parity: parity.multipara ? "multipara" : "nullipara",
     priorCesarean: parity.cesareanCount >= 1,
@@ -61,7 +67,12 @@ export function renderPsgo(form: PsgoForm): string {
   const L: string[] = [];
 
   const parity = formatParity(form.priorPregnancies);
-  const dating = resolvePsgoDating(form);
+  const dating = resolvePsgoDating({
+    lmp: form.lmp,
+    lmpUncertain: form.lmpUncertain,
+    usgExams: form.imagingExams,
+    preference: form.datingPreference,
+  });
   const weight = form.weight ? Number(form.weight) : null;
   const height = form.height ? Number(form.height) : null;
   const bmi = classifyBmi(weight, height);
@@ -144,15 +155,25 @@ export function renderPsgo(form: PsgoForm): string {
     `PESO: ${form.weight} KG // ALTURA: ${form.height} M // IMC: ${bmi ? bmi.imc : ""} KG/M²`,
   );
   for (const s of EXAM_SYSTEMS) {
+    // Exame ginecológico/obstétrico (ABD, toque, especular) antes de MMII.
+    if (s.id === "mmii") {
+      for (const line of renderGyneco(form.gyneco, form.vitals)) L.push(line);
+    }
     L.push(buildExamLine(s.id, form.exam[s.id], form.vitals));
   }
 
-  // Laboratoriais / imagem
+  // Laboratoriais
   L.push("EXAMES LABORATORIAIS:");
   if (form.labs.trim()) L.push(form.labs.trim());
-  L.push("EXAMES DE IMAGEM ( ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):");
+
+  // Exames de imagem (seção própria, em quadro)
   const imaging = renderImaging(form.imagingExams);
-  if (imaging.trim()) L.push(imaging);
+  if (imaging.trim()) {
+    L.push("EXAMES DE IMAGEM (USG):");
+    L.push(imaging);
+  } else {
+    L.push("EXAMES DE IMAGEM (ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):");
+  }
 
   // CTG
   L.push(`CTG: ${form.ctg}`);
