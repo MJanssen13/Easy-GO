@@ -4,13 +4,16 @@ import type {
   Patient,
   Observation,
   NewPatientInput,
+  UpdatePatientInput,
   NewObservationInput,
   ScheduledTask,
+  PatientOutcome,
 } from "./types";
 import {
   dbToPatient,
   dbToObservation,
   newPatientToInsert,
+  updatePatientToDb,
   newObservationToInsert,
 } from "./mappers";
 
@@ -70,6 +73,23 @@ export async function getPatient(id: string): Promise<Patient | null> {
   return patient;
 }
 
+/** Observations of several patients since a timestamp (for board 24h stats). */
+export async function listObservationsSince(
+  patientIds: string[],
+  sinceISO: string,
+): Promise<Observation[]> {
+  if (patientIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("observations")
+    .select("*")
+    .in("patient_id", patientIds)
+    .gte("recorded_at", sinceISO)
+    .order("recorded_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []).map(dbToObservation);
+}
+
 export async function createPatient(input: NewPatientInput): Promise<Patient> {
   const supabase = await createClient();
   const userId = await currentUserId();
@@ -81,6 +101,52 @@ export async function createPatient(input: NewPatientInput): Promise<Patient> {
 
   if (error || !data) throw new RepositoryError("Não foi possível admitir a paciente.", error);
   return dbToPatient(data);
+}
+
+export async function updatePatient(id: string, input: UpdatePatientInput): Promise<Patient> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("patients")
+    .update(updatePatientToDb(input))
+    .eq("id", id)
+    .select()
+    .single();
+  if (error || !data) throw new RepositoryError("Não foi possível atualizar a paciente.", error);
+  return dbToPatient(data);
+}
+
+/**
+ * Registra o desfecho: status → resolvida, grava outcome + hora do desfecho e
+ * remove as tarefas pendentes do cronograma (mantém o histórico concluído).
+ */
+export async function resolvePatient(
+  id: string,
+  outcome: PatientOutcome,
+  dischargeTime?: string,
+): Promise<void> {
+  const supabase = await createClient();
+  const schedule = await getSchedule(id).catch(() => [] as ScheduledTask[]);
+  const cleaned = schedule.filter((t) => t.status !== "pending");
+  const { error } = await supabase
+    .from("patients")
+    .update({
+      status: "resolved",
+      outcome,
+      discharge_time: dischargeTime ?? new Date().toISOString(),
+      schedule: cleaned as unknown as Json,
+    })
+    .eq("id", id);
+  if (error) throw new RepositoryError("Não foi possível registrar o desfecho.", error);
+}
+
+/** Reabre uma paciente resolvida: volta para trabalho de parto ativo. */
+export async function reopenPatient(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("patients")
+    .update({ status: "active_labor", outcome: "none", discharge_time: null })
+    .eq("id", id);
+  if (error) throw new RepositoryError("Não foi possível reabrir a paciente.", error);
 }
 
 export async function deletePatient(id: string): Promise<void> {

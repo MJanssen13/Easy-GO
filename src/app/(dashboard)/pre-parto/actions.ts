@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   createPatient,
+  updatePatient,
+  resolvePatient,
+  reopenPatient,
   deletePatient,
   addObservation,
   updateSchedule,
@@ -19,8 +22,10 @@ import type { ScheduledTask } from "@/core/patients/types";
 import { eddFromLMP, gaFromLMP } from "@/core/obstetric/gestational-age";
 import type {
   NewPatientInput,
+  UpdatePatientInput,
   NewObservationInput,
   PatientStatus,
+  PatientOutcome,
   VitalSigns,
   ObstetricData,
   Medication,
@@ -154,7 +159,8 @@ const observationSchema = z.object({
   presentation: z.enum(["cephalic", "breech", "transverse"]).optional(),
   membranes: z.enum(["intact", "ruptured_clear", "ruptured_meconium"]).optional(),
   cervixPosition: z.enum(["posterior", "intermediate", "central"]).optional(),
-  cervixConsistency: z.enum(["firm", "intermediate", "soft"]).optional(),
+  cervixConsistency: z.enum(["nasal", "nasolabial", "labial"]).optional(),
+  cervixStatus: z.string().trim().optional(),
   bloodOnGlove: z.boolean().optional(),
   cervixObservation: z.string().trim().optional(),
   // MgSO₄
@@ -199,6 +205,7 @@ export async function recordObservation(
     membranes: opt(formData.get("membranes")),
     cervixPosition: opt(formData.get("cervixPosition")),
     cervixConsistency: opt(formData.get("cervixConsistency")),
+    cervixStatus: opt(formData.get("cervixStatus")),
     bloodOnGlove: formData.get("bloodOnGlove") === "on",
     cervixObservation: opt(formData.get("cervixObservation")),
     magnesiumEnabled: formData.get("magnesiumEnabled") === "on",
@@ -239,6 +246,9 @@ export async function recordObservation(
     membranes: d.membranes,
     cervixPosition: d.cervixPosition,
     cervixConsistency: d.cervixConsistency,
+    cervixStatus: d.cervixStatus
+      ? d.cervixStatus.split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined,
     bloodOnGlove: d.bloodOnGlove || undefined,
     cervixObservation: d.cervixObservation,
   };
@@ -479,6 +489,164 @@ export async function updateTaskStatus(formData: FormData): Promise<void> {
   }
   revalidatePath("/pre-parto/cronograma");
   revalidatePath(`/pre-parto/${patientId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Edição da paciente + protocolos
+// ---------------------------------------------------------------------------
+
+const editSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(1, "Informe o nome da paciente."),
+  bed: z.string().trim().optional(),
+  medicalRecordNumber: z.string().trim().optional(),
+  age: z.coerce.number().int().min(0).max(120).optional(),
+  parity: z.string().trim().optional(),
+  bloodType: z.string().trim().optional(),
+  babyName: z.string().trim().optional(),
+  lmp: z.string().trim().optional(),
+  gaWeeks: z.coerce.number().int().min(0).max(45).optional(),
+  gaDays: z.coerce.number().int().min(0).max(6).optional(),
+  status: z
+    .enum([
+      "admission",
+      "active_labor",
+      "induction",
+      "expectant",
+      "observation",
+      "inpatient",
+      "partogram_open",
+      "postpartum",
+    ])
+    .optional(),
+  riskFactors: z.string().trim().optional(),
+  useMethyldopa: z.boolean().optional(),
+  methyldopaStartTime: z.string().trim().optional(),
+  methyldopaEndTime: z.string().trim().optional(),
+  useMagnesiumSulfate: z.boolean().optional(),
+  magnesiumSulfateStartTime: z.string().trim().optional(),
+  magnesiumSulfateEndTime: z.string().trim().optional(),
+});
+
+export type EditPatientState = { error?: string };
+
+export async function editPatient(
+  _prev: EditPatientState,
+  formData: FormData,
+): Promise<EditPatientState> {
+  const raw = {
+    id: formData.get("id"),
+    name: formData.get("name"),
+    bed: opt(formData.get("bed")),
+    medicalRecordNumber: opt(formData.get("medicalRecordNumber")),
+    age: opt(formData.get("age")),
+    parity: opt(formData.get("parity")),
+    bloodType: opt(formData.get("bloodType")),
+    babyName: opt(formData.get("babyName")),
+    lmp: opt(formData.get("lmp")),
+    gaWeeks: opt(formData.get("gaWeeks")),
+    gaDays: opt(formData.get("gaDays")),
+    status: opt(formData.get("status")),
+    riskFactors: opt(formData.get("riskFactors")),
+    useMethyldopa: formData.get("useMethyldopa") === "on",
+    methyldopaStartTime: opt(formData.get("methyldopaStartTime")),
+    methyldopaEndTime: opt(formData.get("methyldopaEndTime")),
+    useMagnesiumSulfate: formData.get("useMagnesiumSulfate") === "on",
+    magnesiumSulfateStartTime: opt(formData.get("magnesiumSulfateStartTime")),
+    magnesiumSulfateEndTime: opt(formData.get("magnesiumSulfateEndTime")),
+  };
+
+  const parsed = editSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+  const d = parsed.data;
+
+  const input: UpdatePatientInput = {
+    name: d.name,
+    bed: d.bed ?? null,
+    medicalRecordNumber: d.medicalRecordNumber ?? null,
+    age: d.age ?? null,
+    parity: d.parity ?? null,
+    bloodType: d.bloodType ?? null,
+    babyName: d.babyName ?? null,
+    status: d.status as PatientStatus | undefined,
+    riskFactors: d.riskFactors
+      ? d.riskFactors.split(",").map((s) => s.trim()).filter(Boolean)
+      : [],
+    useMethyldopa: d.useMethyldopa ?? false,
+    methyldopaStartTime: d.methyldopaStartTime ?? null,
+    methyldopaEndTime: d.methyldopaEndTime ?? null,
+    useMagnesiumSulfate: d.useMagnesiumSulfate ?? false,
+    magnesiumSulfateStartTime: d.magnesiumSulfateStartTime ?? null,
+    magnesiumSulfateEndTime: d.magnesiumSulfateEndTime ?? null,
+  };
+
+  // Datação: DUM recalcula DPP + IG; senão usa IG manual.
+  if (d.lmp) {
+    const lmpDate = new Date(`${d.lmp}T00:00:00`);
+    if (!Number.isNaN(lmpDate.getTime())) {
+      const ga = gaFromLMP(lmpDate);
+      input.lmp = d.lmp;
+      input.edd = toISODate(eddFromLMP(lmpDate));
+      input.gaWeeks = ga.weeks;
+      input.gaDays = ga.days;
+    }
+  } else {
+    input.lmp = null;
+    if (d.gaWeeks != null) {
+      input.gaWeeks = d.gaWeeks;
+      input.gaDays = d.gaDays ?? 0;
+    }
+  }
+
+  try {
+    await updatePatient(d.id, input);
+  } catch (err) {
+    const message =
+      err instanceof RepositoryError ? err.message : "Não foi possível atualizar a paciente.";
+    return { error: message };
+  }
+
+  revalidatePath(`/pre-parto/${d.id}`);
+  revalidatePath("/pre-parto");
+  redirect(`/pre-parto/${d.id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Desfecho / reabertura
+// ---------------------------------------------------------------------------
+
+const RESOLVE_OUTCOMES = ["vaginal_delivery", "c_section", "discharge", "transfer"] as const;
+
+export async function resolvePatientAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  const outcome = String(formData.get("outcome") ?? "");
+  const dischargeRaw = opt(formData.get("dischargeTime"));
+  if (!id || !RESOLVE_OUTCOMES.includes(outcome as (typeof RESOLVE_OUTCOMES)[number])) return;
+
+  const iso = dischargeRaw ? new Date(dischargeRaw).toISOString() : undefined;
+  try {
+    await resolvePatient(id, outcome as PatientOutcome, iso);
+  } catch {
+    // best-effort; surfaced on reload
+  }
+  revalidatePath("/pre-parto");
+  revalidatePath(`/pre-parto/${id}`);
+  redirect(`/pre-parto/${id}`);
+}
+
+export async function reopenPatientAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  try {
+    await reopenPatient(id);
+  } catch {
+    // best-effort
+  }
+  revalidatePath("/pre-parto");
+  revalidatePath(`/pre-parto/${id}`);
+  redirect(`/pre-parto/${id}`);
 }
 
 export async function removePatient(formData: FormData): Promise<void> {

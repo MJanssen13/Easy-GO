@@ -190,9 +190,9 @@ export function EvolutionForm({
             <Field label="Consistência do colo" htmlFor="cervixConsistency">
               <select id="cervixConsistency" name="cervixConsistency" className={selectClass} defaultValue="">
                 <option value="">—</option>
-                <option value="firm">Firme</option>
-                <option value="intermediate">Intermediária</option>
-                <option value="soft">Amolecida</option>
+                <option value="nasal">Nasal (firme)</option>
+                <option value="nasolabial">Nasolabial (médio)</option>
+                <option value="labial">Labial (amolecida)</option>
               </select>
             </Field>
             <Field label="Bolsa" htmlFor="membranes">
@@ -205,9 +205,13 @@ export function EvolutionForm({
             </Field>
           </div>
 
+          <Field label="Colo sem dilatação (OEI, OEEA...)" htmlFor="cervixStatus">
+            <Input id="cervixStatus" name="cervixStatus" placeholder="separado por vírgula" autoComplete="off" />
+          </Field>
+
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="bloodOnGlove" className="h-4 w-4 rounded border-input" />
-            Sangue na luva
+            Sangue na luva (SDL)
           </label>
 
           <Field label="Observações do colo / toque" htmlFor="cervixObservation">

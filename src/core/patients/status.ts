@@ -39,3 +39,15 @@ export const RESOLVED_STATUSES: PatientStatus[] = ["resolved"];
 
 /** Initial statuses offered at admission. */
 export const ADMISSION_STATUS_OPTIONS: PatientStatus[] = ["admission", "induction", "active_labor"];
+
+/** Statuses selectable when editing a patient (all active/non-resolved). */
+export const EDITABLE_STATUS_OPTIONS: PatientStatus[] = [
+  "admission",
+  "active_labor",
+  "induction",
+  "expectant",
+  "observation",
+  "inpatient",
+  "partogram_open",
+  "postpartum",
+];

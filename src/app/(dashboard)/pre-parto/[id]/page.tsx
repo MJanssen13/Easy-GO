@@ -1,19 +1,42 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  ClipboardList,
+  Plus,
+  CalendarClock,
+  Activity,
+  Pencil,
+  CheckCircle2,
+  RotateCcw,
+  TrendingUp,
+} from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
 import { renderCtgLine } from "@/core/ctg/render";
-import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE } from "@/core/patients/status";
+import {
+  PATIENT_STATUS_LABELS,
+  PATIENT_STATUS_BADGE,
+  PATIENT_OUTCOME_LABELS,
+  RESOLVED_STATUSES,
+} from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
-import { renderEvolution } from "@/core/prontuario/preparto";
+import { renderObservationLine } from "@/core/prontuario/preparto";
 import { upcomingTasks } from "@/core/schedule/planner";
 import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { CopyButton } from "@/components/copy-button";
-import { removePatient, removeCtg } from "../actions";
+import { ShiftEvolution } from "../_components/shift-evolution";
+import { VitalCharts } from "../_components/vital-charts";
+import { removePatient, removeCtg, resolvePatientAction, reopenPatientAction } from "../actions";
+
+const selectClass =
+  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 function hhmm(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
@@ -49,7 +72,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
   ];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="space-y-5">
       <Link
         href="/pre-parto"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -68,6 +91,11 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/pre-parto/${patient.id}/editar`}>
+            <Button size="sm" variant="outline">
+              <Pencil className="h-4 w-4" /> Editar
+            </Button>
+          </Link>
           <Link href={`/pre-parto/${patient.id}/rotina`}>
             <Button size="sm" variant="outline">
               <CalendarClock className="h-4 w-4" /> Planejar rotina
@@ -91,6 +119,9 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           </form>
         </div>
       </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="space-y-5">
 
       <Card>
         <CardHeader>
@@ -116,6 +147,74 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Desfecho</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {RESOLVED_STATUSES.includes(patient.status) ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <Badge variant="success">{PATIENT_OUTCOME_LABELS[patient.outcome]}</Badge>
+                {patient.dischargeTime && (
+                  <span className="ml-2 text-muted-foreground">
+                    {new Date(patient.dischargeTime).toLocaleString("pt-BR")}
+                  </span>
+                )}
+              </div>
+              <form action={reopenPatientAction}>
+                <input type="hidden" name="id" value={patient.id} />
+                <Button type="submit" size="sm" variant="outline">
+                  <RotateCcw className="h-4 w-4" /> Reabrir
+                </Button>
+              </form>
+            </div>
+          ) : (
+            <form action={resolvePatientAction} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="id" value={patient.id} />
+              <div className="space-y-1">
+                <Label className="text-xs">Desfecho</Label>
+                <select name="outcome" required defaultValue="" className={selectClass}>
+                  <option value="" disabled>
+                    Selecione…
+                  </option>
+                  <option value="vaginal_delivery">Parto normal</option>
+                  <option value="c_section">Cesárea</option>
+                  <option value="transfer">Transferência</option>
+                  <option value="discharge">Alta</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Data/hora (opcional)</Label>
+                <Input type="datetime-local" name="dischargeTime" className="w-52" />
+              </div>
+              <Button type="submit" size="sm">
+                <CheckCircle2 className="h-4 w-4" /> Resolver
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
+
+      <ShiftEvolution patient={patient} observations={patient.observations ?? []} />
+
+      </div>
+
+      <div className="space-y-5">
+
+      {patient.observations && patient.observations.length >= 2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4 text-primary" /> Tendências
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VitalCharts observations={patient.observations} />
+          </CardContent>
+        </Card>
+      )}
 
       {(() => {
         const next = upcomingTasks(patient.schedule ?? [], 6);
@@ -209,25 +308,18 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </CardHeader>
         <CardContent>
           {patient.observations && patient.observations.length > 0 ? (
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {patient.observations.map((o) => {
-                const text = renderEvolution(patient, o);
+                const line = renderObservationLine(o);
                 return (
-                  <li key={o.id} className="rounded-md border">
-                    <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-2">
-                      <div>
-                        <span className="text-sm font-medium">
-                          {new Date(o.recordedAt).toLocaleString("pt-BR")}
-                        </span>
-                        {o.examinerName && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {o.examinerName}
-                          </span>
-                        )}
-                      </div>
-                      <CopyButton text={text} />
+                  <li key={o.id} className="flex items-start justify-between gap-2 rounded-md border px-3 py-2">
+                    <div className="min-w-0">
+                      <pre className="prontuario-text text-xs">{line}</pre>
+                      {o.examinerName && (
+                        <span className="text-[11px] text-muted-foreground">{o.examinerName}</span>
+                      )}
                     </div>
-                    <pre className="prontuario-text px-3 py-2 text-sm">{text}</pre>
+                    <CopyButton text={line} />
                   </li>
                 );
               })}
@@ -246,6 +338,9 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           )}
         </CardContent>
       </Card>
+
+      </div>
+      </div>
     </div>
   );
 }

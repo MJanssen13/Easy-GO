@@ -3,8 +3,11 @@
  * parto), ready to paste into the medical record. Compact, line-oriented format
  * matching how the obstetric team writes partial evolutions.
  */
-import type { Patient, Observation } from "@/core/patients/types";
+import type { Patient, Observation, ObstetricData } from "@/core/patients/types";
+import type { CtgRecord } from "@/core/ctg/types";
+import { renderCtgLine } from "@/core/ctg/render";
 import { currentGaLabel } from "@/core/patients/display";
+import { PATIENT_OUTCOME_LABELS } from "@/core/patients/status";
 
 const PRESENTATION_LABELS: Record<string, string> = {
   cephalic: "cefálica",
@@ -25,9 +28,9 @@ const CERVIX_POSITION_LABELS: Record<string, string> = {
 };
 
 const CERVIX_CONSISTENCY_LABELS: Record<string, string> = {
-  firm: "firme",
-  intermediate: "intermediária",
-  soft: "amolecida",
+  nasal: "firme",
+  nasolabial: "intermediária",
+  labial: "amolecida",
 };
 
 const REFLEX_LABELS: Record<string, string> = {
@@ -35,6 +38,34 @@ const REFLEX_LABELS: Record<string, string> = {
   absent: "ausente",
   increased: "aumentado",
   decreased: "diminuído",
+};
+
+// --- Mapas compactos (formato do prontuário do hospital) ---
+const CERVIX_POSITION_ABBR: Record<string, string> = {
+  posterior: "P",
+  intermediate: "I",
+  central: "C",
+};
+const CERVIX_CONSISTENCY_ABBR: Record<string, string> = {
+  nasal: "N",
+  nasolabial: "NL",
+  labial: "L",
+};
+const PRESENTATION_ABBR: Record<string, string> = {
+  cephalic: "CEF",
+  breech: "PELV",
+  transverse: "CORM",
+};
+const MEMBRANE_ABBR: Record<string, string> = {
+  intact: "ÍNTEGRA",
+  ruptured_clear: "ROTA CLARA",
+  ruptured_meconium: "ROTA MECONIAL",
+};
+const REFLEX_ABBR: Record<string, string> = {
+  present: "PRESENTE",
+  absent: "AUSENTE",
+  increased: "AUMENTADO",
+  decreased: "DIMINUÍDO",
 };
 
 /** Join non-empty "label: value" parts with " | ". */
@@ -167,4 +198,138 @@ export function renderEvolution(patient: Patient, obs: Observation): string {
   }
 
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// ---------------------------------------------------------------------------
+// Prontuário consolidado (formato compacto do HC-UFTM)
+// ---------------------------------------------------------------------------
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Toque no formato compacto: "TOQUE: 70% AP, P, NL, 5CM, CEF, DE LEE -1, ÍNTEGRA, SSDL". */
+export function renderToqueCompact(o: ObstetricData): string {
+  const parts: string[] = [];
+
+  if (o.effacement != null) parts.push(o.effacement === 0 ? "G" : `${o.effacement}% AP`);
+  if (o.cervixPosition && CERVIX_POSITION_ABBR[o.cervixPosition])
+    parts.push(CERVIX_POSITION_ABBR[o.cervixPosition]);
+  if (o.cervixConsistency && CERVIX_CONSISTENCY_ABBR[o.cervixConsistency])
+    parts.push(CERVIX_CONSISTENCY_ABBR[o.cervixConsistency]);
+
+  if (o.dilation != null && o.dilation > 0) parts.push(`${o.dilation}CM`);
+  else if (o.cervixStatus && o.cervixStatus.length > 0) parts.push(o.cervixStatus.join(", "));
+  else if (o.dilation === 0) parts.push("0CM");
+
+  if (o.presentation && PRESENTATION_ABBR[o.presentation]) parts.push(PRESENTATION_ABBR[o.presentation]);
+
+  if (o.station != null) parts.push(o.station === -4 ? "AM" : `DE LEE ${o.station > 0 ? "+" : ""}${o.station}`);
+
+  if (o.membranes && MEMBRANE_ABBR[o.membranes]) parts.push(MEMBRANE_ABBR[o.membranes]);
+  if (o.bloodOnGlove !== undefined) parts.push(o.bloodOnGlove ? "SDL" : "SSDL");
+  if (o.cervixObservation) parts.push(`OBS: ${o.cervixObservation}`);
+
+  return parts.length > 0 ? `TOQUE: ${parts.join(", ")}` : "";
+}
+
+/** Uma linha compacta de evolução: "HH:MM HS | BCF: 140 BPM | PA: ... | TOQUE: ...". */
+export function renderObservationLine(obs: Observation): string {
+  const d = new Date(obs.recordedAt);
+  const time = Number.isNaN(d.getTime()) ? "--:--" : `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const v = obs.vitals;
+  const o = obs.obstetric;
+  const parts: string[] = [`${time} HS`];
+
+  if (o.bcf != null) parts.push(`BCF: ${o.bcf} BPM`);
+  if (v.paSystolic != null && v.paDiastolic != null) {
+    let pa = `PA: ${v.paSystolic}X${v.paDiastolic} MMHG`;
+    if (v.paStandingSystolic != null && v.paStandingDiastolic != null) {
+      pa += ` (EM PÉ: ${v.paStandingSystolic}X${v.paStandingDiastolic})`;
+    }
+    parts.push(pa);
+  }
+  if (v.fc != null) parts.push(`FC: ${v.fc} BPM`);
+  if (v.tax != null) parts.push(`TAX: ${v.tax}°C`);
+  if (v.spo2 != null) parts.push(`SAT: ${v.spo2}%`);
+  if (o.dynamicsSummary) parts.push(`DU ${o.dynamicsSummary}`);
+
+  const toque = renderToqueCompact(o);
+  if (toque) parts.push(toque);
+
+  if (v.dxt != null) parts.push(`DXT: ${v.dxt} MG/DL`);
+
+  if (obs.medication) {
+    const md = obs.medication;
+    if (md.misoprostolDose != null) {
+      const count = md.misoprostolCount ? `${md.misoprostolCount}º ` : "";
+      parts.push(`${count}MISO ${md.misoprostolDose}MCG`);
+    }
+    if (md.oxytocinDose != null) parts.push(`OCITOCINA ${md.oxytocinDose} ML/H`);
+    if (md.antibiotic) parts.push(`ATB ${md.antibiotic}`);
+  }
+
+  if (obs.magnesiumData) {
+    const m = obs.magnesiumData;
+    if (m.diuresis) parts.push(`DIURESE ${m.diuresis}`);
+    if (m.reflex && REFLEX_ABBR[m.reflex]) parts.push(`REFLEXO ${REFLEX_ABBR[m.reflex]}`);
+    if (m.respiratoryRate != null) parts.push(`FR ${m.respiratoryRate} IRPM`);
+  }
+
+  if (obs.notes && obs.notes.trim() !== "") parts.push(obs.notes.trim());
+
+  return parts.join(" | ");
+}
+
+/**
+ * Prontuário consolidado: evoluções agrupadas por data (# DD/MM/AA #), em linha
+ * compacta; seção de CTGs; e linha de desfecho. Formato do HC-UFTM (MAIÚSCULAS).
+ */
+export function renderConsolidatedProntuario(
+  patient: Patient,
+  observations: Observation[],
+  ctgs: CtgRecord[] = [],
+): string {
+  const lines: string[] = [];
+
+  const sorted = [...observations].sort(
+    (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
+  );
+
+  let lastDate = "";
+  for (const obs of sorted) {
+    const d = new Date(obs.recordedAt);
+    const dateStr = `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${String(d.getFullYear()).slice(-2)}`;
+    if (dateStr !== lastDate) {
+      lines.push(`# ${dateStr} #`);
+      lastDate = dateStr;
+    }
+    lines.push(renderObservationLine(obs));
+  }
+
+  if (ctgs.length > 0) {
+    const sortedCtgs = [...ctgs].sort(
+      (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
+    );
+    lines.push("");
+    lines.push("--- CARDIOTOCOGRAFIAS ---");
+    for (const c of sortedCtgs) lines.push(renderCtgLine(c));
+  }
+
+  if (patient.outcome && patient.outcome !== "none") {
+    const label = PATIENT_OUTCOME_LABELS[patient.outcome] ?? "";
+    const map: Record<string, string> = {
+      vaginal_delivery: "EVOLUIU PARA PARTO NORMAL",
+      c_section: "ENCAMINHADA PARA CESÁREA",
+      discharge: "ALTA",
+      transfer: "TRANSFERÊNCIA",
+    };
+    const outcomeLine = map[patient.outcome] ?? label.toUpperCase();
+    if (outcomeLine) {
+      lines.push("");
+      lines.push(outcomeLine);
+    }
+  }
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim().toUpperCase();
 }
