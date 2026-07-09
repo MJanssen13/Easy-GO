@@ -136,12 +136,15 @@ function Segmented<T extends string>({
 export function PsgoGenerator({
   initialForm,
   patientId,
+  today,
 }: {
   initialForm?: PsgoForm;
   patientId?: string;
+  /** Data de hoje (ISO) calculada no servidor — evita mismatch de hidratação. */
+  today?: string;
 } = {}) {
   const router = useRouter();
-  const [form, setForm] = useState<PsgoForm>(initialForm ?? emptyPsgoForm);
+  const [form, setForm] = useState<PsgoForm>(() => initialForm ?? emptyPsgoForm(today));
   const [saving, startSaving] = useTransition();
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -307,7 +310,8 @@ export function PsgoGenerator({
         {/* Identificação (o toggle gestante/não gestante vive no canto sup. esq.) */}
         <Card>
           <CardHeader>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base">Identificação</CardTitle>
               <div className="w-56 max-w-full">
                 <Segmented
                   value={form.pregnant ? "sim" : "nao"}
@@ -318,13 +322,12 @@ export function PsgoGenerator({
                   ]}
                 />
               </div>
-              <CardTitle className="text-base">Identificação</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Data · Idade · RG */}
             <div className="flex flex-wrap gap-3">
-              <Field label="Data da consulta" className="min-w-[9rem] flex-1">
+              <Field label="Data da consulta" className="w-44">
                 <Input type="date" value={form.date} onChange={(e) => update({ date: e.target.value })} />
               </Field>
               <Field label="Idade" className="w-24">

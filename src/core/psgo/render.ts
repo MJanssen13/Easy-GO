@@ -98,7 +98,7 @@ export function renderPsgo(form: PsgoForm): string {
   if (form.pregnant) {
     const prenatalDetail = [
       form.prenatalPlace,
-      form.prenatalIrregular ? "IRREGULAR" : "",
+      form.prenatalIrregular ? "PRN IRREGULAR" : "",
     ]
       .filter(Boolean)
       .join(", ");
@@ -198,14 +198,20 @@ export function renderPsgo(form: PsgoForm): string {
   // CTG (monitorização fetal — só para gestantes)
   if (form.pregnant) L.push(`CTG: ${form.ctg}`);
 
-  // HD
+  // HD — comorbidades + diagnósticos automáticos (adolescente < 18; PRN irregular)
+  const ageNum = form.age ? Number(form.age) : NaN;
+  const hdFlags: string[] = [];
+  if (!Number.isNaN(ageNum) && ageNum < 18) hdFlags.push("ADOLESCENTE");
+  if (form.pregnant && form.prenatalIrregular) hdFlags.push("PRN IRREGULAR");
+  const hdDiagnoses = dedup([...cmb, ...hdFlags]);
+
   if (form.pregnant) {
     const gaPart = dating.gaPhrase ? `GESTAÇÃO DE ${dating.gaPhrase}` : "GESTAÇÃO DE";
     const method = dating.methodTag ? ` (${dating.methodTag})` : "";
-    const hdComorb = cmb.length > 0 ? ` + ${cmb.join(" + ")}` : "";
-    L.push(`HD: ${gaPart}${method}${hdComorb}`);
+    const hdExtra = hdDiagnoses.length > 0 ? ` + ${hdDiagnoses.join(" + ")}` : "";
+    L.push(`HD: ${gaPart}${method}${hdExtra}`);
   } else {
-    L.push(`HD: ${cmb.join(" + ")}`);
+    L.push(`HD: ${hdDiagnoses.join(" + ")}`);
   }
 
   // Conduta

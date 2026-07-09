@@ -111,12 +111,16 @@ function todayISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function emptyPsgoForm(): PsgoForm {
+/**
+ * Formulário vazio. `date` pode ser passada (ex.: calculada no servidor) para
+ * evitar divergência de hidratação; sem ela, usa a data local de hoje.
+ */
+export function emptyPsgoForm(date?: string): PsgoForm {
   const exam: Record<string, ExamSystemState> = {};
   for (const s of EXAM_SYSTEMS) exam[s.id] = { mode: "normal", text: "" };
 
   return {
-    date: todayISO(),
+    date: date ?? todayISO(),
     name: "",
     socialName: "",
     rg: "",

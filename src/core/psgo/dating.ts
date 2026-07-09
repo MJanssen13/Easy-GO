@@ -83,9 +83,13 @@ export function resolvePsgoDating(
     chosen = { ga: gaFromLMP(lmpDate, ref), tag: "DUM" };
   } else if (effectivePref === "us" && scanDate && scanGa) {
     chosen = { ga: gaFromUltrasound(scanDate, scanGa, ref), tag: "US" };
-  } else if (lmpDate || (scanDate && scanGa)) {
-    const r = resolveDating({ lmp: input.lmpUncertain ? null : lmpDate, scanDate, scanGa }, ref);
-    chosen = { ga: r.ga, tag: r.method === "ultrasound" ? "US" : "DUM" };
+  } else {
+    // DUM incerta anula a DUM; sem USG não há como datar (não lançar).
+    const effLmp = input.lmpUncertain ? null : lmpDate;
+    if (effLmp || (scanDate && scanGa)) {
+      const r = resolveDating({ lmp: effLmp, scanDate, scanGa }, ref);
+      chosen = { ga: r.ga, tag: r.method === "ultrasound" ? "US" : "DUM" };
+    }
   }
 
   return {

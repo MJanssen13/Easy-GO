@@ -7,13 +7,20 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ### PSGO — layout do card de identificação
 
-- Campos reorganizados em linhas: **data · idade · RG**; **nome (2/3) · nome
-  social (1/3)**; **procedência · local do pré-natal · nº de consultas** (campo
-  curto, 2 algarismos) com caixa **"Pré-natal irregular"**; **acompanhante ·
-  parentesco**, com campo **"Qual parentesco?"** quando o parentesco é "Outro"
-  (registrado no prontuário).
-- A chave **Gestante / Não gestante** passou para o canto superior esquerdo do
-  card de identificação; o card avulso "Gestante no momento?" foi removido.
+- Campos reorganizados em linhas: **data · idade · RG** (campo de data mais
+  estreito, ajustado ao conteúdo); **nome (2/3) · nome social (1/3)**;
+  **procedência · local do pré-natal · nº de consultas** (campo curto, 2
+  algarismos) com caixa **"Pré-natal irregular"**; **acompanhante · parentesco**,
+  com campo **"Qual parentesco?"** quando o parentesco é "Outro" (registrado no
+  prontuário).
+- A chave **Gestante / Não gestante** fica no cabeçalho do card de identificação,
+  à direita; o card avulso "Gestante no momento?" foi removido.
+- **Pré-natal irregular** grava `PRN IRREGULAR` na linha de consultas e entra
+  como diagnóstico na **HD**; pacientes **< 18 anos** ganham `ADOLESCENTE` na HD
+  (gestantes e não gestantes).
+- Correções: a datação não lança mais quando a DUM é marcada como incerta sem
+  USG (retorna sem IG); a data da consulta passa a ser calculada no servidor e
+  injetada no formulário, evitando divergência de hidratação (erro React #418).
 
 ### PSGO — gestante/não gestante + notação de paridade do serviço
 
