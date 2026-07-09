@@ -10,7 +10,14 @@ import type { ImagingExam } from "./imaging";
 import type { GynecoState } from "./gyneco-exam";
 import { emptyGynecoState } from "./gyneco-exam";
 
-export const HABITS = ["NEGA", "UDI", "TBG", "ALCOOLISMO"];
+export const HABITS = ["NEGA", "UDI", "TBG", "ALCOOLISMO", "ERRO ALIMENTAR", "SEDENTARISMO"];
+
+/** Um resultado de Coombs indireto (CI) com sua data. */
+export interface CoombsEntry {
+  id: string;
+  result: "" | "pos" | "neg";
+  date: string;
+}
 
 export const COMPANION_RELATIONS = [
   "ESPOSO",
@@ -60,8 +67,11 @@ export interface PsgoForm {
 
   // tipo sanguíneo / coombs
   bloodType: string;
-  coombs: "" | "pos" | "neg";
-  coombsDate: string;
+  /** Coombs indiretos (CI) realizados, cada um com sua data. */
+  coombsList: CoombsEntry[];
+  /** Legado (CI único) — migrado para `coombsList` ao reabrir. */
+  coombs?: "" | "pos" | "neg";
+  coombsDate?: string;
 
   // comorbidades
   comorbidities: string[];
@@ -78,6 +88,8 @@ export interface PsgoForm {
   allergies: string;
   habits: string[];
   habitsOther: string;
+  /** Droga(s) informada(s) quando UDI está marcado. */
+  udiWhich: string;
 
   // queixa / história
   qp: string;
@@ -143,8 +155,7 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     fetuses: "",
     laborOnset: "",
     bloodType: "",
-    coombs: "",
-    coombsDate: "",
+    coombsList: [],
     comorbidities: [],
     comorbiditiesOther: "",
     medications: [],
@@ -154,6 +165,7 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     allergies: "",
     habits: [],
     habitsOther: "",
+    udiWhich: "",
     qp: "",
     hpma: "",
     weight: "",

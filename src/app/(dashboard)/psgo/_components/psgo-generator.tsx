@@ -2,11 +2,24 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info, ChevronDown } from "lucide-react";
-import { emptyPsgoForm, HABITS, COMPANION_RELATIONS, type PsgoForm } from "@/core/psgo/types";
+import { Plus, Trash2, Siren, Info, ChevronDown, FlaskConical, ExternalLink } from "lucide-react";
+import {
+  emptyPsgoForm,
+  HABITS,
+  COMPANION_RELATIONS,
+  type PsgoForm,
+  type CoombsEntry,
+} from "@/core/psgo/types";
 import { renderPsgo, computePsgo } from "@/core/psgo/render";
 import { datingDisplay } from "@/core/psgo/dating";
-import { abdFieldsFor, toqueFieldsFor, ESP_FIELDS, type GyField } from "@/core/psgo/gyneco-exam";
+import {
+  abdFieldsFor,
+  toqueFieldsFor,
+  ESP_FIELDS,
+  OEEA_KEY,
+  OII_KEY,
+  type GyField,
+} from "@/core/psgo/gyneco-exam";
 import { savePsgoAdmission } from "../actions";
 import {
   PRIOR_TYPE_LABELS,
@@ -178,6 +191,22 @@ function scrollToUsg() {
   document.getElementById("psgo-usg")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+/** Botão para abrir o Labflow (laboratório) em nova aba — visual moderno. */
+function LabflowButton() {
+  return (
+    <a
+      href="https://labflowai.vercel.app/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow-md hover:brightness-110"
+    >
+      <FlaskConical className="h-3.5 w-3.5" />
+      Acessar Labflow
+      <ExternalLink className="h-3 w-3 opacity-80" />
+    </a>
+  );
+}
+
 export function PsgoGenerator({
   initialForm,
   patientId,
@@ -192,6 +221,7 @@ export function PsgoGenerator({
   const [form, setForm] = useState<PsgoForm>(() => initialForm ?? emptyPsgoForm(today));
   const [saving, startSaving] = useTransition();
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [medInput, setMedInput] = useState("");
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -273,10 +303,27 @@ export function PsgoGenerator({
     update({ priorPregnancies: form.priorPregnancies.filter((p) => p.id !== id) });
   }
 
+  // Coombs indireto (lista)
+  function addCoombs() {
+    update({ coombsList: [...form.coombsList, { id: uid(), result: "", date: "" }] });
+  }
+  function updateCoombs(id: string, patch: Partial<CoombsEntry>) {
+    update({ coombsList: form.coombsList.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+  }
+  function removeCoombs(id: string) {
+    update({ coombsList: form.coombsList.filter((c) => c.id !== id) });
+  }
+
   // Medicamentos
-  function addMed(label: string) {
-    if (form.medications.some((m) => m.label === label)) return;
-    update({ medications: [...form.medications, { id: uid(), label, current: true }] });
+  function addMed(label: string, current = true) {
+    if (form.medications.some((m) => m.label.toUpperCase() === label.toUpperCase())) return;
+    update({ medications: [...form.medications, { id: uid(), label, current }] });
+  }
+  function addMedCustom() {
+    const label = medInput.trim();
+    if (!label) return;
+    addMed(label);
+    setMedInput("");
   }
   function updateMed(id: string, patch: Partial<PsgoForm["medications"][number]>) {
     update({ medications: form.medications.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
@@ -347,20 +394,37 @@ export function PsgoGenerator({
   function setGynecoValue(fieldId: string, label: string) {
     update({ gyneco: { ...form.gyneco, values: { ...form.gyneco.values, [fieldId]: label } } });
   }
+  function toggleGyneco(key: string) {
+    setGynecoValue(key, form.gyneco.values[key] === "1" ? "" : "1");
+  }
   const gyField = (field: GyField) => (
     <div key={field.id} className="space-y-1">
       <Label className="text-xs text-muted-foreground">{field.label}</Label>
-      <div className="flex flex-wrap gap-1.5">
-        {field.options.map((op) => (
-          <Chip
-            key={op.label}
-            active={form.gyneco.values[field.id] === op.label}
-            onClick={() => setGynecoValue(field.id, op.label)}
-          >
-            {op.label}
-          </Chip>
-        ))}
-      </div>
+      {field.render === "select" ? (
+        <select
+          className={`${selectClass} h-8`}
+          value={form.gyneco.values[field.id] ?? field.options[0].label}
+          onChange={(e) => setGynecoValue(field.id, e.target.value)}
+        >
+          {field.options.map((op) => (
+            <option key={op.label} value={op.label}>
+              {op.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {field.options.map((op) => (
+            <Chip
+              key={op.label}
+              active={form.gyneco.values[field.id] === op.label}
+              onClick={() => setGynecoValue(field.id, op.label)}
+            >
+              {op.label}
+            </Chip>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -793,7 +857,7 @@ export function PsgoGenerator({
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Início do TP</Label>
+                <Label className="text-xs">Início do TP (Atual ou predição)</Label>
                 <Segmented
                   value={form.laborOnset}
                   onChange={(v) => update({ laborOnset: v })}
@@ -815,8 +879,16 @@ export function PsgoGenerator({
         </Section>
 
         {/* Tipo sanguíneo / Coombs */}
-        <Section title="Tipo sanguíneo e Coombs" contentClassName="grid grid-cols-3 gap-3">
-            <Field label="Tipo sanguíneo">
+        <Section
+          title="Tipo sanguíneo e Coombs"
+          contentClassName="space-y-3"
+          headerExtra={
+            <Button type="button" size="sm" variant="outline" onClick={addCoombs}>
+              <Plus className="h-4 w-4" /> CI
+            </Button>
+          }
+        >
+            <Field label="Tipo sanguíneo" className="w-40">
               <select
                 className={selectClass}
                 value={form.bloodType}
@@ -830,20 +902,44 @@ export function PsgoGenerator({
                 ))}
               </select>
             </Field>
-            <Field label="Coombs indireto">
-              <select
-                className={selectClass}
-                value={form.coombs}
-                onChange={(e) => update({ coombs: e.target.value as PsgoForm["coombs"] })}
-              >
-                <option value="">—</option>
-                <option value="neg">Negativo</option>
-                <option value="pos">Positivo</option>
-              </select>
-            </Field>
-            <Field label="Data do CI">
-              <Input type="date" value={form.coombsDate} onChange={(e) => update({ coombsDate: e.target.value })} />
-            </Field>
+            <div className="space-y-2">
+              <Label className="text-xs">Coombs indireto (CI)</Label>
+              {form.coombsList.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum CI registrado. Use &ldquo;+ CI&rdquo; para adicionar.
+                </p>
+              ) : (
+                form.coombsList.map((c) => (
+                  <div key={c.id} className="flex flex-wrap items-center gap-2">
+                    <select
+                      className={`${selectClass} h-8 w-36`}
+                      value={c.result}
+                      onChange={(e) =>
+                        updateCoombs(c.id, { result: e.target.value as CoombsEntry["result"] })
+                      }
+                    >
+                      <option value="">—</option>
+                      <option value="neg">Negativo</option>
+                      <option value="pos">Positivo</option>
+                    </select>
+                    <Input
+                      type="date"
+                      className="h-8 w-40"
+                      value={c.date}
+                      onChange={(e) => updateCoombs(c.id, { date: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeCoombs(c.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
         </Section>
 
         {/* Comorbidades */}
@@ -874,48 +970,63 @@ export function PsgoGenerator({
                 </Chip>
               ))}
             </div>
-            {form.medications.map((m) => (
-              <div key={m.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
-                <span className="flex-1 font-medium">{m.label}</span>
-                <label className="flex items-center gap-1 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={m.current}
-                    onChange={(e) => updateMed(m.id, { current: e.target.checked })}
-                  />
-                  Em uso
-                </label>
-                {!m.current && (
-                  <>
-                    <Input
-                      className="w-24"
-                      placeholder="Início"
-                      value={m.pastStart ?? ""}
-                      onChange={(e) => updateMed(m.id, { pastStart: e.target.value })}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Adicionar medicamento…"
+                value={medInput}
+                onChange={(e) => setMedInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addMedCustom();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={addMedCustom} disabled={!medInput.trim()}>
+                <Plus className="h-4 w-4" /> Adicionar
+              </Button>
+            </div>
+            {form.medications.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Nenhum medicamento. Use os atalhos ou adicione acima; marque cada um como{" "}
+                <strong>Em uso</strong> ou <strong>Fez uso</strong>.
+              </p>
+            ) : (
+              form.medications.map((m) => (
+                <div key={m.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
+                  <span className="min-w-[8rem] flex-1 font-medium">{m.label}</span>
+                  <div className="w-40">
+                    <Segmented
+                      value={m.current ? "uso" : "fez"}
+                      onChange={(v) => updateMed(m.id, { current: v === "uso" })}
+                      options={[
+                        { value: "uso", label: "Em uso" },
+                        { value: "fez", label: "Fez uso" },
+                      ]}
                     />
-                    <Input
-                      className="w-24"
-                      placeholder="Fim"
-                      value={m.pastEnd ?? ""}
-                      onChange={(e) => updateMed(m.id, { pastEnd: e.target.value })}
-                    />
-                  </>
-                )}
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeMed(m.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-            <Input
-              placeholder="Outros em uso (separados por vírgula)"
-              value={form.medicationsOther}
-              onChange={(e) => update({ medicationsOther: e.target.value })}
-            />
-            <Input
-              placeholder="Fez uso (separados por vírgula)"
-              value={form.medicationsPast}
-              onChange={(e) => update({ medicationsPast: e.target.value })}
-            />
+                  </div>
+                  {!m.current && (
+                    <>
+                      <Input
+                        className="w-24"
+                        placeholder="Início"
+                        value={m.pastStart ?? ""}
+                        onChange={(e) => updateMed(m.id, { pastStart: e.target.value })}
+                      />
+                      <Input
+                        className="w-24"
+                        placeholder="Fim"
+                        value={m.pastEnd ?? ""}
+                        onChange={(e) => updateMed(m.id, { pastEnd: e.target.value })}
+                      />
+                    </>
+                  )}
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeMed(m.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))
+            )}
         </Section>
 
         {/* Cirurgias / alergias / hábitos */}
@@ -935,6 +1046,13 @@ export function PsgoGenerator({
                 ))}
               </div>
             </Field>
+            {form.habits.includes("UDI") && (
+              <Input
+                placeholder="UDI — qual(is) droga(s)?"
+                value={form.udiWhich}
+                onChange={(e) => update({ udiWhich: e.target.value })}
+              />
+            )}
             <Input
               placeholder="Outros hábitos"
               value={form.habitsOther}
@@ -952,14 +1070,18 @@ export function PsgoGenerator({
             </Button>
           }
         >
-            <Field label="Colar sorologias do hospital">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Colar sorologias do hospital</Label>
+                <LabflowButton />
+              </div>
               <Textarea
                 rows={3}
                 placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
                 value={form.serologyPasted}
                 onChange={(e) => update({ serologyPasted: e.target.value })}
               />
-            </Field>
+            </div>
 
             {form.serologyGrid.columns.length > 0 && (
               <div className="overflow-x-auto">
@@ -1002,7 +1124,7 @@ export function PsgoGenerator({
                             return (
                               <td key={c.id} className="border-b p-1">
                                 <select
-                                  className={`${selectClass} h-7 w-24 px-2 text-xs`}
+                                  className={`${selectClass} h-7 w-32 px-2 text-xs`}
                                   value={val}
                                   onChange={(e) => setSerologyValue(a, c.id, e.target.value)}
                                 >
@@ -1201,6 +1323,25 @@ export function PsgoGenerator({
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {toqueFieldsFor(form.pregnant).map(gyField)}
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Dilatação alternativa (OEEA/OII — substitui os cm)
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Chip
+                        active={form.gyneco.values[OEEA_KEY] === "1"}
+                        onClick={() => toggleGyneco(OEEA_KEY)}
+                      >
+                        OEEA
+                      </Chip>
+                      <Chip
+                        active={form.gyneco.values[OII_KEY] === "1"}
+                        onClick={() => toggleGyneco(OII_KEY)}
+                      >
+                        OII
+                      </Chip>
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -1227,7 +1368,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Exames laboratoriais */}
-        <Section title="Exames laboratoriais">
+        <Section title="Exames laboratoriais" headerExtra={<LabflowButton />}>
             <Textarea
               rows={3}
               placeholder="Cole os exames laboratoriais..."

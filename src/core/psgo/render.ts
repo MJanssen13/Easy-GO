@@ -132,11 +132,12 @@ export function renderPsgo(form: PsgoForm): string {
     L.push(`DUM: ${dateBR(form.lmp)}`);
   }
 
-  // Tipo sanguíneo / Coombs
+  // Tipo sanguíneo / Coombs (um ou mais CI, com datas)
   L.push(`TIPO SANGUÍNEO: ${form.bloodType}`);
-  const ci = form.coombs
-    ? `${form.coombs === "pos" ? "POSITIVO" : "NEGATIVO"}${form.coombsDate ? ` EM ${dateBR(form.coombsDate)}` : ""}`
-    : "";
+  const ci = (form.coombsList ?? [])
+    .filter((c) => c.result)
+    .map((c) => `${c.result === "pos" ? "POSITIVO" : "NEGATIVO"}${c.date ? ` EM ${dateBR(c.date)}` : ""}`)
+    .join(" / ");
   L.push(`CI: ${ci}`);
 
   // Comorbidades (selecionadas + outras + automáticas)
@@ -167,7 +168,10 @@ export function renderPsgo(form: PsgoForm): string {
   // Cirurgias / alergias / hábitos
   L.push(`CIRURGIAS: ${form.surgeries}`);
   L.push(`ALERGIAS: ${form.allergies}`);
-  const hcv = dedup([...form.habits, ...splitOther(form.habitsOther)]);
+  const habitsList = form.habits.map((h) =>
+    h === "UDI" && (form.udiWhich ?? "").trim() ? `UDI (${form.udiWhich.trim()})` : h,
+  );
+  const hcv = dedup([...habitsList, ...splitOther(form.habitsOther)]);
   L.push(`HCV: ${hcv.join(", ")}`);
 
   // Sorologias (colado + quadro externo, ordenado por data)

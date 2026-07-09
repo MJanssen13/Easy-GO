@@ -5,6 +5,25 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Coombs múltiplos, toque revisado e integração Labflow
+
+- **Coombs (CI)**: agora é possível registrar vários CI, cada um com sua data
+  (botão "+ CI"); saem no prontuário como `CI: NEGATIVO EM … / POSITIVO EM …`.
+- **Toque vaginal** revisado: **posição** Posterior (P) / Médio-Posterior (MP) /
+  Centralizado (C); **consistência** Nasal (N) / Nasolabial (NL) / Labial (L);
+  **apagamento** vira lista suspensa de 10 em 10 (Grosso→`G`, demais→`APAG X%`);
+  **dilatação** e **altura (De Lee)** viram listas suspensas; opção **OEEA/OII**
+  (cumulativas) que substituem a dilatação em cm.
+- **Hábitos**: adicionados **Erro alimentar** e **Sedentarismo**; ao marcar
+  **UDI**, um campo pergunta qual(is) droga(s) — registrado como `UDI (…)`.
+- **Botão "Acessar Labflow"** (visual moderno, nova aba → labflowai.vercel.app)
+  em "Colar sorologias do hospital" e em "Exames laboratoriais".
+- **VDRL**: a lista suspensa passou a ter largura equivalente aos botões das
+  demais sorologias.
+- **Medicamentos**: lógica revisada — chave **Em uso / Fez uso** por item e
+  campo para adicionar medicamento avulso (Enter ou botão).
+- **Início do TP** rotulado como **"Início do TP (Atual ou predição)"**.
+
 ### PSGO — cards colapsáveis, datação e sorologias
 
 - **Cards colapsáveis**: cada seção do formulário vira um card recolhível (clique

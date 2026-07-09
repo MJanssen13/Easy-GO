@@ -137,11 +137,19 @@ export function patientToPsgoForm(patient: Patient): PsgoForm | null {
   const cs = patient.clinicalSummary as unknown as PsgoClinicalSummary | null;
   if (!cs?.form) return null;
   // Defaults para campos adicionados depois (admissões antigas não os têm).
+  const coombsList =
+    cs.form.coombsList && cs.form.coombsList.length > 0
+      ? cs.form.coombsList
+      : cs.form.coombs
+        ? [{ id: "legacy", result: cs.form.coombs, date: cs.form.coombsDate ?? "" }]
+        : [];
   return {
     ...cs.form,
     pregnant: cs.form.pregnant ?? true,
     companionRelationOther: cs.form.companionRelationOther ?? "",
     prenatalIrregular: cs.form.prenatalIrregular ?? false,
     medicationsPast: cs.form.medicationsPast ?? "",
+    coombsList,
+    udiWhich: cs.form.udiWhich ?? "",
   };
 }
