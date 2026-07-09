@@ -24,10 +24,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   parto) — *apoio à documentação, validar com a equipe*.
 - Botão **"Sem intercorrências"** por gestação prévia, só em parto normal e
   cesárea; no parto normal oculta o campo de comemorativos e registra
-  `SEM INTERCORRÊNCIAS` na linha. Cesárea e fórceps exigem o motivo e o aborto
-  a IG: a caixa de texto mostra um prompt obrigatório em vermelho
-  (`INDICAR MOTIVO` / `INFORMAR IG`) enquanto vazia — na cesárea o prompt
-  aparece mesmo com "sem intercorrências" marcado.
+  `SEM INTERCORRÊNCIAS` na linha. Cesárea e fórceps exigem o motivo; aborto e
+  ectópica exigem a IG: a caixa de texto mostra um prompt obrigatório em
+  vermelho (`INDICAR MOTIVO` / `INFORMAR IG`) enquanto vazia — na cesárea o
+  prompt aparece mesmo com "sem intercorrências" marcado.
 
 ### PSGO — Fase 2 (revisão da admissão)
 

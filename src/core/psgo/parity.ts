@@ -69,11 +69,11 @@ export function canMarkNoComplications(type: PriorPregnancyType): boolean {
 
 /**
  * Informação obrigatória na nota, conforme o tipo (mostrada em vermelho na
- * caixa de texto): cesárea/fórceps exigem o motivo; aborto exige a IG.
+ * caixa de texto): cesárea/fórceps exigem o motivo; aborto e ectópica exigem a IG.
  */
 export function requiredNotePrompt(type: PriorPregnancyType): string | null {
   if (type === "C" || type === "F") return "INDICAR MOTIVO";
-  if (type === "A") return "INFORMAR IG";
+  if (type === "A" || type === "E") return "INFORMAR IG";
   return null;
 }
 
