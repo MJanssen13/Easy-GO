@@ -22,10 +22,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   `G3P3(N2C1(GEM2[N1C1]))`. O "i" do card documenta a convenção e a divergência
   do GPA/GTPAL clássico (ACOG/Williams: abortos não somam em P; gemelar = 1
   parto) — *apoio à documentação, validar com a equipe*.
-- Botão de desfecho padrão por gestação prévia: **"Sem intercorrências"**
-  (parto normal/cesárea/fórceps) e **"Sem necessidade de curetagem"** (aborto);
-  quando ativo, oculta o campo de comemorativos e registra o próprio texto na
-  linha do prontuário (ex.: `N1 EM 2019, SEM INTERCORRÊNCIAS`).
+- Botão **"Sem intercorrências"** por gestação prévia, só em parto normal e
+  cesárea; no parto normal oculta o campo de comemorativos e registra
+  `SEM INTERCORRÊNCIAS` na linha. Cesárea e fórceps exigem o motivo e o aborto
+  a IG: a caixa de texto mostra um prompt obrigatório em vermelho
+  (`INDICAR MOTIVO` / `INFORMAR IG`) enquanto vazia — na cesárea o prompt
+  aparece mesmo com "sem intercorrências" marcado.
 
 ### PSGO — Fase 2 (revisão da admissão)
 

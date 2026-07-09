@@ -35,8 +35,8 @@ export interface PriorPregnancy {
   /** Via de parto do 2º gemelar (padrão: a mesma do 1º, `type`). */
   twinRoute2?: BirthRoute;
   /**
-   * Desfecho padrão sem observações: "sem necessidade de curetagem" (A) ou
-   * "sem intercorrências" (demais). Substitui e oculta a nota livre.
+   * Marca "sem intercorrências" (só parto normal/cesárea). No parto normal
+   * oculta a nota; na cesárea a nota continua (motivo obrigatório).
    */
   noComplications?: boolean;
 }
@@ -59,9 +59,22 @@ export function isBirthType(t: PriorPregnancyType): t is BirthRoute {
   return t === "N" || t === "F" || t === "C";
 }
 
-/** Rótulo do marcador de desfecho sem observações, conforme o tipo. */
-export function noComplicationsLabel(type: PriorPregnancyType): string {
-  return type === "A" ? "Sem necessidade de curetagem" : "Sem intercorrências";
+/** Texto do marcador de desfecho sem observações. */
+export const NO_COMPLICATIONS_LABEL = "Sem intercorrências";
+
+/** Só parto normal e cesárea podem ser marcados como "sem intercorrências". */
+export function canMarkNoComplications(type: PriorPregnancyType): boolean {
+  return type === "N" || type === "C";
+}
+
+/**
+ * Informação obrigatória na nota, conforme o tipo (mostrada em vermelho na
+ * caixa de texto): cesárea/fórceps exigem o motivo; aborto exige a IG.
+ */
+export function requiredNotePrompt(type: PriorPregnancyType): string | null {
+  if (type === "C" || type === "F") return "INDICAR MOTIVO";
+  if (type === "A") return "INFORMAR IG";
+  return null;
 }
 
 /** Ordem das categorias no detalhamento (ex.: G5P4(N1C2A1)). */
@@ -165,13 +178,16 @@ export function formatParity(prior: PriorPregnancy[], includesCurrent = true): P
         : "";
     const tag = `${p.type}${perTypeIndex[p.type]}${twin}`;
     const when = p.year ? ` EM ${p.year}` : "";
-    let detail = "";
-    if (p.noComplications) {
-      detail = `, ${noComplicationsLabel(p.type).toUpperCase()}`;
-    } else {
-      const noteText = p.note ? p.note.trim().replace(/\s*\n+\s*/g, "; ") : "";
-      if (noteText) detail = `, ${noteText.toUpperCase()}`;
-    }
+    // Cesárea/normal marcados exibem "SEM INTERCORRÊNCIAS"; a nota (motivo/IG)
+    // continua na cesárea, fórceps e aborto. No parto normal marcado a nota é
+    // omitida (a caixa fica oculta na UI).
+    const marked = !!p.noComplications && canMarkNoComplications(p.type);
+    const noteHidden = marked && !requiredNotePrompt(p.type);
+    const parts: string[] = [];
+    const noteText = !noteHidden && p.note ? p.note.trim().replace(/\s*\n+\s*/g, "; ") : "";
+    if (noteText) parts.push(noteText.toUpperCase());
+    if (marked) parts.push(NO_COMPLICATIONS_LABEL.toUpperCase());
+    const detail = parts.length ? `, ${parts.join(", ")}` : "";
     return `${tag}${when}${detail}`;
   });
 

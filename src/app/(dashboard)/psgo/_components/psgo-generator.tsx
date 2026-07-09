@@ -11,9 +11,11 @@ import { savePsgoAdmission } from "../actions";
 import {
   PRIOR_TYPE_LABELS,
   BIRTH_ROUTE_LABELS,
+  NO_COMPLICATIONS_LABEL,
   formatParity,
   isBirthType,
-  noComplicationsLabel,
+  canMarkNoComplications,
+  requiredNotePrompt,
   type BirthRoute,
   type PriorPregnancyType,
 } from "@/core/psgo/parity";
@@ -449,11 +451,12 @@ export function PsgoGenerator({
                       value={p.type}
                       onChange={(e) => {
                         const type = e.target.value as PriorPregnancyType;
-                        // Gemelar só se aplica a desfechos de parto (N/F/C).
-                        updatePrior(
-                          p.id,
-                          isBirthType(type) ? { type } : { type, twin: false, twinRoute2: undefined },
-                        );
+                        // Gemelar só p/ parto (N/F/C); "sem intercorrências" só p/ N e C.
+                        updatePrior(p.id, {
+                          type,
+                          ...(isBirthType(type) ? {} : { twin: false, twinRoute2: undefined }),
+                          ...(canMarkNoComplications(type) ? {} : { noComplications: false }),
+                        });
                       }}
                     >
                       {(Object.keys(PRIOR_TYPE_LABELS) as PriorPregnancyType[]).map((t) => (
@@ -489,12 +492,14 @@ export function PsgoGenerator({
                       </label>
                     )}
                     <div className="ml-auto flex items-center gap-1">
-                      <Chip
-                        active={!!p.noComplications}
-                        onClick={() => updatePrior(p.id, { noComplications: !p.noComplications })}
-                      >
-                        {noComplicationsLabel(p.type)}
-                      </Chip>
+                      {canMarkNoComplications(p.type) && (
+                        <Chip
+                          active={!!p.noComplications}
+                          onClick={() => updatePrior(p.id, { noComplications: !p.noComplications })}
+                        >
+                          {NO_COMPLICATIONS_LABEL}
+                        </Chip>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"
@@ -520,12 +525,20 @@ export function PsgoGenerator({
                       </div>
                     </div>
                   )}
-                  {!p.noComplications && (
+                  {(!p.noComplications || !!requiredNotePrompt(p.type)) && (
                     <Textarea
                       rows={2}
-                      placeholder="Intercorrências / dados comemorativos (peso do RN, local, complicações, aleitamento…)"
+                      placeholder={
+                        requiredNotePrompt(p.type) ??
+                        "Intercorrências / dados comemorativos (peso do RN, local, complicações, aleitamento…)"
+                      }
                       value={p.note ?? ""}
                       onChange={(e) => updatePrior(p.id, { note: e.target.value })}
+                      className={
+                        requiredNotePrompt(p.type) && !(p.note ?? "").trim()
+                          ? "border-rose-400 placeholder:font-semibold placeholder:text-rose-600 focus-visible:ring-rose-400"
+                          : undefined
+                      }
                     />
                   )}
                 </div>
