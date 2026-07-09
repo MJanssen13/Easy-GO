@@ -12,6 +12,7 @@ import { buildExamLine, EXAM_SYSTEMS } from "./exam";
 import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
 import { renderImaging } from "./imaging";
+import { renderPsgoCtg } from "./ctg";
 
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
@@ -209,8 +210,11 @@ export function renderPsgo(form: PsgoForm): string {
     L.push(form.pregnant ? "EXAMES DE IMAGEM (ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):" : "EXAMES DE IMAGEM:");
   }
 
-  // CTG (monitorização fetal — só para gestantes)
-  if (form.pregnant) L.push(`CTG: ${form.ctg}`);
+  // CTG (monitorização fetal — só para gestantes): laudo estruturado ou legado
+  if (form.pregnant) {
+    const ctgLine = form.ctgLaudo?.done ? renderPsgoCtg(form.ctgLaudo) : form.ctg.trim();
+    L.push(`CTG: ${ctgLine}`);
+  }
 
   // HD — comorbidades + diagnósticos automáticos (adolescente < 18; PRN irregular)
   const ageNum = form.age ? Number(form.age) : NaN;

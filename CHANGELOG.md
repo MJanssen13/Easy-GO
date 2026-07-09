@@ -5,6 +5,21 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — exame especular revisado e CTG laudada
+
+- **Exame especular** reestruturado:
+  - **Sangramento**: Ausente / Pelo OE / De parede vaginal; se ≠ ausente, pede a
+    quantidade (Pequena / Moderada / Grande).
+  - **Secreção** (era "conteúdo vaginal") em multisseleção: Ausente, Fisiológica,
+    Bolhoso, Esverdeado, Purulento, Fétido (Ausente é exclusivo).
+  - **Saídas via colo**: Ausente / Líquido claro / Purulento; se ≠ ausente,
+    aparecem **Amniosure** e **cristalização** (Não realizado / Positivo /
+    Negativo) — "Não realizado" não vai ao prontuário.
+- **CTG laudada** como no pré-parto: laudo estruturado (linha de base,
+  variabilidade, acelerações, AT/MF, movimentação, desacelerações + tipo/nº,
+  contrações, estímulo sonoro) com **escore 0-5** ao vivo e conclusão sugerida;
+  vai ao prontuário na linha `CTG:`.
+
 ### PSGO — Coombs múltiplos, toque revisado e integração Labflow
 
 - **Coombs (CI)**: agora é possível registrar vários CI, cada um com sua data

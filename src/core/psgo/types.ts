@@ -9,6 +9,8 @@ import { emptySerologyGrid } from "./serology";
 import type { ImagingExam } from "./imaging";
 import type { GynecoState } from "./gyneco-exam";
 import { emptyGynecoState } from "./gyneco-exam";
+import type { PsgoCtg } from "./ctg";
+import { emptyPsgoCtg } from "./ctg";
 
 export const HABITS = ["NEGA", "UDI", "TBG", "ALCOOLISMO", "ERRO ALIMENTAR", "SEDENTARISMO"];
 
@@ -102,8 +104,9 @@ export interface PsgoForm {
   exam: Record<string, ExamSystemState>;
   gyneco: GynecoState;
 
-  // CTG
+  // CTG (laudo estruturado; `ctg` legado = texto livre)
   ctg: string;
+  ctgLaudo: PsgoCtg;
 
   // conduta
   cd: string;
@@ -174,6 +177,7 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     exam,
     gyneco: emptyGynecoState(),
     ctg: "",
+    ctgLaudo: emptyPsgoCtg(),
     cd: "",
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),

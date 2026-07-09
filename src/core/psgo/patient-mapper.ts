@@ -12,6 +12,7 @@ import {
   gaFromUltrasound,
 } from "@/core/obstetric/gestational-age";
 import type { PsgoForm } from "./types";
+import { emptyPsgoCtg } from "./ctg";
 import { formatParity } from "./parity";
 import { autoComorbidities } from "./comorbidities";
 import { resolvePsgoDating } from "./dating";
@@ -151,5 +152,7 @@ export function patientToPsgoForm(patient: Patient): PsgoForm | null {
     medicationsPast: cs.form.medicationsPast ?? "",
     coombsList,
     udiWhich: cs.form.udiWhich ?? "",
+    // CTG legada (texto livre) migra para as observações do laudo.
+    ctgLaudo: cs.form.ctgLaudo ?? { ...emptyPsgoCtg(), notes: cs.form.ctg ?? "" },
   };
 }
