@@ -34,10 +34,13 @@ export interface PsgoForm {
   origin: string;
   companion: string;
   companionRelation: string;
+  /** Preenchido quando `companionRelation === "OUTRO"`. */
+  companionRelationOther: string;
 
   // pré-natal
   prenatalCount: string;
   prenatalPlace: string;
+  prenatalIrregular: boolean;
 
   // situação atual (o PSGO também atende pessoas não gestantes)
   pregnant: boolean;
@@ -121,8 +124,10 @@ export function emptyPsgoForm(): PsgoForm {
     origin: "",
     companion: "",
     companionRelation: "",
+    companionRelationOther: "",
     prenatalCount: "",
     prenatalPlace: "",
+    prenatalIrregular: false,
     pregnant: true,
     priorPregnancies: [],
     lmp: "",

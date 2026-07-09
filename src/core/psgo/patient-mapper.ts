@@ -136,6 +136,11 @@ export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
 export function patientToPsgoForm(patient: Patient): PsgoForm | null {
   const cs = patient.clinicalSummary as unknown as PsgoClinicalSummary | null;
   if (!cs?.form) return null;
-  // Admissões salvas antes do campo `pregnant` eram sempre de gestantes.
-  return { ...cs.form, pregnant: cs.form.pregnant ?? true };
+  // Defaults para campos adicionados depois (admissões antigas não os têm).
+  return {
+    ...cs.form,
+    pregnant: cs.form.pregnant ?? true,
+    companionRelationOther: cs.form.companionRelationOther ?? "",
+    prenatalIrregular: cs.form.prenatalIrregular ?? false,
+  };
 }

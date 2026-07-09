@@ -304,83 +304,109 @@ export function PsgoGenerator({
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
-        {/* Gestante no momento? (o PSGO também atende pessoas não gestantes) */}
-        <Card>
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <div>
-              <p className="text-sm font-semibold">Gestante no momento?</p>
-              <p className="text-xs text-muted-foreground">
-                Também atendemos pessoas não gestantes — o formulário e o prontuário se ajustam.
-              </p>
-            </div>
-            <div className="w-64 max-w-full">
-              <Segmented
-                value={form.pregnant ? "sim" : "nao"}
-                onChange={(v) => update({ pregnant: v === "sim" })}
-                options={[
-                  { value: "sim", label: "Gestante" },
-                  { value: "nao", label: "Não gestante" },
-                ]}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Identificação */}
+        {/* Identificação (o toggle gestante/não gestante vive no canto sup. esq.) */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Identificação</CardTitle>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="w-56 max-w-full">
+                <Segmented
+                  value={form.pregnant ? "sim" : "nao"}
+                  onChange={(v) => update({ pregnant: v === "sim" })}
+                  options={[
+                    { value: "sim", label: "Gestante" },
+                    { value: "nao", label: "Não gestante" },
+                  ]}
+                />
+              </div>
+              <CardTitle className="text-base">Identificação</CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <Field label="Data da consulta">
-              <Input type="date" value={form.date} onChange={(e) => update({ date: e.target.value })} />
-            </Field>
-            <Field label="Idade">
-              <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
-            </Field>
-            <Field label="Nome" className="col-span-2">
-              <Input value={form.name} onChange={(e) => update({ name: e.target.value })} />
-            </Field>
-            <Field label="Nome social (opcional)">
-              <Input value={form.socialName} onChange={(e) => update({ socialName: e.target.value })} />
-            </Field>
-            <Field label="RG">
-              <Input value={form.rg} onChange={(e) => update({ rg: e.target.value })} />
-            </Field>
-            <Field label="Procedente de">
-              <Input value={form.origin} onChange={(e) => update({ origin: e.target.value })} />
-            </Field>
-            <Field label="Acompanhante">
-              <Input value={form.companion} onChange={(e) => update({ companion: e.target.value })} />
-            </Field>
-            <Field label="Parentesco do acompanhante">
-              <select
-                className={selectClass}
-                value={form.companionRelation}
-                onChange={(e) => update({ companionRelation: e.target.value })}
-              >
-                <option value="">—</option>
-                {COMPANION_RELATIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {form.pregnant && (
-              <>
-                <Field label="Consultas pré-natal (nº)">
+          <CardContent className="space-y-3">
+            {/* Data · Idade · RG */}
+            <div className="flex flex-wrap gap-3">
+              <Field label="Data da consulta" className="min-w-[9rem] flex-1">
+                <Input type="date" value={form.date} onChange={(e) => update({ date: e.target.value })} />
+              </Field>
+              <Field label="Idade" className="w-24">
+                <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
+              </Field>
+              <Field label="RG" className="min-w-[8rem] flex-1">
+                <Input value={form.rg} onChange={(e) => update({ rg: e.target.value })} />
+              </Field>
+            </div>
+
+            {/* Nome (2/3) · Nome social (1/3) */}
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Nome" className="col-span-2">
+                <Input value={form.name} onChange={(e) => update({ name: e.target.value })} />
+              </Field>
+              <Field label="Nome social (opcional)" className="col-span-1">
+                <Input value={form.socialName} onChange={(e) => update({ socialName: e.target.value })} />
+              </Field>
+            </div>
+
+            {/* Procedência · Local do pré-natal · Nº consultas · irregular */}
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="Procedente de" className="min-w-[12rem] flex-1">
+                <Input value={form.origin} onChange={(e) => update({ origin: e.target.value })} />
+              </Field>
+              {form.pregnant && (
+                <>
+                  <Field label="Local do pré-natal" className="min-w-[12rem] flex-1">
+                    <Input
+                      value={form.prenatalPlace}
+                      onChange={(e) => update({ prenatalPlace: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Consultas (nº)" className="w-20">
+                    <Input
+                      value={form.prenatalCount}
+                      onChange={(e) => update({ prenatalCount: e.target.value })}
+                      inputMode="numeric"
+                      maxLength={2}
+                    />
+                  </Field>
+                  <label className="flex items-center gap-2 whitespace-nowrap pb-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.prenatalIrregular}
+                      onChange={(e) => update({ prenatalIrregular: e.target.checked })}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    Pré-natal irregular
+                  </label>
+                </>
+              )}
+            </div>
+
+            {/* Acompanhante · Parentesco (+ Qual? se OUTRO) */}
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="Acompanhante" className="min-w-[12rem] flex-1">
+                <Input value={form.companion} onChange={(e) => update({ companion: e.target.value })} />
+              </Field>
+              <Field label="Parentesco" className="min-w-[10rem] flex-1">
+                <select
+                  className={selectClass}
+                  value={form.companionRelation}
+                  onChange={(e) => update({ companionRelation: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {COMPANION_RELATIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {form.companionRelation === "OUTRO" && (
+                <Field label="Qual parentesco?" className="min-w-[10rem] flex-1">
                   <Input
-                    value={form.prenatalCount}
-                    onChange={(e) => update({ prenatalCount: e.target.value })}
-                    inputMode="numeric"
+                    value={form.companionRelationOther}
+                    onChange={(e) => update({ companionRelationOther: e.target.value })}
                   />
                 </Field>
-                <Field label="Local do pré-natal">
-                  <Input value={form.prenatalPlace} onChange={(e) => update({ prenatalPlace: e.target.value })} />
-                </Field>
-              </>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
 

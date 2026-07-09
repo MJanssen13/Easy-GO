@@ -5,6 +5,16 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — layout do card de identificação
+
+- Campos reorganizados em linhas: **data · idade · RG**; **nome (2/3) · nome
+  social (1/3)**; **procedência · local do pré-natal · nº de consultas** (campo
+  curto, 2 algarismos) com caixa **"Pré-natal irregular"**; **acompanhante ·
+  parentesco**, com campo **"Qual parentesco?"** quando o parentesco é "Outro"
+  (registrado no prontuário).
+- A chave **Gestante / Não gestante** passou para o canto superior esquerdo do
+  card de identificação; o card avulso "Gestante no momento?" foi removido.
+
 ### PSGO — gestante/não gestante + notação de paridade do serviço
 
 - **Chave "Gestante no momento?"** no topo da admissão (o PSGO também atende

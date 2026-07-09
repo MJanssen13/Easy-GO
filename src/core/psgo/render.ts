@@ -87,13 +87,23 @@ export function renderPsgo(form: PsgoForm): string {
   L.push(nameLine);
   L.push(`IDADE ${form.age}`);
   L.push(`PROCEDENTE DE ${form.origin}`);
+  const relation =
+    form.companionRelation === "OUTRO"
+      ? form.companionRelationOther.trim() || "OUTRO"
+      : form.companionRelation;
   L.push(
-    `ACOMPANHANTE: ${form.companion}${form.companionRelation ? ` (${form.companionRelation})` : ""}`,
+    `ACOMPANHANTE: ${form.companion}${relation ? ` (${relation})` : ""}`,
   );
 
   if (form.pregnant) {
+    const prenatalDetail = [
+      form.prenatalPlace,
+      form.prenatalIrregular ? "IRREGULAR" : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
     L.push(
-      `CONSULTAS PRÉ-NATAL: ${form.prenatalCount}${form.prenatalPlace ? ` - ${form.prenatalPlace}` : ""}`,
+      `CONSULTAS PRÉ-NATAL: ${form.prenatalCount}${prenatalDetail ? ` - ${prenatalDetail}` : ""}`,
     );
 
     // Robson
