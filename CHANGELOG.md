@@ -22,6 +22,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   `G3P3(N2C1(GEM2[N1C1]))`. O "i" do card documenta a convenção e a divergência
   do GPA/GTPAL clássico (ACOG/Williams: abortos não somam em P; gemelar = 1
   parto) — *apoio à documentação, validar com a equipe*.
+- Botão de desfecho padrão por gestação prévia: **"Sem intercorrências"**
+  (parto normal/cesárea/fórceps) e **"Sem necessidade de curetagem"** (aborto);
+  quando ativo, oculta o campo de comemorativos e registra o próprio texto na
+  linha do prontuário (ex.: `N1 EM 2019, SEM INTERCORRÊNCIAS`).
 
 ### PSGO — Fase 2 (revisão da admissão)
 

@@ -13,6 +13,7 @@ import {
   BIRTH_ROUTE_LABELS,
   formatParity,
   isBirthType,
+  noComplicationsLabel,
   type BirthRoute,
   type PriorPregnancyType,
 } from "@/core/psgo/parity";
@@ -487,15 +488,22 @@ export function PsgoGenerator({
                         Gemelar
                       </label>
                     )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="ml-auto"
-                      onClick={() => removePrior(p.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="ml-auto flex items-center gap-1">
+                      <Chip
+                        active={!!p.noComplications}
+                        onClick={() => updatePrior(p.id, { noComplications: !p.noComplications })}
+                      >
+                        {noComplicationsLabel(p.type)}
+                      </Chip>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removePrior(p.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                   {isBirthType(p.type) && p.twin && (
                     <div className="flex flex-wrap items-center gap-2">
@@ -512,12 +520,14 @@ export function PsgoGenerator({
                       </div>
                     </div>
                   )}
-                  <Textarea
-                    rows={2}
-                    placeholder="Intercorrências / dados comemorativos (peso do RN, local, complicações, aleitamento…)"
-                    value={p.note ?? ""}
-                    onChange={(e) => updatePrior(p.id, { note: e.target.value })}
-                  />
+                  {!p.noComplications && (
+                    <Textarea
+                      rows={2}
+                      placeholder="Intercorrências / dados comemorativos (peso do RN, local, complicações, aleitamento…)"
+                      value={p.note ?? ""}
+                      onChange={(e) => updatePrior(p.id, { note: e.target.value })}
+                    />
+                  )}
                 </div>
               ))
             )}

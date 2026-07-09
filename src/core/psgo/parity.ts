@@ -34,6 +34,11 @@ export interface PriorPregnancy {
   twin?: boolean;
   /** Via de parto do 2º gemelar (padrão: a mesma do 1º, `type`). */
   twinRoute2?: BirthRoute;
+  /**
+   * Desfecho padrão sem observações: "sem necessidade de curetagem" (A) ou
+   * "sem intercorrências" (demais). Substitui e oculta a nota livre.
+   */
+  noComplications?: boolean;
 }
 
 export const PRIOR_TYPE_LABELS: Record<PriorPregnancyType, string> = {
@@ -52,6 +57,11 @@ export const BIRTH_ROUTE_LABELS: Record<BirthRoute, string> = {
 
 export function isBirthType(t: PriorPregnancyType): t is BirthRoute {
   return t === "N" || t === "F" || t === "C";
+}
+
+/** Rótulo do marcador de desfecho sem observações, conforme o tipo. */
+export function noComplicationsLabel(type: PriorPregnancyType): string {
+  return type === "A" ? "Sem necessidade de curetagem" : "Sem intercorrências";
 }
 
 /** Ordem das categorias no detalhamento (ex.: G5P4(N1C2A1)). */
@@ -155,9 +165,14 @@ export function formatParity(prior: PriorPregnancy[], includesCurrent = true): P
         : "";
     const tag = `${p.type}${perTypeIndex[p.type]}${twin}`;
     const when = p.year ? ` EM ${p.year}` : "";
-    const noteText = p.note ? p.note.trim().replace(/\s*\n+\s*/g, "; ") : "";
-    const note = noteText ? `, ${noteText.toUpperCase()}` : "";
-    return `${tag}${when}${note}`;
+    let detail = "";
+    if (p.noComplications) {
+      detail = `, ${noComplicationsLabel(p.type).toUpperCase()}`;
+    } else {
+      const noteText = p.note ? p.note.trim().replace(/\s*\n+\s*/g, "; ") : "";
+      if (noteText) detail = `, ${noteText.toUpperCase()}`;
+    }
+    return `${tag}${when}${detail}`;
   });
 
   return { summary, lines, cesareanCount: counts.C, multipara: birthCount > 0 };
