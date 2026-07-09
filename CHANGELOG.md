@@ -5,6 +5,25 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — cards colapsáveis, datação e sorologias
+
+- **Cards colapsáveis**: cada seção do formulário vira um card recolhível (clique
+  no cabeçalho), preservando ações/badges (toggle gestante, InfoTip, botões).
+- **Datação numa linha**: DUM (campo estreito), caixa **"DUM incerta"** (rótulo
+  simplificado) e a chave de datação ficam lado a lado; as chaves **nº de fetos ·
+  apresentação · início do TP** também na mesma linha. Botão **"ir aos USGs"** no
+  card de IG pela USG (rola até o quadro de imagem).
+- **DUM no prontuário**: quando "DUM incerta", a data é suprimida e sai
+  `DUM: INCERTA`; quando a datação efetiva vem da USG (por escolha ou pelo ACOG),
+  a linha ganha ` - DISCORDANTE`.
+- **Medicamentos**: no prontuário, os de uso saem um por linha em `MEU:`; havendo
+  medicamentos prévios, pula uma linha e lista sob `FEZ USO:`. Novo campo livre
+  "Fez uso" (omitido se vazio).
+- **Hábitos**: `NEGA` é exclusivo dos demais (cumulativos entre si); `ÁLCOOL`
+  renomeado para `ALCOOLISMO`.
+- **Sorologias**: botões `—/NR/REAG` no mesmo formato do exame físico; **VDRL**
+  vira lista suspensa (NR e titulações 1:1…1:256).
+
 ### PSGO — layout do card de identificação
 
 - Campos reorganizados em linhas: **data · idade · RG** (campo de data mais

@@ -142,5 +142,6 @@ export function patientToPsgoForm(patient: Patient): PsgoForm | null {
     pregnant: cs.form.pregnant ?? true,
     companionRelationOther: cs.form.companionRelationOther ?? "",
     prenatalIrregular: cs.form.prenatalIrregular ?? false,
+    medicationsPast: cs.form.medicationsPast ?? "",
   };
 }

@@ -10,7 +10,7 @@ import type { ImagingExam } from "./imaging";
 import type { GynecoState } from "./gyneco-exam";
 import { emptyGynecoState } from "./gyneco-exam";
 
-export const HABITS = ["NEGA", "UDI", "TBG", "ÁLCOOL"];
+export const HABITS = ["NEGA", "UDI", "TBG", "ALCOOLISMO"];
 
 export const COMPANION_RELATIONS = [
   "ESPOSO",
@@ -70,6 +70,8 @@ export interface PsgoForm {
   // medicamentos
   medications: MedicationUse[];
   medicationsOther: string;
+  /** Texto livre de medicamentos que a paciente já usou ("fez uso"). */
+  medicationsPast: string;
 
   // cirurgias / alergias / hábitos
   surgeries: string;
@@ -147,6 +149,7 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     comorbiditiesOther: "",
     medications: [],
     medicationsOther: "",
+    medicationsPast: "",
     surgeries: "",
     allergies: "",
     habits: [],

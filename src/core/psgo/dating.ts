@@ -58,22 +58,6 @@ export function resolvePsgoDating(
       ? { weeks: datingUsg.gaWeeks, days: datingUsg.gaDays ?? 0 }
       : null;
 
-  // Linha DUM
-  let dumLine: string | null = null;
-  if (lmpDate) {
-    const ga = gaFromLMP(lmpDate, ref);
-    dumLine = `DUM: ${formatDateBR(lmpDate)} (IG: ${ga.weeks} sem e ${ga.days} dias)`;
-    if (input.lmpUncertain) dumLine += " — DUM INCERTA";
-    else if (input.preference === "us") dumLine += " — DUM DISCORDANTE";
-  }
-
-  // Linha IG US
-  let igUsLine: string | null = null;
-  if (scanDate && scanGa) {
-    const now = gaFromUltrasound(scanDate, scanGa, ref);
-    igUsLine = `IG US: ${scanGa.weeks} sem e ${scanGa.days} d em ${formatDateBR(scanDate)} (IG: ${now.weeks} sem e ${now.days} dias)`;
-  }
-
   // Método para a HD
   const useUsAuto = input.lmpUncertain === true; // DUM incerta → US
   const effectivePref: DatingPreference = useUsAuto ? "us" : (input.preference ?? "auto");
@@ -90,6 +74,24 @@ export function resolvePsgoDating(
       const r = resolveDating({ lmp: effLmp, scanDate, scanGa }, ref);
       chosen = { ga: r.ga, tag: r.method === "ultrasound" ? "US" : "DUM" };
     }
+  }
+
+  // Linha DUM: se incerta, suprime a data e escreve INCERTA; se a datação
+  // efetiva veio da USG (por escolha ou pelo ACOG), marca "- DISCORDANTE".
+  let dumLine: string | null = null;
+  if (input.lmpUncertain) {
+    dumLine = "DUM: INCERTA";
+  } else if (lmpDate) {
+    const ga = gaFromLMP(lmpDate, ref);
+    dumLine = `DUM: ${formatDateBR(lmpDate)} (IG: ${ga.weeks} sem e ${ga.days} dias)`;
+    if (chosen?.tag === "US") dumLine += " - DISCORDANTE";
+  }
+
+  // Linha IG US
+  let igUsLine: string | null = null;
+  if (scanDate && scanGa) {
+    const now = gaFromUltrasound(scanDate, scanGa, ref);
+    igUsLine = `IG US: ${scanGa.weeks} sem e ${scanGa.days} d em ${formatDateBR(scanDate)} (IG: ${now.weeks} sem e ${now.days} dias)`;
   }
 
   return {

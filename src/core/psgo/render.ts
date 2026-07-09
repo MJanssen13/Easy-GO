@@ -7,7 +7,7 @@ import { formatParity } from "./parity";
 import { classifyRobson } from "./robson";
 import { resolvePsgoDating } from "./dating";
 import { autoComorbidities, classifyBmi } from "./comorbidities";
-import { formatMedication } from "./medications";
+import { formatPastMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
 import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
@@ -147,12 +147,22 @@ export function renderPsgo(form: PsgoForm): string {
   ]);
   L.push(`CMB: ${cmb.join(" + ")}`);
 
-  // Medicamentos em uso
+  // Medicamentos em uso (um por linha); depois FEZ USO (um por linha), se houver
   const meu = dedup([
-    ...form.medications.map(formatMedication),
+    ...form.medications.filter((m) => m.current).map((m) => m.label),
     ...splitOther(form.medicationsOther),
   ]);
-  L.push(`MEU: ${meu.join(", ")}`);
+  const fezUso = dedup([
+    ...form.medications.filter((m) => !m.current).map(formatPastMedication),
+    ...splitOther(form.medicationsPast),
+  ]);
+  L.push("MEU:");
+  for (const m of meu) L.push(m);
+  if (fezUso.length > 0) {
+    L.push("");
+    L.push("FEZ USO:");
+    for (const m of fezUso) L.push(m);
+  }
 
   // Cirurgias / alergias / hábitos
   L.push(`CIRURGIAS: ${form.surgeries}`);
