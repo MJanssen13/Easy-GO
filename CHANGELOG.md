@@ -9,10 +9,19 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 - **Paridade** com interface mais dinâmica: botões de adição rápida por tipo
   (parto normal / cesárea / fórceps / aborto / ectópica), resumo ao vivo no
-  cabeçalho (ex.: `G5C1N2A1`) e um "i" explicando a codificação (GPA com via de
-  parto detalhada; TPAL/GTPAL como referência). Cada gestação ganhou um campo
+  cabeçalho e um "i" explicando a codificação. Cada gestação ganhou um campo
   amplo (textarea) para intercorrências e dados comemorativos; quebras de linha
   são normalizadas na linha do prontuário.
+- **Notação de paridade (convenção HC-UFTM)** `G{g}P{p}(N.C.F.A.(E.)…)`:
+  `P = N + C + F + A` (o aborto também soma em partos); a ectópica conta como
+  aborto → `A2(E1)`. Ex.: `G5P4(N1C2A1)`, `G5P5(N2C1A2(E1))`.
+- **Botão gestante / não gestante**: o PSGO também atende pessoas não gestantes.
+  A gestação atual só soma +1 em `G` quando "gestante".
+- **Gestação gemelar**: 1 gestação, com via de parto por RN (vaginal conta 1
+  parto por feto; cesárea conta 1 parto para os dois) → `(GEM2)` ou
+  `(GEM2[C1N1])` quando as vias diferem. Ex.: `G3P3(N2C1(GEM2[C1N1]))`.
+- *Obs.:* a notação diverge do padrão internacional GPA/GTPAL (onde "Para"
+  exclui abortos e gestação múltipla = 1 parto); mantida conforme o serviço.
 
 ### PSGO — admissão persistida (Fase 1)
 

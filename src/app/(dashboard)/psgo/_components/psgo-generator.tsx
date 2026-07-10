@@ -8,7 +8,12 @@ import { renderPsgo, computePsgo } from "@/core/psgo/render";
 import { datingDisplay } from "@/core/psgo/dating";
 import { ABD_FIELDS, TOQUE_FIELDS, ESP_FIELDS, type GyField } from "@/core/psgo/gyneco-exam";
 import { savePsgoAdmission } from "../actions";
-import { PRIOR_TYPE_LABELS, formatParity, type PriorPregnancyType } from "@/core/psgo/parity";
+import {
+  PRIOR_TYPE_LABELS,
+  formatParity,
+  type PriorPregnancyType,
+  type TwinRoute,
+} from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
@@ -20,6 +25,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
+
+const TWIN_DEFAULT: TwinRoute[] = ["N", "N"];
 
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -158,7 +165,7 @@ export function PsgoGenerator({
     () => Object.fromEntries(form.imagingExams.map((e) => [e.id, examCentiles(e)])),
     [form.imagingExams],
   );
-  const parityView = useMemo(() => formatParity(form.priorPregnancies), [form.priorPregnancies]);
+  const parityView = useMemo(() => formatParity(form.priorPregnancies, form.pregnant), [form.priorPregnancies, form.pregnant]);
   const datingView = useMemo(
     () =>
       datingDisplay({
@@ -351,18 +358,27 @@ export function PsgoGenerator({
             <CardTitle className="flex items-center justify-between gap-2 text-base">
               <span className="flex items-center gap-1.5">
                 Paridade
-                <InfoTip title="Como codificar a paridade">
+                <InfoTip title="Como codificar a paridade (HC-UFTM)">
                   <p>
-                    <strong>G</strong> = gestações (inclui a atual); <strong>P</strong> = partos.
+                    <strong>G</strong> = gestações (inclui a atual quando gestante);{" "}
+                    <strong>P</strong> = partos = N + C + F + A.
                   </p>
                   <p>
-                    Os partos são discriminados pela via: <strong>N</strong> normal, <strong>F</strong>{" "}
-                    fórceps, <strong>C</strong> cesárea. Somam-se <strong>A</strong> abortos (perda &lt;
-                    20–22 sem, inclui ectópicas em alguns serviços) e <strong>E</strong> ectópicas.
+                    <strong>N</strong> normal, <strong>C</strong> cesárea, <strong>F</strong> fórceps,{" "}
+                    <strong>A</strong> abortos, <strong>E</strong> ectópica. A ectópica conta como
+                    aborto → <code>A2(E1)</code>. Ex.: grávida, 1 normal + 2 cesáreas + 1 aborto →{" "}
+                    <strong>G5P4(N1C2A1)</strong>.
                   </p>
                   <p>
-                    Equivale ao <strong>GPA</strong> (gesta–para–aborto) com a via de parto detalhada.
-                    Ex.: 4 gestações, 2 partos normais + 1 cesárea, 1 aborto → <strong>G4N2C1A1</strong>.
+                    Gemelar = 1 gestação. Via vaginal conta 1 parto por feto; via cesárea conta 1
+                    parto para os dois → <code>(GEM2)</code>, ou <code>(GEM2[C1N1])</code> quando as
+                    vias diferem. Ex.: 1 normal + gemelar (1 normal, 1 cesárea) →{" "}
+                    <strong>G3P3(N2C1(GEM2[C1N1]))</strong>.
+                  </p>
+                  <p className="text-muted-foreground">
+                    Difere do padrão internacional <strong>GPA/GTPAL</strong>, em que &quot;Para&quot;
+                    exclui abortos e a gestação múltipla conta como 1 parto — mantido conforme a
+                    convenção do serviço.
                   </p>
                 </InfoTip>
               </span>
@@ -374,6 +390,22 @@ export function PsgoGenerator({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <Field label="Situação atual">
+              <Segmented
+                value={form.pregnant ? "sim" : "nao"}
+                onChange={(v) => update({ pregnant: v === "sim" })}
+                options={[
+                  { value: "sim", label: "Gestante" },
+                  { value: "nao", label: "Não gestante" },
+                ]}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.pregnant
+                  ? "A gestação atual soma +1 em G."
+                  : "Sem gestação em curso — G conta apenas as gestações prévias."}
+              </p>
+            </Field>
+
             <div className="flex flex-wrap gap-1.5">
               {(["N", "C", "F", "A", "E"] as PriorPregnancyType[]).map((t) => (
                 <Button
@@ -429,6 +461,85 @@ export function PsgoGenerator({
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
+
+                  {(p.type === "N" || p.type === "C" || p.type === "F") && (
+                    <div className="space-y-2 rounded bg-muted/40 p-2">
+                      <label className="flex items-center gap-2 text-xs font-medium">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-primary"
+                          checked={!!p.twin}
+                          onChange={(e) =>
+                            updatePrior(p.id, {
+                              twin: e.target.checked,
+                              twinRoutes: e.target.checked
+                                ? p.twinRoutes && p.twinRoutes.length >= 2
+                                  ? p.twinRoutes
+                                  : TWIN_DEFAULT
+                                : undefined,
+                            })
+                          }
+                        />
+                        Gestação gemelar
+                      </label>
+                      {p.twin && (
+                        <div className="space-y-1.5">
+                          {(p.twinRoutes && p.twinRoutes.length ? p.twinRoutes : TWIN_DEFAULT).map(
+                            (route, ri, arr) => (
+                              <div key={ri} className="flex items-center gap-2">
+                                <span className="w-16 text-xs text-muted-foreground">
+                                  {ri + 1}º RN
+                                </span>
+                                <select
+                                  className={`${selectClass} h-8 w-40`}
+                                  value={route}
+                                  onChange={(e) => {
+                                    const next = [...arr];
+                                    next[ri] = e.target.value as TwinRoute;
+                                    updatePrior(p.id, { twinRoutes: next });
+                                  }}
+                                >
+                                  <option value="N">N — vaginal</option>
+                                  <option value="C">C — cesárea</option>
+                                </select>
+                                {arr.length > 2 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() =>
+                                      updatePrior(p.id, {
+                                        twinRoutes: arr.filter((_, i) => i !== ri),
+                                      })
+                                    }
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                            ),
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              updatePrior(p.id, {
+                                twinRoutes: [
+                                  ...(p.twinRoutes && p.twinRoutes.length ? p.twinRoutes : TWIN_DEFAULT),
+                                  "N",
+                                ],
+                              })
+                            }
+                          >
+                            <Plus className="h-3.5 w-3.5" /> RN
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <Textarea
                     rows={2}
                     placeholder="Intercorrências / dados comemorativos (peso do RN, local, complicações, aleitamento…)"
