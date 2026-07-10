@@ -5,6 +5,23 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Chegada, revisão dirigida e ajustes de UI da HPMA
+
+- **Chegada** com 3 modos: **Demanda espontânea**, **Ambulância** e
+  **Encaminhamento com carta**. Na carta, abrem-se campos para **quem encaminhou**
+  e **motivo** ("…COM CARTA DE ENCAMINHAMENTO POR X DEVIDO A Y…").
+- **Acompanhante**: a frase de chegada agora cita **pessoa e parentesco**
+  (ex.: "…ACOMPANHADA DE PAULO (IRMÃO)."), reaproveitando os campos da
+  identificação.
+- **Revisão dirigida** na prévia lista os **achados alterados primeiro** e os
+  normais depois.
+- **Sangramento 1ª M**: removida a IG. **Sangramento 2ª M** e **Perda de
+  líquido**: removidas contrações e IG.
+- **Controles segmentados** (ex.: Chegada) viram uma **pílula dividida em partes
+  iguais**, no lugar de botões quadrados soltos.
+- **HPMA (edição final)**: a caixa de texto **cresce com o conteúdo** (altura
+  automática, sem rolagem interna).
+
 ### PSGO — HPMA com botões Sim/Não e prévia justificada
 
 - Perguntas de presença/ausência na HPMA agora usam botões **Sim/Não** no lugar

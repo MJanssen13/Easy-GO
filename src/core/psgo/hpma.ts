@@ -357,9 +357,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("coag", [{ label: "com coágulos", write: "com coágulos" }, { label: "sem coágulos", write: "sem coágulos" }], "Coágulos"),
       T(", "),
       ONE("dor", [{ label: "com cólica", write: "associado a cólica" }, { label: "sem cólica", write: "sem cólica" }], "Cólica"),
-      T(". Gestação de "),
-      B("ig", "IG (semanas)"),
-      T(" semanas. "),
+      T(". "),
       ONE("elim", YN("Refere", "Nega"), "Eliminação de material/coágulos"),
       T(" eliminação de material ou coágulos. "),
       ONE("trauma", YN("Refere", "Nega"), "Relação com atividade sexual/trauma"),
@@ -381,11 +379,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("cor", ["vermelho vivo", "escuro"], "Cor do sangue"),
       T(", "),
       ONE("dor", [{ label: "com dor", write: "com dor abdominal" }, { label: "sem dor", write: "sem dor abdominal" }], "Dor abdominal"),
-      T(". Gestação de "),
-      B("ig", "IG (semanas)"),
-      T(" semanas. Refere movimentação fetal presente. "),
-      ONE("contr", YN("Refere", "Nega"), "Contrações"),
-      T(" contrações. "),
+      T(". Refere movimentação fetal presente. "),
       ONE("trauma", YN("Refere", "Nega"), "Relação com atividade sexual/trauma"),
       T(" relação com atividade sexual ou trauma."),
     ],
@@ -428,11 +422,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("asp", ["claro", "meconial", "sanguinolento"], "Aspecto"),
       T(", "),
       ONE("pad", ["contínua", "intermitente"], "Padrão"),
-      T(". Gestação de "),
-      B("ig", "IG (semanas)"),
-      T(" semanas. Refere movimentação fetal presente. "),
-      ONE("contr", YN("Refere", "Nega"), "Contrações"),
-      T(" contrações."),
+      T(". Refere movimentação fetal presente."),
     ],
   },
 ];
@@ -607,14 +597,43 @@ export function assembleQp(tpl: HpmaTemplate, vals: Record<string, string>, inde
   return clean(verb + asmNodes(tpl.nodes, tpl.id, vals));
 }
 
+export type ArrivalMode = "espontanea" | "ambulancia" | "carta";
+
+export interface ArrivalInput {
+  mode: ArrivalMode;
+  /** Ambulância — de onde. */
+  from?: string;
+  /** Encaminhamento com carta — quem encaminhou. */
+  referrer?: string;
+  /** Encaminhamento com carta — motivo. */
+  reason?: string;
+  hasCompanion: boolean;
+  /** Acompanhante — pessoa. */
+  companion?: string;
+  /** Acompanhante — parentesco. */
+  companionRelation?: string;
+}
+
 /** Frase de chegada da paciente. */
-export function assembleArrival(ambulance: boolean, from: string, hasCompanion: boolean): string {
-  const comp = hasCompanion ? "acompanhada" : "desacompanhada";
-  if (ambulance) {
-    const origem = from.trim() ? ` vindo de ${from.trim()}` : "";
+export function assembleArrival(a: ArrivalInput): string {
+  let comp = "desacompanhada";
+  if (a.hasCompanion) {
+    const pessoa = a.companion?.trim();
+    const rel = a.companionRelation?.trim();
+    comp = pessoa
+      ? `acompanhada de ${pessoa}${rel ? ` (${rel})` : ""}`
+      : "acompanhada";
+  }
+  if (a.mode === "ambulancia") {
+    const origem = a.from?.trim() ? ` vindo de ${a.from.trim()}` : "";
     return `Paciente encaminhada ao PSGO de ambulância${origem}, ${comp}.`;
   }
-  return `Paciente comparece ao PSGO, ${comp}.`;
+  if (a.mode === "carta") {
+    const quem = a.referrer?.trim() ? ` por ${a.referrer.trim()}` : "";
+    const motivo = a.reason?.trim() ? ` devido a ${a.reason.trim()}` : "";
+    return `Paciente comparece ao PSGO com carta de encaminhamento${quem}${motivo}, ${comp}.`;
+  }
+  return `Paciente comparece ao PSGO em demanda espontânea, ${comp}.`;
 }
 
 const REV_PREFIX = "rev";
@@ -692,7 +711,12 @@ export function assembleRevision(
     return `${parts.join(". ")}.`;
   }
 
-  const parts = apply.map((q) => revText(q, vals));
+  // Alterados primeiro, normais depois.
+  const ordered = [
+    ...apply.filter((q) => !revIsNormal(q, vals)),
+    ...apply.filter((q) => revIsNormal(q, vals)),
+  ];
+  const parts = ordered.map((q) => revText(q, vals));
   parts.push("Nega demais queixas");
   return `${parts.join(". ")}.`;
 }
@@ -702,16 +726,14 @@ export function assembleHpma(input: {
   selectedIds: string[];
   vals: Record<string, string>;
   pregnant: boolean;
-  ambulance: boolean;
-  from: string;
-  hasCompanion: boolean;
+  arrival: ArrivalInput;
 }): string {
-  const { selectedIds, vals, pregnant, ambulance, from, hasCompanion } = input;
+  const { selectedIds, vals, pregnant, arrival: arrivalInput } = input;
   const templates = HPMA_TEMPLATES.filter((t) => selectedIds.includes(t.id));
   const covered = new Set<string>();
   for (const t of templates) for (const c of t.covers ?? []) covered.add(c);
 
-  const arrival = assembleArrival(ambulance, from, hasCompanion);
+  const arrival = assembleArrival(arrivalInput);
   const qps = templates.map((t, i) => assembleQp(t, vals, i));
   const revision = assembleRevision(vals, pregnant, covered);
 
