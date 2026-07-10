@@ -549,7 +549,6 @@ export function PsgoGenerator({
   const renderNodes = (nodes: HpmaNode[], prefix: string): React.ReactNode =>
     nodes.map((n, k) => {
       if (n.k === "t") return <span key={k}>{n.v}</span>;
-      if (n.k === "unsel") return null;
       if (n.k === "blank") {
         const key = `${prefix}.${n.id}`;
         return (

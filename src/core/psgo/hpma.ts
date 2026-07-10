@@ -17,13 +17,26 @@ export interface HpmaOpt {
   reveal?: HpmaNode[];
 }
 
+export interface MultiCfg {
+  /** Modo lista simples: prefixo/sufixo/vazio dos selecionados. */
+  pre?: string;
+  suf?: string;
+  empty?: string;
+  /**
+   * Modo positivo/negativo: se `negAlone` ou `negMid` for definido, escreve os
+   * selecionados (posPre) e nega os NÃO selecionados. Sem nenhum selecionado,
+   * usa `negAlone` + todos (em vez de um fallback).
+   */
+  posPre?: string;
+  negMid?: string;
+  negAlone?: string;
+}
+
 export type HpmaNode =
   | { k: "t"; v: string }
   | { k: "blank"; id: string; ph?: string }
   | { k: "single"; id: string; opts: HpmaOpt[] }
-  | { k: "multi"; id: string; opts: HpmaOpt[]; pre?: string; suf?: string; empty?: string }
-  /** Escreve os NÃO selecionados de um `multi` (para split positivo/negativo). */
-  | { k: "unsel"; id: string; pre?: string; preAlone?: string; suf?: string };
+  | ({ k: "multi"; id: string; opts: HpmaOpt[] } & MultiCfg);
 
 // Construtores compactos
 const T = (v: string): HpmaNode => ({ k: "t", v });
@@ -34,15 +47,12 @@ const ONE = (id: string, opts: (string | HpmaOpt)[]): HpmaNode => ({
   id,
   opts: opts.map(o),
 });
-const MANY = (
-  id: string,
-  opts: (string | HpmaOpt)[],
-  cfg: { pre?: string; suf?: string; empty?: string } = {},
-): HpmaNode => ({ k: "multi", id, opts: opts.map(o), ...cfg });
-const UNSEL = (
-  id: string,
-  cfg: { pre?: string; preAlone?: string; suf?: string } = {},
-): HpmaNode => ({ k: "unsel", id, ...cfg });
+const MANY = (id: string, opts: (string | HpmaOpt)[], cfg: MultiCfg = {}): HpmaNode => ({
+  k: "multi",
+  id,
+  opts: opts.map(o),
+  ...cfg,
+});
 
 // --- Templates ---
 
@@ -167,18 +177,18 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
     nodes: [
       T("febre há "),
       B("dias"),
-      T(" dias "),
+      T(" dias"),
       MANY("sx", ["cefaleia", "mialgia", "artralgia", "prostração", "exantema", "dor abdominal", "náuseas e vômitos"], {
-        pre: "associada a ",
-        empty: "sem outros sintomas típicos",
+        posPre: " associada a ",
+        negMid: ". Nega ",
+        negAlone: ". Nega ",
       }),
-      UNSEL("sx", { pre: ". Nega ", preAlone: ". Nega " }),
-      T(". Questionada sobre sinais de alarme "),
+      T(". Questionada sobre sinais de alarme"),
       MANY("al", ["dor abdominal intensa", "vômitos persistentes", "sangramento de mucosas", "sonolência", "lipotimia"], {
-        pre: "relata ",
-        empty: "",
+        posPre: " relata ",
+        negMid: "; nega ",
+        negAlone: " nega ",
       }),
-      UNSEL("al", { pre: "; nega ", preAlone: "nega " }),
       T(". "),
       ONE("casos", [
         { label: "Relata", write: "Relata casos recentes em sua casa e bairro" },
@@ -280,12 +290,12 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       B("pad"),
       T(" mmHg) "),
       ONE("local", ["em domicílio", "na triagem", "na origem"]),
-      T(". Quanto a sinais de iminência de eclâmpsia "),
+      T(". Quanto a sinais de iminência de eclâmpsia"),
       MANY("ecl", ["cefaleia holocraniana", "alterações visuais (escotomas, turvação)", "dor abdominal", "náuseas e vômitos"], {
-        pre: "refere ",
-        empty: "",
+        posPre: " refere ",
+        negMid: "; nega ",
+        negAlone: " nega ",
       }),
-      UNSEL("ecl", { pre: "; nega ", preAlone: "nega " }),
       T(". "),
       ONE("anti", [
         { label: "Em uso de anti-HAS", write: "Em uso de anti-hipertensivo", reveal: [T(" ("), B("antiq"), T(")")] },
@@ -503,6 +513,17 @@ export const REVISION_QUESTIONS: RevisionQuestion[] = [
 const val = (vals: Record<string, string>, k: string) => (vals[k] ?? "").trim();
 const isOn = (vals: Record<string, string>, k: string) => vals[k] === "1";
 
+/** Junção natural: "a", "a e b", "a, b e c". */
+function joinNat(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} e ${items[items.length - 1]}`;
+}
+
+/** Colapsa espaços e remove espaço antes de pontuação. */
+function clean(s: string): string {
+  return s.replace(/\s+/g, " ").replace(/\s+([.,;])/g, "$1").trim();
+}
+
 function asmNodes(nodes: HpmaNode[], prefix: string, vals: Record<string, string>): string {
   let out = "";
   for (const n of nodes) out += asmNode(n, prefix, vals);
@@ -518,40 +539,27 @@ function asmNode(n: HpmaNode, prefix: string, vals: Record<string, string>): str
     if (!opt) return `[${n.opts.map((x) => x.label).join("/")}]`;
     return (opt.write ?? opt.label) + (opt.reveal ? asmNodes(opt.reveal, prefix, vals) : "");
   }
-  if (n.k === "multi") {
-    const sel = n.opts.filter((x) => isOn(vals, `${prefix}.${n.id}#${x.label}`));
-    if (!sel.length) return n.empty ?? "";
-    return (n.pre ?? "") + sel.map((x) => x.write ?? x.label).join(", ") + (n.suf ?? "");
+  // multi
+  const wr = (x: HpmaOpt) => x.write ?? x.label;
+  const sel = n.opts.filter((x) => isOn(vals, `${prefix}.${n.id}#${x.label}`));
+  const unsel = n.opts.filter((x) => !isOn(vals, `${prefix}.${n.id}#${x.label}`));
+  // Modo positivo/negativo: escreve os selecionados e nega os demais.
+  if (n.negAlone != null || n.negMid != null) {
+    if (sel.length && unsel.length)
+      return (n.posPre ?? "") + joinNat(sel.map(wr)) + (n.negMid ?? "") + joinNat(unsel.map(wr));
+    if (sel.length) return (n.posPre ?? "") + joinNat(sel.map(wr));
+    if (unsel.length) return (n.negAlone ?? "") + joinNat(unsel.map(wr));
+    return "";
   }
-  // unsel
-  const ref = findMulti(prefix, n.id);
-  if (!ref) return "";
-  const selCount = ref.opts.filter((x) => isOn(vals, `${prefix}.${n.id}#${x.label}`)).length;
-  const unsel = ref.opts.filter((x) => !isOn(vals, `${prefix}.${n.id}#${x.label}`));
-  if (!unsel.length) return "";
-  const pre = selCount > 0 ? (n.pre ?? "") : (n.preAlone ?? n.pre ?? "");
-  return pre + unsel.map((x) => x.write ?? x.label).join(", ") + (n.suf ?? "");
-}
-
-/** Localiza o nó `multi` referenciado por um `unsel` (mesmo template). */
-function findMulti(prefix: string, id: string): Extract<HpmaNode, { k: "multi" }> | null {
-  const tpl = HPMA_TEMPLATES.find((t) => t.id === prefix);
-  if (!tpl) return null;
-  let found: Extract<HpmaNode, { k: "multi" }> | null = null;
-  const walk = (nodes: HpmaNode[]) => {
-    for (const n of nodes) {
-      if (n.k === "multi" && n.id === id) found = n;
-      if (n.k === "single") for (const opt of n.opts) if (opt.reveal) walk(opt.reveal);
-    }
-  };
-  walk(tpl.nodes);
-  return found;
+  // Modo lista simples.
+  if (!sel.length) return n.empty ?? "";
+  return (n.pre ?? "") + joinNat(sel.map(wr)) + (n.suf ?? "");
 }
 
 /** Parágrafo de uma QP; `index` 0 usa "Refere", demais usam "Relata ainda". */
 export function assembleQp(tpl: HpmaTemplate, vals: Record<string, string>, index: number): string {
   const verb = index === 0 ? "Refere " : "Relata ainda ";
-  return (verb + asmNodes(tpl.nodes, tpl.id, vals)).replace(/\s+/g, " ").trim();
+  return clean(verb + asmNodes(tpl.nodes, tpl.id, vals));
 }
 
 /** Frase de chegada da paciente. */
@@ -662,10 +670,5 @@ export function assembleHpma(input: {
   const qps = templates.map((t, i) => assembleQp(t, vals, i));
   const revision = assembleRevision(vals, pregnant, covered);
 
-  return [arrival, ...qps, revision]
-    .filter((s) => s.trim())
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toUpperCase();
+  return clean([arrival, ...qps, revision].filter((s) => s.trim()).join(" ")).toUpperCase();
 }
