@@ -1,145 +1,473 @@
 /**
- * HPMAs padronizadas do PSGO. Cada QP/HD tem um MODELO de texto com lacunas
- * (`___`) e escolhas (`[a/b/c]`). O gerador monta o texto a partir de campos e
- * botões e o insere na caixa de HPMA para edição final.
+ * HPMAs padronizadas do PSGO. Cada QP/HD é um modelo em "nós" (texto, campo,
+ * escolha única e multisseleção). O gerador monta o texto (em MAIÚSCULAS) a
+ * partir dos botões/campos e insere na caixa de HPMA para edição final.
  *
  * Conteúdo validado com a equipe — apoio à documentação, não conduta.
  */
 
+// --- Modelo de nós ---
+
+export interface HpmaOpt {
+  /** Rótulo do botão. */
+  label: string;
+  /** Texto escrito (default = label). */
+  write?: string;
+  /** Nós extras mostrados quando esta opção é escolhida (escolha única). */
+  reveal?: HpmaNode[];
+}
+
+export type HpmaNode =
+  | { k: "t"; v: string }
+  | { k: "blank"; id: string; ph?: string }
+  | { k: "single"; id: string; opts: HpmaOpt[] }
+  | { k: "multi"; id: string; opts: HpmaOpt[]; pre?: string; suf?: string; empty?: string }
+  /** Escreve os NÃO selecionados de um `multi` (para split positivo/negativo). */
+  | { k: "unsel"; id: string; pre?: string; preAlone?: string; suf?: string };
+
+// Construtores compactos
+const T = (v: string): HpmaNode => ({ k: "t", v });
+const B = (id: string, ph?: string): HpmaNode => ({ k: "blank", id, ph });
+const o = (x: string | HpmaOpt): HpmaOpt => (typeof x === "string" ? { label: x } : x);
+const ONE = (id: string, opts: (string | HpmaOpt)[]): HpmaNode => ({
+  k: "single",
+  id,
+  opts: opts.map(o),
+});
+const MANY = (
+  id: string,
+  opts: (string | HpmaOpt)[],
+  cfg: { pre?: string; suf?: string; empty?: string } = {},
+): HpmaNode => ({ k: "multi", id, opts: opts.map(o), ...cfg });
+const UNSEL = (
+  id: string,
+  cfg: { pre?: string; preAlone?: string; suf?: string } = {},
+): HpmaNode => ({ k: "unsel", id, ...cfg });
+
+// --- Templates ---
+
 export interface HpmaTemplate {
   id: string;
-  /** Rótulo do botão (QP/HD). */
   label: string;
-  /** Só oferecido para gestantes. */
   gestanteOnly?: boolean;
-  /** Texto-modelo com `___` (lacuna) e `[a/b/c]` (escolha). */
-  text: string;
+  /** IDs de perguntas da revisão dirigida omitidas (a QP já as cobre). */
+  covers?: string[];
+  nodes: HpmaNode[];
 }
 
 export const HPMA_TEMPLATES: HpmaTemplate[] = [
   {
     id: "geca",
     label: "GECA",
-    text:
-      "Paciente refere quadro de dor abdominal em cólica, difusa, associada a evacuações diarreicas em número de ___ episódios ao dia, com início há ___ dias. [Associa náuseas e ___ episódios de vômitos/Nega náuseas e vômitos]. [Refere/Nega] febre [termometrada/não termometrada]. [Nega/Relata] muco ou sangue nas fezes. [Refere/Nega] contato com pessoas com sintomas semelhantes ou alimento suspeito. Refere aceitação [boa/parcial/ruim] da dieta e ingesta hídrica ___ L por dia.",
+    covers: ["intestinal"],
+    nodes: [
+      T("quadro de dor abdominal em cólica, difusa, associada a evacuações diarreicas em número de "),
+      B("ep"),
+      T(" episódios ao dia, com início há "),
+      B("dias"),
+      T(" dias. "),
+      ONE("nv", [
+        { label: "Associa", write: "Associa náuseas e vômitos", reveal: [T(" ("), B("nvn"), T(" episódios)")] },
+        { label: "Nega", write: "Nega náuseas e vômitos" },
+      ]),
+      T(". "),
+      ONE("febre", [
+        {
+          label: "Refere",
+          write: "Refere febre",
+          reveal: [
+            T(" "),
+            ONE("febret", [
+              { label: "termometrada", write: "termometrada", reveal: [T(" ("), B("temp"), T("º)")] },
+              { label: "não termometrada", write: "não termometrada" },
+            ]),
+          ],
+        },
+        { label: "Nega", write: "Nega febre" },
+      ]),
+      T(". "),
+      ONE("muco", ["Nega", "Relata"]),
+      T(" muco ou sangue nas fezes. "),
+      ONE("contato", ["Refere", "Nega"]),
+      T(" contato com pessoas com sintomas semelhantes, "),
+      ONE("alim", [
+        { label: "Refere", write: "Refere consumo de alimento suspeito", reveal: [T(" ("), B("alimq"), T(")")] },
+        { label: "Nega", write: "Nega consumo de alimento suspeito" },
+      ]),
+      T(". Relata aceitação "),
+      ONE("dieta", ["boa", "parcial", "ruim"]),
+      T(" da dieta e ingesta hídrica de "),
+      B("agua"),
+      T(" L por dia."),
+    ],
   },
   {
     id: "febre",
     label: "Febre",
-    text:
-      "Paciente refere febre aferida de até ___ °C, com início há ___ dias, de padrão [contínuo/intermitente], (não) associada a [calafrios/mialgia/prostração]. [Refere/Nega] sintomas urinários (disúria, polaciúria, dor lombar). [Refere/Nega] sintomas respiratórios (tosse, coriza, odinofagia, dispneia). [Refere/Nega] dor abdominal. [Fez/Não fez] uso de antitérmico com [melhora completa/parcial/sem melhora]. Nega secreção vaginal fétida.",
+    nodes: [
+      T("febre aferida de até "),
+      B("temp"),
+      T(" °C, com início há "),
+      B("dias"),
+      T(" dias, de padrão "),
+      ONE("padrao", ["contínuo", "intermitente"]),
+      T(", "),
+      ONE("assoc", [
+        { label: "Associada", write: "associada a", reveal: [T(" "), MANY("sint", ["calafrios", "mialgia", "prostração"])] },
+        { label: "Não associada", write: "não associada a calafrios, mialgia ou prostração" },
+      ]),
+      T(". "),
+      ONE("urin", [
+        { label: "Refere", write: "Refere sintomas urinários", reveal: [T(" ("), MANY("urinm", ["disúria", "polaciúria", "dor lombar"]), T(")")] },
+        { label: "Nega", write: "Nega sintomas urinários" },
+      ]),
+      T(". "),
+      ONE("resp", [
+        { label: "Refere", write: "Refere sintomas respiratórios", reveal: [T(" ("), MANY("respm", ["tosse", "coriza", "odinofagia", "dispneia"]), T(")")] },
+        { label: "Nega", write: "Nega sintomas respiratórios" },
+      ]),
+      T(". "),
+      ONE("dorabd", ["Refere", "Nega"]),
+      T(" dor abdominal. "),
+      ONE("anti", [
+        { label: "Fez", write: "Fez uso de antitérmico com", reveal: [T(" "), ONE("antim", ["melhora completa", "melhora parcial", "sem melhora"])] },
+        { label: "Não fez", write: "Não fez uso de antitérmico" },
+      ]),
+      T("."),
+    ],
   },
   {
-    id: "dor_baixo_ventre",
+    id: "dor_bv",
     label: "Dor em baixo ventre",
-    text:
-      "Paciente refere dor em baixo ventre/hipogástrio, de caráter [cólica/contínua/em peso], intensidade ___/10, com início há ___, [com/sem] irradiação para ___, [com/sem] fatores de melhora ou piora (quais). [Refere/Nega] relação com esforço, micção ou evacuação. Nega febre.",
+    nodes: [
+      T("dor em baixo ventre, de caráter "),
+      ONE("car", ["cólica", "contínua", "em peso"]),
+      T(", intensidade "),
+      B("int"),
+      T("/10, com início há "),
+      B("ini"),
+      T(", "),
+      ONE("irr", [
+        { label: "com irradiação", write: "com irradiação", reveal: [T(" para "), B("irrp")] },
+        { label: "sem irradiação", write: "sem irradiação" },
+      ]),
+      T(", "),
+      ONE("fat", [
+        { label: "sem fatores", write: "sem fatores de melhora ou piora" },
+        { label: "com fatores", write: "com melhora ao", reveal: [T(" "), B("mel"), T(" e piora ao "), B("pio")] },
+      ]),
+      T(". "),
+      ONE("rel", ["Refere", "Nega"]),
+      T(" relação com esforço, micção ou evacuação."),
+    ],
   },
   {
     id: "dengue",
     label: "Dengue",
-    text:
-      "Paciente refere febre há ___ dias associada a cefaleia [retro-orbitária], mialgia, artralgia e prostração. [Refere/Nega] exantema, dor abdominal e náuseas/vômitos. Nega sinais de alarme (dor abdominal intensa e contínua, vômitos persistentes, sangramento de mucosas, sonolência/irritabilidade, lipotimia). [Refere/Nega] período de epidemia local ou contato com casos. Nega sintomas urinários ou respiratórios.",
+    nodes: [
+      T("febre há "),
+      B("dias"),
+      T(" dias "),
+      MANY("sx", ["cefaleia", "mialgia", "artralgia", "prostração", "exantema", "dor abdominal", "náuseas e vômitos"], {
+        pre: "associada a ",
+        empty: "sem outros sintomas típicos",
+      }),
+      UNSEL("sx", { pre: ". Nega ", preAlone: ". Nega " }),
+      T(". Questionada sobre sinais de alarme "),
+      MANY("al", ["dor abdominal intensa", "vômitos persistentes", "sangramento de mucosas", "sonolência", "lipotimia"], {
+        pre: "relata ",
+        empty: "",
+      }),
+      UNSEL("al", { pre: "; nega ", preAlone: "nega " }),
+      T(". "),
+      ONE("casos", [
+        { label: "Relata", write: "Relata casos recentes em sua casa e bairro" },
+        { label: "Desconhece", write: "Desconhece casos recentes em sua casa e bairro" },
+      ]),
+      T("."),
+    ],
   },
   {
     id: "sindrome_gripal",
     label: "Síndrome gripal",
-    text:
-      "Paciente refere quadro com início há ___ dias de febre associada a tosse, [odinofagia/coriza/congestão nasal], mialgia e cefaleia. [Refere/Nega] dispneia; saturação de O2 em ar ambiente de ___%. [Refere/Nega] contato com sintomáticos respiratórios. Nega dor torácica. Nega sintomas urinários ou perda vaginal.",
+    nodes: [
+      T("quadro com início há "),
+      B("dias"),
+      T(" dias de "),
+      MANY("sx", ["febre", "tosse", "congestão nasal", "mialgia", "cefaleia"], { empty: "sintomas gripais" }),
+      T(". Nega dispneia; saturação de O2 em ar ambiente de "),
+      B("sat"),
+      T("%. "),
+      ONE("contato", ["Refere", "Nega"]),
+      T(" contato com sintomáticos respiratórios. Nega dor torácica."),
+    ],
   },
   {
     id: "nausea_vomitos",
     label: "Náusea e vômitos",
-    text:
-      "Paciente refere náuseas e ___ episódios de vômitos ao dia, com início há ___ dias, de conteúdo [alimentar/bilioso], sem sangue. [Associa/Nega] dor abdominal. Refere aceitação [boa/parcial/ausente] da dieta via oral. [Refere/Nega] sinais de desidratação (boca seca, tontura, oligúria). [Nega/Relata] febre e diarreia.",
+    nodes: [
+      T("náuseas e "),
+      B("ep"),
+      T(" episódios de vômitos ao dia, com início há "),
+      B("dias"),
+      T(" dias, de conteúdo "),
+      ONE("cont", ["alimentar", "bilioso"]),
+      T(", sem sangue. "),
+      ONE("dor", ["Associa", "Nega"]),
+      T(" dor abdominal. Relata aceitação "),
+      ONE("dieta", ["boa", "parcial", "ausente"]),
+      T(" da dieta via oral. "),
+      ONE("desid", ["Refere", "Nega"]),
+      T(" sinais de desidratação (boca seca, tontura, oligúria). "),
+      ONE("febre", ["Nega", "Relata"]),
+      T(" febre."),
+    ],
   },
   {
     id: "reducao_mf",
-    label: "Redução da movimentação fetal",
+    label: "Redução da MF",
     gestanteOnly: true,
-    text:
-      "Gestante refere percepção de redução dos movimentos fetais há ___ horas, em relação ao padrão habitual, [após/independente de] período de repouso. [Realizou/Não realizou] manobras de estímulo e ingesta, com [retorno/persistência da redução] da movimentação. Nega dor abdominal. Última avaliação/USG em ___.",
+    covers: ["mf"],
+    nodes: [
+      T("percepção de redução dos movimentos fetais há "),
+      B("h"),
+      T(" horas, em relação ao padrão habitual, "),
+      ONE("rep", ["após", "independente de"]),
+      T(" período de repouso. Após alimentação há "),
+      ONE("ret", [{ label: "retorno", write: "retorno" }, { label: "persistência", write: "persistência da redução" }]),
+      T(" da movimentação. Nega dor abdominal. Última avaliação/USG em "),
+      B("usg"),
+      T("."),
+    ],
   },
   {
     id: "fase_ativa_tp",
     label: "Fase ativa de TP",
     gestanteOnly: true,
-    text:
-      "Gestante de ___ semanas refere contrações uterinas dolorosas e regulares, com início há ___, atualmente com frequência de ___ em 10 minutos e intensidade progressiva. [Refere/Nega] perda de tampão mucoso. [Refere/Nega] perda de líquido (hora ___, aspecto [claro/meconial]). Refere movimentação fetal presente. Nega sangramento vaginal em grande quantidade.",
+    covers: ["contracoes"],
+    nodes: [
+      T("contrações uterinas dolorosas e regulares, com início há "),
+      B("ini"),
+      T(", atualmente com frequência de "),
+      B("freq"),
+      T(" em 10 minutos e intensidade progressiva. "),
+      ONE("tampao", ["Refere", "Nega"]),
+      T(" perda de tampão mucoso."),
+    ],
   },
   {
     id: "prodromos_tp",
     label: "Pródromos de TP",
     gestanteOnly: true,
-    text:
-      "Gestante de ___ semanas refere contrações uterinas irregulares, de baixa intensidade, que [aliviam/não aliviam] ao repouso, com início há ___. [Refere/Nega] perda de tampão mucoso. Nega perda de líquido. Refere movimentação fetal presente. Nega sangramento vaginal.",
+    covers: ["contracoes"],
+    nodes: [
+      T("contrações uterinas irregulares, de baixa intensidade, que "),
+      ONE("alivio", ["aliviam", "não aliviam"]),
+      T(" ao repouso, com início há "),
+      B("ini"),
+      T(". "),
+      ONE("tampao", ["Refere", "Nega"]),
+      T(" perda de tampão mucoso."),
+    ],
   },
   {
     id: "pico_hipertensivo",
     label: "Pico hipertensivo",
-    text:
-      "Gestante/puérpera de ___ semanas/dias de puerpério, [assintomática/com sintomas], refere aferição de PA elevada (___ x ___ mmHg) [em domicílio/na triagem]. [Refere/Nega] sinais de iminência de eclâmpsia: cefaleia holocraniana, alterações visuais (escotomas, turvação), dor epigástrica ou em hipocôndrio direito, náuseas/vômitos. [Em uso de anti-hipertensivo/Sem anti-hipertensivo em uso]. Refere movimentação fetal presente. Nega sangramento vaginal ou perda de líquido.",
+    nodes: [
+      T("aferição de PA elevada ("),
+      B("pas"),
+      T(" x "),
+      B("pad"),
+      T(" mmHg) "),
+      ONE("local", ["em domicílio", "na triagem", "na origem"]),
+      T(". Quanto a sinais de iminência de eclâmpsia "),
+      MANY("ecl", ["cefaleia holocraniana", "alterações visuais (escotomas, turvação)", "dor abdominal", "náuseas e vômitos"], {
+        pre: "refere ",
+        empty: "",
+      }),
+      UNSEL("ecl", { pre: "; nega ", preAlone: "nega " }),
+      T(". "),
+      ONE("anti", [
+        { label: "Em uso de anti-HAS", write: "Em uso de anti-hipertensivo", reveal: [T(" ("), B("antiq"), T(")")] },
+        { label: "Sem anti-HAS", write: "Sem anti-hipertensivo em uso" },
+      ]),
+      T("."),
+    ],
   },
   {
-    id: "sangramento_tv",
-    label: "Sangramento TV",
-    text:
-      "Paciente refere sangramento via vaginal com início há ___, em [pequena/moderada/grande] quantidade (forrando ___ absorventes), [com/sem] coágulos, [associado a/sem] dor abdominal em cólica. [Refere/Nega] relação com atividade sexual ou trauma. Idade gestacional/estado: ___. Nega perda de líquido.",
+    id: "sangramento_1m",
+    label: "Sangramento 1ª M",
+    gestanteOnly: true,
+    covers: ["sangramento"],
+    nodes: [
+      T("sangramento via vaginal com início há "),
+      B("ini"),
+      T(", em "),
+      ONE("qtd", ["pequena", "moderada", "grande"]),
+      T(" quantidade, "),
+      ONE("coag", [{ label: "com coágulos", write: "com coágulos" }, { label: "sem coágulos", write: "sem coágulos" }]),
+      T(", "),
+      ONE("dor", [{ label: "com cólica", write: "associado a cólica" }, { label: "sem cólica", write: "sem cólica" }]),
+      T(". Gestação de "),
+      B("ig"),
+      T(" semanas. "),
+      ONE("elim", ["Refere", "Nega"]),
+      T(" eliminação de material ou coágulos. "),
+      ONE("trauma", ["Refere", "Nega"]),
+      T(" relação com atividade sexual ou trauma."),
+    ],
+  },
+  {
+    id: "sangramento_2m",
+    label: "Sangramento 2ª M",
+    gestanteOnly: true,
+    covers: ["sangramento"],
+    nodes: [
+      T("sangramento via vaginal com início há "),
+      B("ini"),
+      T(", em "),
+      ONE("qtd", ["pequena", "moderada", "grande"]),
+      T(" quantidade, de sangue "),
+      ONE("cor", ["vermelho vivo", "escuro"]),
+      T(", "),
+      ONE("dor", [{ label: "com dor", write: "com dor abdominal" }, { label: "sem dor", write: "sem dor abdominal" }]),
+      T(". Gestação de "),
+      B("ig"),
+      T(" semanas. Refere movimentação fetal presente. "),
+      ONE("contr", ["Refere", "Nega"]),
+      T(" contrações. "),
+      ONE("trauma", ["Refere", "Nega"]),
+      T(" relação com atividade sexual ou trauma."),
+    ],
+  },
+  {
+    id: "disuria",
+    label: "Disúria",
+    covers: ["urinario"],
+    nodes: [
+      T("disúria com início há "),
+      B("dias"),
+      T(" dias, "),
+      ONE("pol", [{ label: "com polaciúria", write: "associada a polaciúria" }, { label: "sem polaciúria", write: "sem polaciúria" }]),
+      T(", "),
+      ONE("urg", [{ label: "com urgência", write: "com urgência miccional" }, { label: "sem urgência", write: "sem urgência miccional" }]),
+      T(". "),
+      ONE("lombar", ["Refere", "Nega"]),
+      T(" dor lombar. "),
+      ONE("febre", ["Refere", "Nega"]),
+      T(" febre. "),
+      ONE("hema", ["Refere", "Nega"]),
+      T(" hematúria. "),
+      ONE("corr", ["Refere", "Nega"]),
+      T(" corrimento vaginal."),
+    ],
+  },
+  {
+    id: "perda_liquido",
+    label: "Perda de líquido",
+    gestanteOnly: true,
+    covers: ["secrecao"],
+    nodes: [
+      T("perda de líquido via vaginal com início há "),
+      B("ini"),
+      T(", em "),
+      ONE("qtd", ["pequena", "moderada", "grande"]),
+      T(" quantidade, de aspecto "),
+      ONE("asp", ["claro", "meconial", "sanguinolento"]),
+      T(", "),
+      ONE("pad", ["contínua", "intermitente"]),
+      T(". Gestação de "),
+      B("ig"),
+      T(" semanas. Refere movimentação fetal presente. "),
+      ONE("contr", ["Refere", "Nega"]),
+      T(" contrações."),
+    ],
   },
 ];
 
-// --- Revisão dirigida (6 perguntas globais; contrações e MF só p/ gestante) ---
+// --- Revisão dirigida (perguntas obrigatórias) ---
 
-export interface RevisionOption {
+export interface RevSub {
+  id: string;
+  kind: "blank" | "single" | "multi";
+  label?: string;
+  opts?: string[];
+}
+export interface RevOption {
   value: string;
   label: string;
-  text: string;
+  /** true = valor normal/negativo (default). */
+  normal?: boolean;
+  /** Sub-campos mostrados quando esta opção é escolhida. */
+  subs?: RevSub[];
 }
 export interface RevisionQuestion {
   id: string;
   label: string;
   gestanteOnly?: boolean;
-  options: RevisionOption[];
+  options: RevOption[];
 }
 
 export const REVISION_QUESTIONS: RevisionQuestion[] = [
   {
     id: "sangramento",
-    label: "Sangramento vaginal",
+    label: "Sangramento",
     options: [
-      { value: "ausente", label: "Ausente", text: "NEGA SANGRAMENTO VAGINAL" },
-      { value: "peq", label: "Pequena", text: "REFERE SANGRAMENTO VAGINAL EM PEQUENA QUANTIDADE" },
-      { value: "mod", label: "Moderada", text: "REFERE SANGRAMENTO VAGINAL EM MODERADA QUANTIDADE" },
-      { value: "grande", label: "Grande", text: "REFERE SANGRAMENTO VAGINAL EM GRANDE QUANTIDADE" },
+      { value: "nega", label: "Nega", normal: true },
+      {
+        value: "relata",
+        label: "Relata",
+        subs: [
+          { id: "qtd", kind: "single", label: "Quantidade", opts: ["pequena", "moderada", "grande"] },
+          { id: "coag", kind: "single", label: "Coágulos", opts: ["com", "sem"] },
+          { id: "colica", kind: "single", label: "Cólicas", opts: ["associado", "não associado"] },
+        ],
+      },
     ],
   },
   {
     id: "secrecao",
-    label: "Secreção / perda de líquido",
+    label: "Secreção",
     options: [
-      { value: "ausente", label: "Ausente", text: "NEGA PERDA DE LÍQUIDO OU SECREÇÃO VAGINAL" },
-      { value: "secrecao", label: "Secreção vaginal", text: "REFERE SECREÇÃO VAGINAL" },
-      { value: "claro", label: "Líquido claro", text: "REFERE PERDA DE LÍQUIDO CLARO" },
-      { value: "meconial", label: "Líquido meconial", text: "REFERE PERDA DE LÍQUIDO MECONIAL" },
+      { value: "nega", label: "Nega", normal: true },
+      {
+        value: "relata",
+        label: "Relata",
+        subs: [
+          { id: "fetida", kind: "single", label: "Odor", opts: ["fétida", "não fétida"] },
+          { id: "grumos", kind: "single", label: "Grumos", opts: ["com", "sem"] },
+          { id: "cor", kind: "single", label: "Cor", opts: ["clara", "esbranquiçada", "esverdeada", "purulenta"] },
+          { id: "assoc", kind: "multi", label: "Associada a", opts: ["prurido", "ardência local", "dispareunia"] },
+        ],
+      },
     ],
   },
   {
     id: "intestinal",
     label: "Hábito intestinal",
     options: [
-      { value: "preservado", label: "Preservado", text: "HÁBITO INTESTINAL PRESERVADO" },
-      { value: "constipacao", label: "Constipação", text: "HÁBITO INTESTINAL ALTERADO (CONSTIPAÇÃO)" },
-      { value: "diarreia", label: "Diarreia", text: "HÁBITO INTESTINAL ALTERADO (DIARREIA)" },
+      { value: "preservado", label: "Preservado", normal: true },
+      { value: "constipado", label: "Constipado", subs: [{ id: "sem", kind: "blank", label: "Evacuações/semana" }] },
+      { value: "diarreico", label: "Diarreico", subs: [{ id: "dia", kind: "blank", label: "Evacuações/dia" }] },
     ],
   },
   {
     id: "urinario",
     label: "Hábito urinário",
     options: [
-      { value: "preservado", label: "Preservado", text: "HÁBITO URINÁRIO PRESERVADO" },
-      { value: "disuria", label: "Disúria", text: "RELATA DISÚRIA" },
-      { value: "polaciuria", label: "Polaciúria", text: "RELATA POLACIÚRIA" },
-      { value: "retencao", label: "Retenção", text: "RELATA RETENÇÃO URINÁRIA" },
+      { value: "preservado", label: "Preservado", normal: true },
+      {
+        value: "alterado",
+        label: "Alterado",
+        subs: [
+          {
+            id: "sint",
+            kind: "multi",
+            label: "Sintomas",
+            opts: ["disúria", "polaciúria", "poliúria", "incontinência", "urgência", "retenção", "odor desagradável"],
+          },
+        ],
+      },
     ],
   },
   {
@@ -147,9 +475,15 @@ export const REVISION_QUESTIONS: RevisionQuestion[] = [
     label: "Contrações",
     gestanteOnly: true,
     options: [
-      { value: "ausentes", label: "Ausentes", text: "NEGA CONTRAÇÕES" },
-      { value: "irreg", label: "Irregulares", text: "REFERE CONTRAÇÕES IRREGULARES" },
-      { value: "reg", label: "Regulares", text: "REFERE CONTRAÇÕES REGULARES" },
+      { value: "nega", label: "Nega", normal: true },
+      {
+        value: "relata",
+        label: "Relata",
+        subs: [
+          { id: "padrao", kind: "single", label: "Padrão", opts: ["irregular", "regular", "de treinamento"] },
+          { id: "freq", kind: "blank", label: "Freq/10min (se regular)" },
+        ],
+      },
     ],
   },
   {
@@ -157,83 +491,181 @@ export const REVISION_QUESTIONS: RevisionQuestion[] = [
     label: "Movimentação fetal",
     gestanteOnly: true,
     options: [
-      { value: "presente", label: "Presente", text: "REFERE MOVIMENTAÇÃO FETAL PRESENTE" },
-      { value: "reduzida", label: "Reduzida", text: "REFERE MOVIMENTAÇÃO FETAL REDUZIDA" },
-      { value: "ausente", label: "Ausente", text: "REFERE MOVIMENTAÇÃO FETAL AUSENTE" },
+      { value: "boa", label: "Boa", normal: true },
+      { value: "reduzida", label: "Reduzida" },
+      { value: "ausente", label: "Ausente" },
     ],
   },
 ];
 
-// --- Parser / montador ---
+// --- Montagem (assembly) ---
 
-export type HpmaSeg =
-  | { t: "text"; v: string }
-  | { t: "blank"; i: number }
-  | { t: "choice"; i: number; options: string[] };
+const val = (vals: Record<string, string>, k: string) => (vals[k] ?? "").trim();
+const isOn = (vals: Record<string, string>, k: string) => vals[k] === "1";
 
-/** Quebra o modelo em segmentos: texto, lacuna (`___`) e escolha (`[a/b/c]`). */
-export function parseTemplate(text: string): HpmaSeg[] {
-  const segs: HpmaSeg[] = [];
-  const re = /\[([^\]]+)\]|___/g;
-  let last = 0;
-  let idx = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) segs.push({ t: "text", v: text.slice(last, m.index) });
-    if (m[0] === "___") {
-      segs.push({ t: "blank", i: idx++ });
-    } else {
-      segs.push({ t: "choice", i: idx++, options: m[1].split("/").map((s) => s.trim()) });
-    }
-    last = re.lastIndex;
-  }
-  if (last < text.length) segs.push({ t: "text", v: text.slice(last) });
-  return segs;
-}
-
-/** Monta o parágrafo de um modelo com os valores preenchidos. */
-export function assembleTemplate(
-  tpl: HpmaTemplate,
-  values: Record<string, string>,
-): string {
-  const segs = parseTemplate(tpl.text);
+function asmNodes(nodes: HpmaNode[], prefix: string, vals: Record<string, string>): string {
   let out = "";
-  for (const s of segs) {
-    if (s.t === "text") {
-      out += s.v;
-    } else if (s.t === "blank") {
-      const v = (values[`${tpl.id}.${s.i}`] ?? "").trim();
-      out += v || "___";
-    } else {
-      const v = values[`${tpl.id}.${s.i}`];
-      out += v ? v : `[${s.options.join("/")}]`;
-    }
+  for (const n of nodes) out += asmNode(n, prefix, vals);
+  return out;
+}
+
+function asmNode(n: HpmaNode, prefix: string, vals: Record<string, string>): string {
+  if (n.k === "t") return n.v;
+  if (n.k === "blank") return val(vals, `${prefix}.${n.id}`) || "___";
+  if (n.k === "single") {
+    const v = vals[`${prefix}.${n.id}`];
+    const opt = n.opts.find((x) => x.label === v);
+    if (!opt) return `[${n.opts.map((x) => x.label).join("/")}]`;
+    return (opt.write ?? opt.label) + (opt.reveal ? asmNodes(opt.reveal, prefix, vals) : "");
   }
-  return out.replace(/\s+/g, " ").trim();
+  if (n.k === "multi") {
+    const sel = n.opts.filter((x) => isOn(vals, `${prefix}.${n.id}#${x.label}`));
+    if (!sel.length) return n.empty ?? "";
+    return (n.pre ?? "") + sel.map((x) => x.write ?? x.label).join(", ") + (n.suf ?? "");
+  }
+  // unsel
+  const ref = findMulti(prefix, n.id);
+  if (!ref) return "";
+  const selCount = ref.opts.filter((x) => isOn(vals, `${prefix}.${n.id}#${x.label}`)).length;
+  const unsel = ref.opts.filter((x) => !isOn(vals, `${prefix}.${n.id}#${x.label}`));
+  if (!unsel.length) return "";
+  const pre = selCount > 0 ? (n.pre ?? "") : (n.preAlone ?? n.pre ?? "");
+  return pre + unsel.map((x) => x.write ?? x.label).join(", ") + (n.suf ?? "");
 }
 
-/** Frase de revisão dirigida (usa o 1º valor — negativo/normal — por padrão). */
+/** Localiza o nó `multi` referenciado por um `unsel` (mesmo template). */
+function findMulti(prefix: string, id: string): Extract<HpmaNode, { k: "multi" }> | null {
+  const tpl = HPMA_TEMPLATES.find((t) => t.id === prefix);
+  if (!tpl) return null;
+  let found: Extract<HpmaNode, { k: "multi" }> | null = null;
+  const walk = (nodes: HpmaNode[]) => {
+    for (const n of nodes) {
+      if (n.k === "multi" && n.id === id) found = n;
+      if (n.k === "single") for (const opt of n.opts) if (opt.reveal) walk(opt.reveal);
+    }
+  };
+  walk(tpl.nodes);
+  return found;
+}
+
+/** Parágrafo de uma QP; `index` 0 usa "Refere", demais usam "Relata ainda". */
+export function assembleQp(tpl: HpmaTemplate, vals: Record<string, string>, index: number): string {
+  const verb = index === 0 ? "Refere " : "Relata ainda ";
+  return (verb + asmNodes(tpl.nodes, tpl.id, vals)).replace(/\s+/g, " ").trim();
+}
+
+/** Frase de chegada da paciente. */
+export function assembleArrival(ambulance: boolean, from: string, hasCompanion: boolean): string {
+  const comp = hasCompanion ? "acompanhada" : "desacompanhada";
+  if (ambulance) {
+    const origem = from.trim() ? ` vindo de ${from.trim()}` : "";
+    return `Paciente encaminhada ao PSGO de ambulância${origem}, ${comp}.`;
+  }
+  return `Paciente comparece ao PSGO, ${comp}.`;
+}
+
+const REV_PREFIX = "rev";
+
+function revText(q: RevisionQuestion, vals: Record<string, string>): string {
+  const v = vals[`${REV_PREFIX}.${q.id}`] ?? q.options[0].value;
+  const sub = (id: string) => val(vals, `${REV_PREFIX}.${q.id}.${id}`) || "___";
+  const subMulti = (id: string, opts: string[]) => opts.filter((op) => isOn(vals, `${REV_PREFIX}.${q.id}.${id}#${op}`));
+  switch (q.id) {
+    case "sangramento":
+      if (v === "nega") return "Nega sangramento transvaginal";
+      return `Relata sangramento transvaginal em ${sub("qtd")} quantidade, com ${sub("coag")} coágulos, ${sub("colica")} a cólicas`;
+    case "secrecao": {
+      if (v === "nega") return "Nega corrimento";
+      const assoc = subMulti("assoc", ["prurido", "ardência local", "dispareunia"]);
+      const assocTxt = assoc.length ? `, associada a ${assoc.join(", ")}` : "";
+      return `Relata secreção transvaginal ${sub("fetida")}, ${sub("grumos")} grumos, ${sub("cor")}${assocTxt}`;
+    }
+    case "intestinal":
+      if (v === "preservado") return "Nega alterações intestinais";
+      if (v === "constipado") return `Relata constipação (${sub("sem")} evacuações por semana)`;
+      return `Relata diarreia (${sub("dia")} evacuações por dia)`;
+    case "urinario": {
+      if (v === "preservado") return "Nega alterações urinárias";
+      const s = subMulti("sint", ["disúria", "polaciúria", "poliúria", "incontinência", "urgência", "retenção", "odor desagradável"]);
+      return s.length ? `Relata ${s.join(", ")}` : "Relata alterações urinárias";
+    }
+    case "contracoes": {
+      if (v === "nega") return "Nega contrações no momento";
+      const padrao = sub("padrao");
+      const freq = padrao === "regular" && val(vals, `${REV_PREFIX}.contracoes.freq`)
+        ? ` (${val(vals, `${REV_PREFIX}.contracoes.freq`)} em 10 min)`
+        : "";
+      return `Relata enrijecimento abdominal de padrão ${padrao}${freq}`;
+    }
+    case "mf":
+      if (v === "boa") return "Relata boa movimentação fetal";
+      if (v === "reduzida") return "Relata movimentação fetal reduzida";
+      return "Relata ausência de movimentação fetal";
+    default:
+      return "";
+  }
+}
+
+/** Uma pergunta está no valor normal (default)? */
+function revIsNormal(q: RevisionQuestion, vals: Record<string, string>): boolean {
+  const v = vals[`${REV_PREFIX}.${q.id}`] ?? q.options[0].value;
+  return !!q.options.find((op) => op.value === v)?.normal;
+}
+
+/** Revisão dirigida completa (omite as cobertas pela QP; frase combinada se tudo normal). */
 export function assembleRevision(
-  revValues: Record<string, string>,
+  vals: Record<string, string>,
   pregnant: boolean,
+  covered: Set<string>,
 ): string {
-  const parts = REVISION_QUESTIONS.filter((q) => pregnant || !q.gestanteOnly).map((q) => {
-    const v = revValues[q.id] ?? q.options[0].value;
-    return (q.options.find((o) => o.value === v) ?? q.options[0]).text;
-  });
-  return parts.length ? `${parts.join(". ")}.` : "";
+  const apply = REVISION_QUESTIONS.filter(
+    (q) => (pregnant || !q.gestanteOnly) && !covered.has(q.id),
+  );
+  if (!apply.length) return "";
+
+  const allNormal = apply.every((q) => revIsNormal(q, vals));
+  if (allNormal) {
+    const has = (id: string) => apply.some((q) => q.id === id);
+    const parts: string[] = [];
+    const g1 = [has("sangramento") ? "sangramento transvaginal" : "", has("secrecao") ? "corrimento" : ""].filter(Boolean);
+    if (g1.length) parts.push(`Nega ${g1.join(" e ")}`);
+    const g2 = [has("urinario") ? "urinárias" : "", has("intestinal") ? "intestinais" : ""].filter(Boolean);
+    if (g2.length) parts.push(`Nega alterações ${g2.join(" e ")}`);
+    const g3: string[] = [];
+    if (has("contracoes")) g3.push("Nega contrações no momento");
+    if (has("mf")) g3.push("relata boa movimentação fetal");
+    if (g3.length) parts.push(g3.join(", "));
+    parts.push("Nega demais queixas");
+    return `${parts.join(". ")}.`;
+  }
+
+  const parts = apply.map((q) => revText(q, vals));
+  parts.push("Nega demais queixas");
+  return `${parts.join(". ")}.`;
 }
 
-/** Texto final: parágrafos das QPs selecionadas + revisão dirigida. */
-export function assembleHpma(
-  selectedIds: string[],
-  values: Record<string, string>,
-  revValues: Record<string, string>,
-  pregnant: boolean,
-): string {
-  const paras = HPMA_TEMPLATES.filter((t) => selectedIds.includes(t.id)).map((t) =>
-    assembleTemplate(t, values),
-  );
-  const revision = assembleRevision(revValues, pregnant);
-  return [...paras, revision].filter((s) => s.trim()).join(" ");
+/** Texto final da HPMA (MAIÚSCULAS): chegada + QPs + revisão dirigida. */
+export function assembleHpma(input: {
+  selectedIds: string[];
+  vals: Record<string, string>;
+  pregnant: boolean;
+  ambulance: boolean;
+  from: string;
+  hasCompanion: boolean;
+}): string {
+  const { selectedIds, vals, pregnant, ambulance, from, hasCompanion } = input;
+  const templates = HPMA_TEMPLATES.filter((t) => selectedIds.includes(t.id));
+  const covered = new Set<string>();
+  for (const t of templates) for (const c of t.covers ?? []) covered.add(c);
+
+  const arrival = assembleArrival(ambulance, from, hasCompanion);
+  const qps = templates.map((t, i) => assembleQp(t, vals, i));
+  const revision = assembleRevision(vals, pregnant, covered);
+
+  return [arrival, ...qps, revision]
+    .filter((s) => s.trim())
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
 }

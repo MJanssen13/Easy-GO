@@ -35,8 +35,9 @@ import { psgoCtgScore, psgoCtgConclusion, type PsgoCtg } from "@/core/psgo/ctg";
 import {
   HPMA_TEMPLATES,
   REVISION_QUESTIONS,
-  parseTemplate,
   assembleHpma,
+  type HpmaNode,
+  type RevSub,
 } from "@/core/psgo/hpma";
 import { savePsgoAdmission } from "../actions";
 import {
@@ -250,7 +251,8 @@ export function PsgoGenerator({
   // Montador de HPMA (estado transitório; só o texto final vai para form.hpma)
   const [hpmaSel, setHpmaSel] = useState<string[]>([]);
   const [hpmaVals, setHpmaVals] = useState<Record<string, string>>({});
-  const [revVals, setRevVals] = useState<Record<string, string>>({});
+  const [hpmaAmb, setHpmaAmb] = useState(false);
+  const [hpmaFrom, setHpmaFrom] = useState("");
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -271,9 +273,24 @@ export function PsgoGenerator({
 
   const text = useMemo(() => renderPsgo(form), [form]);
   const hpmaPreview = useMemo(
-    () => assembleHpma(hpmaSel, hpmaVals, revVals, form.pregnant),
-    [hpmaSel, hpmaVals, revVals, form.pregnant],
+    () =>
+      assembleHpma({
+        selectedIds: hpmaSel,
+        vals: hpmaVals,
+        pregnant: form.pregnant,
+        ambulance: hpmaAmb,
+        from: hpmaFrom,
+        hasCompanion: !!form.companion.trim(),
+      }),
+    [hpmaSel, hpmaVals, hpmaAmb, hpmaFrom, form.pregnant, form.companion],
   );
+  const hpmaCovered = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of HPMA_TEMPLATES) {
+      if (hpmaSel.includes(t.id)) for (const c of t.covers ?? []) s.add(c);
+    }
+    return s;
+  }, [hpmaSel]);
   const { robsonMissing } = useMemo(() => computePsgo(form), [form]);
   const imagingCentiles = useMemo(
     () => Object.fromEntries(form.imagingExams.map((e) => [e.id, examCentiles(e)])),
@@ -456,9 +473,6 @@ export function PsgoGenerator({
   function setHpmaVal(key: string, value: string) {
     setHpmaVals((v) => ({ ...v, [key]: value }));
   }
-  function setRev(id: string, value: string) {
-    setRevVals((v) => ({ ...v, [id]: value }));
-  }
   const gyField = (field: GyField) => (
     <div key={field.id} className="space-y-1">
       <Label className="text-xs text-muted-foreground">{field.label}</Label>
@@ -521,56 +535,111 @@ export function PsgoGenerator({
       ))}
     </div>
   );
-  // Carta de preenchimento de um modelo de HPMA (lacunas e escolhas inline).
-  const renderHpmaCard = (tpl: (typeof HPMA_TEMPLATES)[number]) => (
-    <div key={tpl.id} className="space-y-1 rounded-md border p-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-primary">{tpl.label}</span>
-        <button
-          type="button"
-          onClick={() => toggleHpmaQp(tpl.id)}
-          className="text-xs text-destructive hover:underline"
-        >
-          remover
-        </button>
-      </div>
-      <div className="text-sm leading-8">
-        {parseTemplate(tpl.text).map((s, k) => {
-          if (s.t === "text") return <span key={k}>{s.v}</span>;
-          const key = `${tpl.id}.${s.i}`;
-          if (s.t === "blank") {
+  // Chip inline pequeno (para o montador de HPMA).
+  const hpmaChipCls = (active: boolean) =>
+    `rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
+      active
+        ? "border-primary bg-primary text-primary-foreground"
+        : "bg-background text-muted-foreground hover:bg-muted"
+    }`;
+  const hpmaInputCls =
+    "mx-0.5 inline-block h-6 w-14 rounded border border-input bg-background px-1 align-middle text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+  // Renderiza os nós de um modelo de HPMA (texto, campo, escolha, multi).
+  const renderNodes = (nodes: HpmaNode[], prefix: string): React.ReactNode =>
+    nodes.map((n, k) => {
+      if (n.k === "t") return <span key={k}>{n.v}</span>;
+      if (n.k === "unsel") return null;
+      if (n.k === "blank") {
+        const key = `${prefix}.${n.id}`;
+        return (
+          <input
+            key={k}
+            value={hpmaVals[key] ?? ""}
+            onChange={(e) => setHpmaVal(key, e.target.value)}
+            className={hpmaInputCls}
+          />
+        );
+      }
+      if (n.k === "single") {
+        const key = `${prefix}.${n.id}`;
+        const cur = hpmaVals[key];
+        const selOpt = n.opts.find((x) => x.label === cur);
+        return (
+          <span key={k} className="mx-0.5 inline-flex flex-wrap items-center gap-1 align-middle">
+            {n.opts.map((op) => (
+              <button
+                key={op.label}
+                type="button"
+                onClick={() => setHpmaVal(key, cur === op.label ? "" : op.label)}
+                className={hpmaChipCls(cur === op.label)}
+              >
+                {op.label}
+              </button>
+            ))}
+            {selOpt?.reveal && renderNodes(selOpt.reveal, prefix)}
+          </span>
+        );
+      }
+      // multi
+      const base = `${prefix}.${n.id}`;
+      return (
+        <span key={k} className="mx-0.5 inline-flex flex-wrap items-center gap-1 align-middle">
+          {n.opts.map((op) => {
+            const key = `${base}#${op.label}`;
+            const on = hpmaVals[key] === "1";
             return (
-              <input
-                key={k}
-                value={hpmaVals[key] ?? ""}
-                onChange={(e) => setHpmaVal(key, e.target.value)}
-                className="mx-0.5 inline-block h-6 w-16 rounded border border-input bg-background px-1 align-middle text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
+              <button
+                key={op.label}
+                type="button"
+                onClick={() => setHpmaVal(key, on ? "" : "1")}
+                className={hpmaChipCls(on)}
+              >
+                {op.label}
+              </button>
             );
-          }
-          const cur = hpmaVals[key];
+          })}
+        </span>
+      );
+    });
+
+  // Sub-campo de uma pergunta da revisão dirigida.
+  const renderRevSub = (qid: string, sub: RevSub) => {
+    const base = `rev.${qid}.${sub.id}`;
+    if (sub.kind === "blank") {
+      return (
+        <span key={sub.id} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          {sub.label}
+          <input
+            value={hpmaVals[base] ?? ""}
+            onChange={(e) => setHpmaVal(base, e.target.value)}
+            className={hpmaInputCls}
+          />
+        </span>
+      );
+    }
+    return (
+      <span key={sub.id} className="inline-flex flex-wrap items-center gap-1">
+        <span className="text-xs text-muted-foreground">{sub.label}:</span>
+        {(sub.opts ?? []).map((op) => {
+          const key = sub.kind === "multi" ? `${base}#${op}` : base;
+          const active = sub.kind === "multi" ? hpmaVals[key] === "1" : hpmaVals[key] === op;
           return (
-            <span key={k} className="mx-0.5 inline-flex flex-wrap gap-1 align-middle">
-              {s.options.map((op) => (
-                <button
-                  key={op}
-                  type="button"
-                  onClick={() => setHpmaVal(key, cur === op ? "" : op)}
-                  className={`rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
-                    cur === op
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {op.replace(/\s*___\s*/g, " … ").trim()}
-                </button>
-              ))}
-            </span>
+            <button
+              key={op}
+              type="button"
+              onClick={() =>
+                setHpmaVal(key, sub.kind === "multi" ? (active ? "" : "1") : active ? "" : op)
+              }
+              className={hpmaChipCls(active)}
+            >
+              {op}
+            </button>
           );
         })}
-      </div>
-    </div>
-  );
+      </span>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -1273,9 +1342,29 @@ export function PsgoGenerator({
 
             {/* Montador de HPMA padronizada */}
             <div className="space-y-3 rounded-md border p-3">
-              <p className="text-sm font-semibold">
-                Montar HPMA — QP/HD (pode marcar mais de uma)
-              </p>
+              {/* Chegada da paciente */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Chegada</Label>
+                  <div className="w-56">
+                    <Segmented
+                      value={hpmaAmb ? "amb" : "comp"}
+                      onChange={(v) => setHpmaAmb(v === "amb")}
+                      options={[
+                        { value: "comp", label: "Comparece" },
+                        { value: "amb", label: "Ambulância" },
+                      ]}
+                    />
+                  </div>
+                </div>
+                {hpmaAmb && (
+                  <Field label="Ambulância — de onde?" className="min-w-[10rem] flex-1">
+                    <Input value={hpmaFrom} onChange={(e) => setHpmaFrom(e.target.value)} />
+                  </Field>
+                )}
+              </div>
+
+              <p className="text-sm font-semibold">QP/HD (pode marcar mais de uma)</p>
               <div className="flex flex-wrap gap-1.5">
                 {HPMA_TEMPLATES.filter((t) => form.pregnant || !t.gestanteOnly).map((t) => (
                   <Chip key={t.id} active={hpmaSel.includes(t.id)} onClick={() => toggleHpmaQp(t.id)}>
@@ -1286,29 +1375,56 @@ export function PsgoGenerator({
 
               {hpmaSel.length > 0 && (
                 <div className="space-y-2">
-                  {HPMA_TEMPLATES.filter((t) => hpmaSel.includes(t.id)).map(renderHpmaCard)}
+                  {HPMA_TEMPLATES.filter((t) => hpmaSel.includes(t.id)).map((tpl, i) => (
+                    <div key={tpl.id} className="space-y-1 rounded-md border p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-primary">
+                          {i === 0 ? "Refere" : "Relata ainda"}: {tpl.label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleHpmaQp(tpl.id)}
+                          className="text-xs text-destructive hover:underline"
+                        >
+                          remover
+                        </button>
+                      </div>
+                      <div className="text-sm leading-8">{renderNodes(tpl.nodes, tpl.id)}</div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Revisão dirigida (perguntas obrigatórias) */}
+              {/* Revisão dirigida (perguntas obrigatórias; omite as cobertas pela QP) */}
               <div className="space-y-1.5 border-t pt-2">
                 <p className="text-xs font-semibold text-muted-foreground">
                   Revisão dirigida (sempre respondida)
                 </p>
-                {REVISION_QUESTIONS.filter((q) => form.pregnant || !q.gestanteOnly).map((q) => {
-                  const cur = revVals[q.id] ?? q.options[0].value;
+                {REVISION_QUESTIONS.filter(
+                  (q) => (form.pregnant || !q.gestanteOnly) && !hpmaCovered.has(q.id),
+                ).map((q) => {
+                  const key = `rev.${q.id}`;
+                  const cur = hpmaVals[key] ?? q.options[0].value;
+                  const curOpt = q.options.find((op) => op.value === cur);
                   return (
-                    <div key={q.id} className="flex flex-wrap items-center gap-1.5">
-                      <span className="w-36 text-xs text-muted-foreground">{q.label}</span>
-                      {q.options.map((op) => (
-                        <Chip
-                          key={op.value}
-                          active={cur === op.value}
-                          onClick={() => setRev(q.id, op.value)}
-                        >
-                          {op.label}
-                        </Chip>
-                      ))}
+                    <div key={q.id} className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="w-36 text-xs text-muted-foreground">{q.label}</span>
+                        {q.options.map((op) => (
+                          <Chip
+                            key={op.value}
+                            active={cur === op.value}
+                            onClick={() => setHpmaVal(key, op.value)}
+                          >
+                            {op.label}
+                          </Chip>
+                        ))}
+                      </div>
+                      {curOpt?.subs && (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-36">
+                          {curOpt.subs.map((sub) => renderRevSub(q.id, sub))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -5,7 +5,26 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
-### PSGO — HPMAs padronizadas (montador)
+### PSGO — HPMAs padronizadas (v2) e paridade simples
+
+- **Paridade** volta ao modelo simples (em calibração): sem gemelaridade e com
+  **abortos fora de P** (P = N+C+F). Ex.: `G5P3(N1C2A1)`.
+- **HPMA** reescrita com motor de nós (condicionais, multisseleção e split
+  positivo/negativo). O texto sai **em MAIÚSCULAS já na prévia**.
+  - **Frase de chegada** em toda HPMA: "PACIENTE COMPARECE AO PSGO,
+    ACOMPANHADA/DESACOMPANHADA" ou, se **ambulância**, "ENCAMINHADA… VINDO DE X"
+    (novo controle de chegada + origem).
+  - **2ª QP em diante** começa com "RELATA AINDA …".
+  - Modelos revisados de GECA, Febre, Dor em BV, Dengue, Síndrome gripal, Náusea
+    e vômitos, Redução da MF, Fase ativa/Pródromos de TP e Pico hipertensivo,
+    com campos condicionais e listas de sintomas multisseleção; Dengue e Pico
+    escrevem os sintomas escolhidos e negam os demais.
+  - Novas QPs: **Sangramento 1ª M**, **Sangramento 2ª M**, **Disúria** e
+    **Perda de líquido** (substituem o "Sangramento TV").
+  - **Revisão dirigida**: omite a pergunta coberta pela QP; se tudo normal,
+    escreve a frase combinada ("NEGA SANGRAMENTO TRANSVAGINAL E CORRIMENTO…").
+    Secreção renomeada; hábito intestinal com nº de evacuações; urinário e
+    contrações com sub-campos.
 
 - **Montador de HPMA** na seção Queixa e história: botões de **QP/HD cumulativos**
   (GECA, Febre, Dor em baixo ventre, Dengue, Síndrome gripal, Náusea e vômitos,
