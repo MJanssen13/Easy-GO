@@ -59,6 +59,16 @@ const MANY = (id: string, opts: (string | HpmaOpt)[], cfg: MultiCfg = {}, q?: st
   ...cfg,
 });
 const COND = (ref: string, eq: string, nodes: HpmaNode[]): HpmaNode => ({ k: "cond", ref, eq, nodes });
+/**
+ * Botões "Sim/Não" para perguntas de presença/ausência: a paciente vê Sim/Não,
+ * mas o HPMA escreve o verbo clínico (`yes` quando Sim, `no` quando Não), sem
+ * perder o sentido. Ex.: YN("Refere", "Nega") → "Refere febre" / "Nega febre".
+ * CONDs que dependem desta escolha devem usar `eq: "Sim"` ou `eq: "Não"`.
+ */
+const YN = (yes: string, no: string): HpmaOpt[] => [
+  { label: "Sim", write: yes },
+  { label: "Não", write: no },
+];
 
 // --- Templates ---
 
@@ -85,13 +95,13 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(" episódios ao dia, com início há "),
       B("dias", "Início (há quantos dias)"),
       T(" dias. "),
-      ONE("nv", ["Associa", "Nega"], "Náuseas e vômitos"),
+      ONE("nv", YN("Associa", "Nega"), "Náuseas e vômitos"),
       T(" náuseas/vômitos"),
-      COND("nv", "Associa", [T(" ("), B("nvn", "Nº de episódios de vômitos"), T(" episódios)")]),
+      COND("nv", "Sim", [T(" ("), B("nvn", "Nº de episódios de vômitos"), T(" episódios)")]),
       T(". "),
-      ONE("febre", ["Refere", "Nega"], "Febre"),
+      ONE("febre", YN("Refere", "Nega"), "Febre"),
       T(" febre"),
-      COND("febre", "Refere", [
+      COND("febre", "Sim", [
         T(" "),
         ONE(
           "febret",
@@ -103,13 +113,13 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
         ),
       ]),
       T(". "),
-      ONE("muco", ["Nega", "Relata"], "Muco ou sangue nas fezes"),
+      ONE("muco", YN("Relata", "Nega"), "Muco ou sangue nas fezes"),
       T(" muco ou sangue nas fezes. "),
-      ONE("contato", ["Refere", "Nega"], "Contato com sintomáticos"),
+      ONE("contato", YN("Refere", "Nega"), "Contato com sintomáticos"),
       T(" contato com pessoas com sintomas semelhantes, "),
-      ONE("alim", ["Refere", "Nega"], "Consumo de alimento suspeito"),
+      ONE("alim", YN("Refere", "Nega"), "Consumo de alimento suspeito"),
       T(" consumo de alimento suspeito"),
-      COND("alim", "Refere", [T(" ("), B("alimq", "Qual alimento?", true), T(")")]),
+      COND("alim", "Sim", [T(" ("), B("alimq", "Qual alimento?", true), T(")")]),
       T(". Relata aceitação "),
       ONE("dieta", ["boa", "parcial", "ruim"], "Aceitação da dieta"),
       T(" da dieta e ingesta hídrica de "),
@@ -129,22 +139,22 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(" dias, de padrão "),
       ONE("padrao", ["contínuo", "intermitente"], "Padrão da febre"),
       T(", "),
-      ONE("assoc", ["associada", "não associada"], "Sintomas associados?"),
+      ONE("assoc", YN("associada", "não associada"), "Sintomas associados?"),
       T(" a "),
-      COND("assoc", "associada", [
+      COND("assoc", "Sim", [
         MANY("sint", ["calafrios", "mialgia", "prostração"], { empty: "calafrios, mialgia ou prostração" }, "Quais"),
       ]),
-      COND("assoc", "não associada", [T("calafrios, mialgia ou prostração")]),
+      COND("assoc", "Não", [T("calafrios, mialgia ou prostração")]),
       T(". "),
-      ONE("urin", ["Refere", "Nega"], "Sintomas urinários"),
+      ONE("urin", YN("Refere", "Nega"), "Sintomas urinários"),
       T(" sintomas urinários"),
-      COND("urin", "Refere", [T(" ("), MANY("urinm", ["disúria", "polaciúria", "dor lombar"], {}, "Quais"), T(")")]),
+      COND("urin", "Sim", [T(" ("), MANY("urinm", ["disúria", "polaciúria", "dor lombar"], {}, "Quais"), T(")")]),
       T(". "),
-      ONE("resp", ["Refere", "Nega"], "Sintomas respiratórios"),
+      ONE("resp", YN("Refere", "Nega"), "Sintomas respiratórios"),
       T(" sintomas respiratórios"),
-      COND("resp", "Refere", [T(" ("), MANY("respm", ["tosse", "coriza", "odinofagia", "dispneia"], {}, "Quais"), T(")")]),
+      COND("resp", "Sim", [T(" ("), MANY("respm", ["tosse", "coriza", "odinofagia", "dispneia"], {}, "Quais"), T(")")]),
       T(". "),
-      ONE("dorabd", ["Refere", "Nega"], "Dor abdominal"),
+      ONE("dorabd", YN("Refere", "Nega"), "Dor abdominal"),
       T(" dor abdominal. "),
       ONE("anti", ["Fez", "Não fez"], "Uso de antitérmico"),
       T(" uso de antitérmico"),
@@ -180,7 +190,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       COND("fat", "sem fatores", [T(" de melhora ou piora")]),
       COND("fat", "com fatores", [T(": melhora ao "), B("mel", "Melhora ao", true), T(" e piora ao "), B("pio", "Piora ao", true)]),
       T(". "),
-      ONE("rel", ["Refere", "Nega"], "Relação com esforço/micção/evacuação"),
+      ONE("rel", YN("Refere", "Nega"), "Relação com esforço/micção/evacuação"),
       T(" relação com esforço, micção ou evacuação."),
     ],
   },
@@ -222,7 +232,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(". Nega dispneia; saturação de O2 em ar ambiente de "),
       B("sat", "Saturação O2 (%)"),
       T("%. "),
-      ONE("contato", ["Refere", "Nega"], "Contato com sintomáticos"),
+      ONE("contato", YN("Refere", "Nega"), "Contato com sintomáticos"),
       T(" contato com sintomáticos respiratórios. Nega dor torácica."),
     ],
   },
@@ -238,13 +248,13 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(" dias, de conteúdo "),
       ONE("cont", ["alimentar", "bilioso"], "Conteúdo"),
       T(", sem sangue. "),
-      ONE("dor", ["Associa", "Nega"], "Dor abdominal"),
+      ONE("dor", YN("Associa", "Nega"), "Dor abdominal"),
       T(" dor abdominal. Relata aceitação "),
       ONE("dieta", ["boa", "parcial", "ausente"], "Aceitação da dieta"),
       T(" da dieta via oral. "),
-      ONE("desid", ["Refere", "Nega"], "Sinais de desidratação"),
+      ONE("desid", YN("Refere", "Nega"), "Sinais de desidratação"),
       T(" sinais de desidratação (boca seca, tontura, oligúria). "),
-      ONE("febre", ["Nega", "Relata"], "Febre"),
+      ONE("febre", YN("Relata", "Nega"), "Febre"),
       T(" febre."),
     ],
   },
@@ -282,7 +292,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(", atualmente com frequência de "),
       B("freq", "Frequência (em 10 min)"),
       T(" em 10 minutos e intensidade progressiva. "),
-      ONE("tampao", ["Refere", "Nega"], "Perda de tampão mucoso"),
+      ONE("tampao", YN("Refere", "Nega"), "Perda de tampão mucoso"),
       T(" perda de tampão mucoso."),
     ],
   },
@@ -298,7 +308,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(" ao repouso, com início há "),
       B("ini", "Início (há)"),
       T(". "),
-      ONE("tampao", ["Refere", "Nega"], "Perda de tampão mucoso"),
+      ONE("tampao", YN("Refere", "Nega"), "Perda de tampão mucoso"),
       T(" perda de tampão mucoso."),
     ],
   },
@@ -347,12 +357,10 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("coag", [{ label: "com coágulos", write: "com coágulos" }, { label: "sem coágulos", write: "sem coágulos" }], "Coágulos"),
       T(", "),
       ONE("dor", [{ label: "com cólica", write: "associado a cólica" }, { label: "sem cólica", write: "sem cólica" }], "Cólica"),
-      T(". Gestação de "),
-      B("ig", "IG (semanas)"),
-      T(" semanas. "),
-      ONE("elim", ["Refere", "Nega"], "Eliminação de material/coágulos"),
+      T(". "),
+      ONE("elim", YN("Refere", "Nega"), "Eliminação de material/coágulos"),
       T(" eliminação de material ou coágulos. "),
-      ONE("trauma", ["Refere", "Nega"], "Relação com atividade sexual/trauma"),
+      ONE("trauma", YN("Refere", "Nega"), "Relação com atividade sexual/trauma"),
       T(" relação com atividade sexual ou trauma."),
     ],
   },
@@ -371,12 +379,8 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("cor", ["vermelho vivo", "escuro"], "Cor do sangue"),
       T(", "),
       ONE("dor", [{ label: "com dor", write: "com dor abdominal" }, { label: "sem dor", write: "sem dor abdominal" }], "Dor abdominal"),
-      T(". Gestação de "),
-      B("ig", "IG (semanas)"),
-      T(" semanas. Refere movimentação fetal presente. "),
-      ONE("contr", ["Refere", "Nega"], "Contrações"),
-      T(" contrações. "),
-      ONE("trauma", ["Refere", "Nega"], "Relação com atividade sexual/trauma"),
+      T(". Refere movimentação fetal presente. "),
+      ONE("trauma", YN("Refere", "Nega"), "Relação com atividade sexual/trauma"),
       T(" relação com atividade sexual ou trauma."),
     ],
   },
@@ -393,13 +397,13 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(", "),
       ONE("urg", [{ label: "com urgência", write: "com urgência miccional" }, { label: "sem urgência", write: "sem urgência miccional" }], "Urgência miccional"),
       T(". "),
-      ONE("lombar", ["Refere", "Nega"], "Dor lombar"),
+      ONE("lombar", YN("Refere", "Nega"), "Dor lombar"),
       T(" dor lombar. "),
-      ONE("febre", ["Refere", "Nega"], "Febre"),
+      ONE("febre", YN("Refere", "Nega"), "Febre"),
       T(" febre. "),
-      ONE("hema", ["Refere", "Nega"], "Hematúria"),
+      ONE("hema", YN("Refere", "Nega"), "Hematúria"),
       T(" hematúria. "),
-      ONE("corr", ["Refere", "Nega"], "Corrimento vaginal"),
+      ONE("corr", YN("Refere", "Nega"), "Corrimento vaginal"),
       T(" corrimento vaginal."),
     ],
   },
@@ -418,11 +422,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("asp", ["claro", "meconial", "sanguinolento"], "Aspecto"),
       T(", "),
       ONE("pad", ["contínua", "intermitente"], "Padrão"),
-      T(". Gestação de "),
-      B("ig", "IG (semanas)"),
-      T(" semanas. Refere movimentação fetal presente. "),
-      ONE("contr", ["Refere", "Nega"], "Contrações"),
-      T(" contrações."),
+      T(". Refere movimentação fetal presente."),
     ],
   },
 ];
@@ -597,14 +597,43 @@ export function assembleQp(tpl: HpmaTemplate, vals: Record<string, string>, inde
   return clean(verb + asmNodes(tpl.nodes, tpl.id, vals));
 }
 
+export type ArrivalMode = "espontanea" | "ambulancia" | "carta";
+
+export interface ArrivalInput {
+  mode: ArrivalMode;
+  /** Ambulância — de onde. */
+  from?: string;
+  /** Encaminhamento com carta — quem encaminhou. */
+  referrer?: string;
+  /** Encaminhamento com carta — motivo. */
+  reason?: string;
+  hasCompanion: boolean;
+  /** Acompanhante — pessoa. */
+  companion?: string;
+  /** Acompanhante — parentesco. */
+  companionRelation?: string;
+}
+
 /** Frase de chegada da paciente. */
-export function assembleArrival(ambulance: boolean, from: string, hasCompanion: boolean): string {
-  const comp = hasCompanion ? "acompanhada" : "desacompanhada";
-  if (ambulance) {
-    const origem = from.trim() ? ` vindo de ${from.trim()}` : "";
+export function assembleArrival(a: ArrivalInput): string {
+  let comp = "desacompanhada";
+  if (a.hasCompanion) {
+    const pessoa = a.companion?.trim();
+    const rel = a.companionRelation?.trim();
+    comp = pessoa
+      ? `acompanhada de ${pessoa}${rel ? ` (${rel})` : ""}`
+      : "acompanhada";
+  }
+  if (a.mode === "ambulancia") {
+    const origem = a.from?.trim() ? ` vindo de ${a.from.trim()}` : "";
     return `Paciente encaminhada ao PSGO de ambulância${origem}, ${comp}.`;
   }
-  return `Paciente comparece ao PSGO, ${comp}.`;
+  if (a.mode === "carta") {
+    const quem = a.referrer?.trim() ? ` por ${a.referrer.trim()}` : "";
+    const motivo = a.reason?.trim() ? ` devido a ${a.reason.trim()}` : "";
+    return `Paciente comparece ao PSGO com carta de encaminhamento${quem}${motivo}, ${comp}.`;
+  }
+  return `Paciente comparece ao PSGO em demanda espontânea, ${comp}.`;
 }
 
 const REV_PREFIX = "rev";
@@ -682,7 +711,12 @@ export function assembleRevision(
     return `${parts.join(". ")}.`;
   }
 
-  const parts = apply.map((q) => revText(q, vals));
+  // Alterados primeiro, normais depois.
+  const ordered = [
+    ...apply.filter((q) => !revIsNormal(q, vals)),
+    ...apply.filter((q) => revIsNormal(q, vals)),
+  ];
+  const parts = ordered.map((q) => revText(q, vals));
   parts.push("Nega demais queixas");
   return `${parts.join(". ")}.`;
 }
@@ -692,16 +726,14 @@ export function assembleHpma(input: {
   selectedIds: string[];
   vals: Record<string, string>;
   pregnant: boolean;
-  ambulance: boolean;
-  from: string;
-  hasCompanion: boolean;
+  arrival: ArrivalInput;
 }): string {
-  const { selectedIds, vals, pregnant, ambulance, from, hasCompanion } = input;
+  const { selectedIds, vals, pregnant, arrival: arrivalInput } = input;
   const templates = HPMA_TEMPLATES.filter((t) => selectedIds.includes(t.id));
   const covered = new Set<string>();
   for (const t of templates) for (const c of t.covers ?? []) covered.add(c);
 
-  const arrival = assembleArrival(ambulance, from, hasCompanion);
+  const arrival = assembleArrival(arrivalInput);
   const qps = templates.map((t, i) => assembleQp(t, vals, i));
   const revision = assembleRevision(vals, pregnant, covered);
 

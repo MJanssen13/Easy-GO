@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Siren, Info, ChevronDown, FlaskConical, ExternalLink } from "lucide-react";
 import {
@@ -38,6 +38,7 @@ import {
   assembleHpma,
   type HpmaNode,
   type RevSub,
+  type ArrivalMode,
 } from "@/core/psgo/hpma";
 import { savePsgoAdmission } from "../actions";
 import {
@@ -153,15 +154,15 @@ function Segmented<T extends string>({
   options: { value: T; label: string }[];
 }) {
   return (
-    <div className="inline-flex w-full rounded-md border bg-background p-0.5">
-      {options.map((opt) => (
+    <div className="inline-flex w-full overflow-hidden rounded-full border bg-background text-xs font-medium">
+      {options.map((opt, i) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
+          className={`flex-1 whitespace-nowrap px-3 py-1.5 text-center transition-colors ${i > 0 ? "border-l" : ""} ${
             value === opt.value
-              ? "bg-primary text-primary-foreground shadow-sm"
+              ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:bg-muted"
           }`}
         >
@@ -169,6 +170,33 @@ function Segmented<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/** Textarea cuja altura acompanha o conteúdo (sem barra de rolagem interna). */
+function AutoGrowTextarea({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <Textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`resize-none overflow-hidden ${className ?? ""}`}
+    />
   );
 }
 
@@ -251,8 +279,10 @@ export function PsgoGenerator({
   // Montador de HPMA (estado transitório; só o texto final vai para form.hpma)
   const [hpmaSel, setHpmaSel] = useState<string[]>([]);
   const [hpmaVals, setHpmaVals] = useState<Record<string, string>>({});
-  const [hpmaAmb, setHpmaAmb] = useState(false);
+  const [hpmaArrival, setHpmaArrival] = useState<ArrivalMode>("espontanea");
   const [hpmaFrom, setHpmaFrom] = useState("");
+  const [hpmaReferrer, setHpmaReferrer] = useState("");
+  const [hpmaReason, setHpmaReason] = useState("");
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -278,11 +308,31 @@ export function PsgoGenerator({
         selectedIds: hpmaSel,
         vals: hpmaVals,
         pregnant: form.pregnant,
-        ambulance: hpmaAmb,
-        from: hpmaFrom,
-        hasCompanion: !!form.companion.trim(),
+        arrival: {
+          mode: hpmaArrival,
+          from: hpmaFrom,
+          referrer: hpmaReferrer,
+          reason: hpmaReason,
+          hasCompanion: !!form.companion.trim(),
+          companion: form.companion,
+          companionRelation:
+            form.companionRelation === "OUTRO"
+              ? form.companionRelationOther
+              : form.companionRelation,
+        },
       }),
-    [hpmaSel, hpmaVals, hpmaAmb, hpmaFrom, form.pregnant, form.companion],
+    [
+      hpmaSel,
+      hpmaVals,
+      hpmaArrival,
+      hpmaFrom,
+      hpmaReferrer,
+      hpmaReason,
+      form.pregnant,
+      form.companion,
+      form.companionRelation,
+      form.companionRelationOther,
+    ],
   );
   const hpmaCovered = useMemo(() => {
     const s = new Set<string>();
@@ -1412,28 +1462,44 @@ export function PsgoGenerator({
             {/* Montador de HPMA padronizada */}
             <div className="space-y-3 rounded-md border p-3">
               {/* Chegada da paciente */}
-              <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Chegada</Label>
-                  <div className="w-56">
-                    <Segmented
-                      value={hpmaAmb ? "amb" : "comp"}
-                      onChange={(v) => setHpmaAmb(v === "amb")}
-                      options={[
-                        { value: "comp", label: "Comparece" },
-                        { value: "amb", label: "Ambulância" },
-                      ]}
-                    />
-                  </div>
+                  <Segmented
+                    value={hpmaArrival}
+                    onChange={setHpmaArrival}
+                    options={[
+                      { value: "espontanea", label: "Demanda espontânea" },
+                      { value: "ambulancia", label: "Ambulância" },
+                      { value: "carta", label: "Encaminhamento com carta" },
+                    ]}
+                  />
                 </div>
-                {hpmaAmb && (
-                  <Field label="Ambulância — de onde?" className="min-w-[10rem] flex-1">
+                {hpmaArrival === "ambulancia" && (
+                  <Field label="Ambulância — de onde?" className="max-w-md">
                     <Input value={hpmaFrom} onChange={(e) => setHpmaFrom(e.target.value)} />
                   </Field>
                 )}
+                {hpmaArrival === "carta" && (
+                  <div className="flex flex-wrap items-end gap-3">
+                    <Field label="Quem encaminhou?" className="min-w-[10rem] flex-1">
+                      <Input value={hpmaReferrer} onChange={(e) => setHpmaReferrer(e.target.value)} />
+                    </Field>
+                    <Field label="Motivo do encaminhamento" className="min-w-[10rem] flex-1">
+                      <Input value={hpmaReason} onChange={(e) => setHpmaReason(e.target.value)} />
+                    </Field>
+                  </div>
+                )}
               </div>
 
-              <p className="text-sm font-semibold">QP/HD (pode marcar mais de uma)</p>
+              <div>
+                <p className="text-sm font-semibold">Gerador de HPMA</p>
+                <p className="text-xs text-muted-foreground">
+                  Possível selecionar vários.
+                  <br />
+                  É possível escrever/editar manualmente em HPMA (edição final).
+                </p>
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {HPMA_TEMPLATES.filter((t) => form.pregnant || !t.gestanteOnly).map((t) => (
                   <Chip key={t.id} active={hpmaSel.includes(t.id)} onClick={() => toggleHpmaQp(t.id)}>
@@ -1518,14 +1584,18 @@ export function PsgoGenerator({
                     Usar no HPMA ↓
                   </Button>
                 </div>
-                <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
+                <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px] text-justify">
                   {hpmaPreview || "Selecione uma QP/HD e responda a revisão dirigida."}
                 </p>
               </div>
             </div>
 
             <Field label="HPMA (edição final)">
-              <Textarea rows={4} value={form.hpma} onChange={(e) => update({ hpma: e.target.value })} />
+              <AutoGrowTextarea
+                value={form.hpma}
+                onChange={(v) => update({ hpma: v })}
+                className="text-justify"
+              />
             </Field>
         </Section>
 
