@@ -36,7 +36,9 @@ export type HpmaNode =
   | { k: "t"; v: string }
   | { k: "blank"; id: string; ph?: string }
   | { k: "single"; id: string; opts: HpmaOpt[] }
-  | ({ k: "multi"; id: string; opts: HpmaOpt[] } & MultiCfg);
+  | ({ k: "multi"; id: string; opts: HpmaOpt[] } & MultiCfg)
+  /** Mostra `nodes` só quando a escolha única `ref` estiver no valor `eq`. */
+  | { k: "cond"; ref: string; eq: string; nodes: HpmaNode[] };
 
 // Construtores compactos
 const T = (v: string): HpmaNode => ({ k: "t", v });
@@ -53,6 +55,7 @@ const MANY = (id: string, opts: (string | HpmaOpt)[], cfg: MultiCfg = {}): HpmaN
   opts: opts.map(o),
   ...cfg,
 });
+const COND = (ref: string, eq: string, nodes: HpmaNode[]): HpmaNode => ({ k: "cond", ref, eq, nodes });
 
 // --- Templates ---
 
@@ -76,34 +79,27 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(" episódios ao dia, com início há "),
       B("dias"),
       T(" dias. "),
-      ONE("nv", [
-        { label: "Associa", write: "Associa náuseas e vômitos", reveal: [T(" ("), B("nvn"), T(" episódios)")] },
-        { label: "Nega", write: "Nega náuseas e vômitos" },
-      ]),
+      ONE("nv", ["Associa", "Nega"]),
+      T(" náuseas/vômitos"),
+      COND("nv", "Associa", [T(" ("), B("nvn"), T(" episódios)")]),
       T(". "),
-      ONE("febre", [
-        {
-          label: "Refere",
-          write: "Refere febre",
-          reveal: [
-            T(" "),
-            ONE("febret", [
-              { label: "termometrada", write: "termometrada", reveal: [T(" ("), B("temp"), T("º)")] },
-              { label: "não termometrada", write: "não termometrada" },
-            ]),
-          ],
-        },
-        { label: "Nega", write: "Nega febre" },
+      ONE("febre", ["Refere", "Nega"]),
+      T(" febre"),
+      COND("febre", "Refere", [
+        T(" "),
+        ONE("febret", [
+          { label: "termometrada", reveal: [T(" ("), B("temp"), T("º)")] },
+          { label: "não termometrada" },
+        ]),
       ]),
       T(". "),
       ONE("muco", ["Nega", "Relata"]),
       T(" muco ou sangue nas fezes. "),
       ONE("contato", ["Refere", "Nega"]),
       T(" contato com pessoas com sintomas semelhantes, "),
-      ONE("alim", [
-        { label: "Refere", write: "Refere consumo de alimento suspeito", reveal: [T(" ("), B("alimq"), T(")")] },
-        { label: "Nega", write: "Nega consumo de alimento suspeito" },
-      ]),
+      ONE("alim", ["Refere", "Nega"]),
+      T(" consumo de alimento suspeito"),
+      COND("alim", "Refere", [T(" ("), B("alimq"), T(")")]),
       T(". Relata aceitação "),
       ONE("dieta", ["boa", "parcial", "ruim"]),
       T(" da dieta e ingesta hídrica de "),
@@ -122,27 +118,26 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(" dias, de padrão "),
       ONE("padrao", ["contínuo", "intermitente"]),
       T(", "),
-      ONE("assoc", [
-        { label: "Associada", write: "associada a", reveal: [T(" "), MANY("sint", ["calafrios", "mialgia", "prostração"])] },
-        { label: "Não associada", write: "não associada a calafrios, mialgia ou prostração" },
+      ONE("assoc", ["associada", "não associada"]),
+      T(" a "),
+      COND("assoc", "associada", [
+        MANY("sint", ["calafrios", "mialgia", "prostração"], { empty: "calafrios, mialgia ou prostração" }),
       ]),
+      COND("assoc", "não associada", [T("calafrios, mialgia ou prostração")]),
       T(". "),
-      ONE("urin", [
-        { label: "Refere", write: "Refere sintomas urinários", reveal: [T(" ("), MANY("urinm", ["disúria", "polaciúria", "dor lombar"]), T(")")] },
-        { label: "Nega", write: "Nega sintomas urinários" },
-      ]),
+      ONE("urin", ["Refere", "Nega"]),
+      T(" sintomas urinários"),
+      COND("urin", "Refere", [T(" ("), MANY("urinm", ["disúria", "polaciúria", "dor lombar"]), T(")")]),
       T(". "),
-      ONE("resp", [
-        { label: "Refere", write: "Refere sintomas respiratórios", reveal: [T(" ("), MANY("respm", ["tosse", "coriza", "odinofagia", "dispneia"]), T(")")] },
-        { label: "Nega", write: "Nega sintomas respiratórios" },
-      ]),
+      ONE("resp", ["Refere", "Nega"]),
+      T(" sintomas respiratórios"),
+      COND("resp", "Refere", [T(" ("), MANY("respm", ["tosse", "coriza", "odinofagia", "dispneia"]), T(")")]),
       T(". "),
       ONE("dorabd", ["Refere", "Nega"]),
       T(" dor abdominal. "),
-      ONE("anti", [
-        { label: "Fez", write: "Fez uso de antitérmico com", reveal: [T(" "), ONE("antim", ["melhora completa", "melhora parcial", "sem melhora"])] },
-        { label: "Não fez", write: "Não fez uso de antitérmico" },
-      ]),
+      ONE("anti", ["Fez", "Não fez"]),
+      T(" uso de antitérmico"),
+      COND("anti", "Fez", [T(" com "), ONE("antim", ["melhora completa", "melhora parcial", "sem melhora"])]),
       T("."),
     ],
   },
@@ -162,10 +157,9 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
         { label: "sem irradiação", write: "sem irradiação" },
       ]),
       T(", "),
-      ONE("fat", [
-        { label: "sem fatores", write: "sem fatores de melhora ou piora" },
-        { label: "com fatores", write: "com melhora ao", reveal: [T(" "), B("mel"), T(" e piora ao "), B("pio")] },
-      ]),
+      ONE("fat", ["sem fatores", "com fatores"]),
+      COND("fat", "sem fatores", [T(" de melhora ou piora")]),
+      COND("fat", "com fatores", [T(": melhora ao "), B("mel"), T(" e piora ao "), B("pio")]),
       T(". "),
       ONE("rel", ["Refere", "Nega"]),
       T(" relação com esforço, micção ou evacuação."),
@@ -178,7 +172,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T("febre há "),
       B("dias"),
       T(" dias"),
-      MANY("sx", ["cefaleia", "mialgia", "artralgia", "prostração", "exantema", "dor abdominal", "náuseas e vômitos"], {
+      MANY("sx", ["cefaleia", "mialgia", "artralgia", "prostração", "exantema", "dor abdominal", "náuseas/vômitos"], {
         posPre: " associada a ",
         negMid: ". Nega ",
         negAlone: ". Nega ",
@@ -190,11 +184,8 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
         negAlone: " nega ",
       }),
       T(". "),
-      ONE("casos", [
-        { label: "Relata", write: "Relata casos recentes em sua casa e bairro" },
-        { label: "Desconhece", write: "Desconhece casos recentes em sua casa e bairro" },
-      ]),
-      T("."),
+      ONE("casos", ["Relata", "Desconhece"]),
+      T(" casos recentes em sua casa e bairro."),
     ],
   },
   {
@@ -291,7 +282,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(" mmHg) "),
       ONE("local", ["em domicílio", "na triagem", "na origem"]),
       T(". Quanto a sinais de iminência de eclâmpsia"),
-      MANY("ecl", ["cefaleia holocraniana", "alterações visuais (escotomas, turvação)", "dor abdominal", "náuseas e vômitos"], {
+      MANY("ecl", ["cefaleia holocraniana", "alterações visuais (escotomas, turvação)", "dor abdominal", "náuseas/vômitos"], {
         posPre: " refere ",
         negMid: "; nega ",
         negAlone: " nega ",
@@ -538,6 +529,9 @@ function asmNode(n: HpmaNode, prefix: string, vals: Record<string, string>): str
     const opt = n.opts.find((x) => x.label === v);
     if (!opt) return `[${n.opts.map((x) => x.label).join("/")}]`;
     return (opt.write ?? opt.label) + (opt.reveal ? asmNodes(opt.reveal, prefix, vals) : "");
+  }
+  if (n.k === "cond") {
+    return vals[`${prefix}.${n.ref}`] === n.eq ? asmNodes(n.nodes, prefix, vals) : "";
   }
   // multi
   const wr = (x: HpmaOpt) => x.write ?? x.label;
