@@ -620,7 +620,11 @@ export function PsgoGenerator({
         const key = `${prefix}.${n.id}`;
         items.push(
           <Field key={key} label={n.q ?? n.id}>
-            <Input value={hpmaVals[key] ?? ""} onChange={(e) => setHpmaVal(key, e.target.value)} />
+            <Input
+              className={n.wide ? undefined : "w-24"}
+              value={hpmaVals[key] ?? ""}
+              onChange={(e) => setHpmaVal(key, e.target.value)}
+            />
           </Field>,
         );
         continue;

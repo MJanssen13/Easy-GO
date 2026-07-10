@@ -25,6 +25,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
     escreve a frase combinada ("NEGA SANGRAMENTO TRANSVAGINAL E CORRIMENTO…").
     Secreção renomeada; hábito intestinal com nº de evacuações; urinário e
     contrações com sub-campos.
+  - **Todas as HPMAs em modo formulário**: cada QP agora aparece como uma grade
+    de campos rotulados (2 colunas), no lugar do texto para completar inline —
+    rótulos claros (ex.: "Evacuações diarreicas por dia") e campos de número
+    mais estreitos. O resultado continua sendo o texto montado em MAIÚSCULAS.
 
 - **Montador de HPMA** na seção Queixa e história: botões de **QP/HD cumulativos**
   (GECA, Febre, Dor em baixo ventre, Dengue, Síndrome gripal, Náusea e vômitos,
