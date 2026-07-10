@@ -32,6 +32,12 @@ import {
   type GyField,
 } from "@/core/psgo/gyneco-exam";
 import { psgoCtgScore, psgoCtgConclusion, type PsgoCtg } from "@/core/psgo/ctg";
+import {
+  HPMA_TEMPLATES,
+  REVISION_QUESTIONS,
+  parseTemplate,
+  assembleHpma,
+} from "@/core/psgo/hpma";
 import { savePsgoAdmission } from "../actions";
 import {
   PRIOR_TYPE_LABELS,
@@ -244,6 +250,10 @@ export function PsgoGenerator({
   const [saving, startSaving] = useTransition();
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [medInput, setMedInput] = useState("");
+  // Montador de HPMA (estado transitório; só o texto final vai para form.hpma)
+  const [hpmaSel, setHpmaSel] = useState<string[]>([]);
+  const [hpmaVals, setHpmaVals] = useState<Record<string, string>>({});
+  const [revVals, setRevVals] = useState<Record<string, string>>({});
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -263,6 +273,10 @@ export function PsgoGenerator({
   }
 
   const text = useMemo(() => renderPsgo(form), [form]);
+  const hpmaPreview = useMemo(
+    () => assembleHpma(hpmaSel, hpmaVals, revVals, form.pregnant),
+    [hpmaSel, hpmaVals, revVals, form.pregnant],
+  );
   const { robsonMissing } = useMemo(() => computePsgo(form), [form]);
   const imagingCentiles = useMemo(
     () => Object.fromEntries(form.imagingExams.map((e) => [e.id, examCentiles(e)])),
@@ -438,6 +452,16 @@ export function PsgoGenerator({
   function setCtg(patch: Partial<PsgoCtg>) {
     update({ ctgLaudo: { ...form.ctgLaudo, ...patch } });
   }
+  // Montador de HPMA
+  function toggleHpmaQp(id: string) {
+    setHpmaSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
+  function setHpmaVal(key: string, value: string) {
+    setHpmaVals((v) => ({ ...v, [key]: value }));
+  }
+  function setRev(id: string, value: string) {
+    setRevVals((v) => ({ ...v, [id]: value }));
+  }
   const gyField = (field: GyField) => (
     <div key={field.id} className="space-y-1">
       <Label className="text-xs text-muted-foreground">{field.label}</Label>
@@ -498,6 +522,56 @@ export function PsgoGenerator({
           {t}
         </Chip>
       ))}
+    </div>
+  );
+  // Carta de preenchimento de um modelo de HPMA (lacunas e escolhas inline).
+  const renderHpmaCard = (tpl: (typeof HPMA_TEMPLATES)[number]) => (
+    <div key={tpl.id} className="space-y-1 rounded-md border p-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-primary">{tpl.label}</span>
+        <button
+          type="button"
+          onClick={() => toggleHpmaQp(tpl.id)}
+          className="text-xs text-destructive hover:underline"
+        >
+          remover
+        </button>
+      </div>
+      <div className="text-sm leading-8">
+        {parseTemplate(tpl.text).map((s, k) => {
+          if (s.t === "text") return <span key={k}>{s.v}</span>;
+          const key = `${tpl.id}.${s.i}`;
+          if (s.t === "blank") {
+            return (
+              <input
+                key={k}
+                value={hpmaVals[key] ?? ""}
+                onChange={(e) => setHpmaVal(key, e.target.value)}
+                className="mx-0.5 inline-block h-6 w-16 rounded border border-input bg-background px-1 align-middle text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            );
+          }
+          const cur = hpmaVals[key];
+          return (
+            <span key={k} className="mx-0.5 inline-flex flex-wrap gap-1 align-middle">
+              {s.options.map((op) => (
+                <button
+                  key={op}
+                  type="button"
+                  onClick={() => setHpmaVal(key, cur === op ? "" : op)}
+                  className={`rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
+                    cur === op
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {op.replace(/\s*___\s*/g, " … ").trim()}
+                </button>
+              ))}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -1244,8 +1318,71 @@ export function PsgoGenerator({
             <Field label="Queixa principal (QP)">
               <Input value={form.qp} onChange={(e) => update({ qp: e.target.value })} />
             </Field>
-            <Field label="HPMA">
-              <Textarea rows={3} value={form.hpma} onChange={(e) => update({ hpma: e.target.value })} />
+
+            {/* Montador de HPMA padronizada */}
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="text-sm font-semibold">
+                Montar HPMA — QP/HD (pode marcar mais de uma)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {HPMA_TEMPLATES.filter((t) => form.pregnant || !t.gestanteOnly).map((t) => (
+                  <Chip key={t.id} active={hpmaSel.includes(t.id)} onClick={() => toggleHpmaQp(t.id)}>
+                    {t.label}
+                  </Chip>
+                ))}
+              </div>
+
+              {hpmaSel.length > 0 && (
+                <div className="space-y-2">
+                  {HPMA_TEMPLATES.filter((t) => hpmaSel.includes(t.id)).map(renderHpmaCard)}
+                </div>
+              )}
+
+              {/* Revisão dirigida (perguntas obrigatórias) */}
+              <div className="space-y-1.5 border-t pt-2">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Revisão dirigida (sempre respondida)
+                </p>
+                {REVISION_QUESTIONS.filter((q) => form.pregnant || !q.gestanteOnly).map((q) => {
+                  const cur = revVals[q.id] ?? q.options[0].value;
+                  return (
+                    <div key={q.id} className="flex flex-wrap items-center gap-1.5">
+                      <span className="w-36 text-xs text-muted-foreground">{q.label}</span>
+                      {q.options.map((op) => (
+                        <Chip
+                          key={op.value}
+                          active={cur === op.value}
+                          onClick={() => setRev(q.id, op.value)}
+                        >
+                          {op.label}
+                        </Chip>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Prévia + inserir na HPMA */}
+              <div className="space-y-1 border-t pt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">Prévia</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => hpmaPreview.trim() && update({ hpma: hpmaPreview })}
+                    disabled={!hpmaPreview.trim()}
+                  >
+                    Usar no HPMA ↓
+                  </Button>
+                </div>
+                <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
+                  {hpmaPreview || "Selecione uma QP/HD e responda a revisão dirigida."}
+                </p>
+              </div>
+            </div>
+
+            <Field label="HPMA (edição final)">
+              <Textarea rows={4} value={form.hpma} onChange={(e) => update({ hpma: e.target.value })} />
             </Field>
         </Section>
 

@@ -5,6 +5,23 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — HPMAs padronizadas (montador)
+
+- **Montador de HPMA** na seção Queixa e história: botões de **QP/HD cumulativos**
+  (GECA, Febre, Dor em baixo ventre, Dengue, Síndrome gripal, Náusea e vômitos,
+  Redução da MF, Fase ativa de TP, Pródromos de TP, Pico hipertensivo,
+  Sangramento TV — os três de TP/MF só aparecem para gestantes).
+- Cada QP abre um **modelo com preenchimento inline**: lacunas (`___`) viram
+  campos de texto e escolhas (`[a/b/c]`) viram botões; o que não é respondido
+  fica marcado no texto para completar depois.
+- **Revisão dirigida** com 6 perguntas sempre respondidas (Sangramento,
+  Secreção/perda de líquido, Hábito intestinal, Hábito urinário e — só gestante
+  — Contrações e Movimentação fetal), que montam a frase de negativos/positivos.
+- **Prévia ao vivo** + botão **"Usar no HPMA"** que insere o texto montado na
+  caixa de HPMA, que permanece editável para a finalização.
+- Conteúdo dos 11 modelos conforme validado pela equipe (texto de apoio à
+  documentação, não conduta).
+
 ### PSGO — exame especular revisado e CTG laudada
 
 - **Exame especular** reestruturado:
