@@ -5,6 +5,25 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Exame físico e ginecológico revisados
+
+- **Exame físico**: Temp e FR são **omitidos** do texto quando não preenchidos;
+  ao marcar uma seção como **Alterado**, o texto padrão é **mantido na caixa**
+  para edição (em vez de esvaziar).
+- **Abdome**: no prontuário, **"GRAVÍDICO"** vem logo após "ABD:". Dinâmica agora
+  é **"DU AUSENTE"** e, se **presente**, abre campo para descrever a dinâmica.
+- **Toque vaginal**: toque realizado é **sempre autorizado** (removida a
+  confirmação; a frase permanece no prontuário). Descrição reordenada para
+  **apagamento, posição, consistência, dilatação, apresentação, altura, bolsa e
+  sangue**; OEEA/OII ficam **ao lado da dilatação**. Nova característica **Dor ao
+  toque** (Indolor / à mobilização do colo / à palpação de anexos).
+- **Exame especular**: sangramento **pelo OE** permite especificar **espontâneo
+  ou à valsalva**; "Saídas via colo" vira **"Perdas líquidas via colo"** (com
+  **líquido meconial**); **AmniSure** (grafia corrigida); **Secreção** com opções
+  Ausente/Fisiológica/Aderida à parede/Em fórnice posterior e, se patológica,
+  detalha **odor, grumos e cor** (como na HPMA).
+- Listas suspensas do toque com **largura reduzida** ao conteúdo.
+
 ### PSGO — Chegada, revisão dirigida e ajustes de UI da HPMA
 
 - **Chegada** com 3 modos: **Demanda espontânea**, **Ambulância** e

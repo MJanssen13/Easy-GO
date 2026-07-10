@@ -47,7 +47,7 @@ export const ABD_FIELDS: GyField[] = [
   {
     id: "abdDu",
     label: "Dinâmica uterina",
-    options: [o("Ausente", "SEM DU"), o("Presente", "COM DINÂMICA UTERINA")],
+    options: [o("Ausente", "DU AUSENTE"), o("Presente", "COM DINÂMICA UTERINA")],
   },
   {
     id: "abdTonus",
@@ -74,8 +74,18 @@ const apagamentoOptions: GyOption[] = [
 /** Chaves das opções OEEA/OII (substituem a dilatação no prontuário). */
 export const OEEA_KEY = "toqueOeea";
 export const OII_KEY = "toqueOii";
+/** Detalhe da dinâmica uterina (quando presente). */
+export const ABD_DU_DETALHE_KEY = "abdDuDetalhe";
 
+// Ordem da descrição do toque: apagamento, posição, consistência, dilatação,
+// apresentação, altura (De Lee), bolsa e sangue.
 export const TOQUE_FIELDS: GyField[] = [
+  {
+    id: "toqueApagamento",
+    label: "Apagamento",
+    render: "select",
+    options: apagamentoOptions,
+  },
   {
     id: "toquePosicao",
     label: "Posição do colo",
@@ -86,14 +96,7 @@ export const TOQUE_FIELDS: GyField[] = [
     label: "Consistência do colo",
     options: [o("Nasal (N)", "N"), o("Nasolabial (NL)", "NL"), o("Labial (L)", "L")],
   },
-  {
-    id: "toqueApagamento",
-    label: "Apagamento",
-    render: "select",
-    options: apagamentoOptions,
-  },
   { id: "toqueDilatacao", label: "Dilatação", render: "select", options: cmOptions },
-  { id: "toqueDeLee", label: "Altura (De Lee)", render: "select", options: deLeeOptions },
   {
     id: "toqueApresentacao",
     label: "Apresentação",
@@ -103,6 +106,7 @@ export const TOQUE_FIELDS: GyField[] = [
       o("Córmica", "APRESENTAÇÃO CÓRMICA"),
     ],
   },
+  { id: "toqueDeLee", label: "Altura (De Lee)", render: "select", options: deLeeOptions },
   {
     id: "toqueBolsa",
     label: "Bolsa",
@@ -119,6 +123,14 @@ export const TOQUE_FIELDS: GyField[] = [
   },
 ];
 
+/** Dor ao toque — multisseleção; "Indolor" é exclusivo dos demais. */
+export const TOQUE_DOR_INDOLOR_KEY = "toqueDorIndolor";
+export const TOQUE_DOR_OPTIONS: { key: string; label: string; text: string }[] = [
+  { key: TOQUE_DOR_INDOLOR_KEY, label: "Indolor", text: "INDOLOR AO TOQUE" },
+  { key: "toqueDorColo", label: "À mobilização do colo", text: "DOR À MOBILIZAÇÃO DO COLO" },
+  { key: "toqueDorAnexos", label: "À palpação de anexos", text: "DOR À PALPAÇÃO DE ANEXOS" },
+];
+
 // --- Exame especular ---
 export const ESP_FIELDS: GyField[] = [
   {
@@ -128,24 +140,45 @@ export const ESP_FIELDS: GyField[] = [
   },
 ];
 
-/** Secreção — multisseleção; "Ausente" é exclusivo dos demais. */
-export const SEC_AUSENTE_KEY = "secAusente";
-export const SECRECAO_OPTIONS: { key: string; label: string; text: string }[] = [
-  { key: SEC_AUSENTE_KEY, label: "Ausente", text: "SEM SECREÇÃO" },
-  { key: "secFisiologica", label: "Fisiológica", text: "SECREÇÃO FISIOLÓGICA" },
-  { key: "secBolhoso", label: "Bolhoso", text: "SECREÇÃO BOLHOSA" },
-  { key: "secEsverdeado", label: "Esverdeado", text: "SECREÇÃO ESVERDEADA" },
-  { key: "secPurulento", label: "Purulento", text: "SECREÇÃO PURULENTA" },
-  { key: "secFetido", label: "Fétido", text: "SECREÇÃO FÉTIDA" },
+/**
+ * Secreção — local (escolha única); se patológica (≠ ausente/fisiológica),
+ * detalha odor, grumos e cor (como na HPMA).
+ */
+export const SEC_LOCAL_KEY = "secLocal";
+export const SEC_ODOR_KEY = "secOdor";
+export const SEC_GRUMOS_KEY = "secGrumos";
+export const SEC_COR_KEY = "secCor";
+export const SEC_LOCAL_OPTIONS: GyOption[] = [
+  o("Ausente", "SEM SECREÇÃO"),
+  o("Fisiológica", "SECREÇÃO FISIOLÓGICA"),
+  o("Aderida à parede", "SECREÇÃO ADERIDA À PAREDE"),
+  o("Em fórnice posterior", "SECREÇÃO EM FÓRNICE POSTERIOR"),
 ];
+export const SEC_ODOR_OPTIONS: GyOption[] = [o("Não fétida", "NÃO FÉTIDA"), o("Fétida", "FÉTIDA")];
+export const SEC_GRUMOS_OPTIONS: GyOption[] = [o("Sem grumos", "SEM GRUMOS"), o("Com grumos", "COM GRUMOS")];
+export const SEC_COR_OPTIONS: GyOption[] = [
+  o("Clara", "CLARA"),
+  o("Esbranquiçada", "ESBRANQUIÇADA"),
+  o("Esverdeada", "ESVERDEADA"),
+  o("Purulenta", "PURULENTA"),
+];
+/** Secreção patológica (mostra características de odor/grumos/cor). */
+export function secHasCharacteristics(local: string | undefined): boolean {
+  return local != null && local !== "Ausente" && local !== "Fisiológica";
+}
 
-/** Sangramento (+ quantidade quando ≠ ausente). */
+/** Sangramento (+ tipo se pelo OE, + quantidade quando ≠ ausente). */
 export const ESP_SANGRAMENTO_KEY = "espSangramento";
 export const ESP_SANGRAMENTO_QTD_KEY = "espSangramentoQtd";
+export const ESP_SANGRAMENTO_OE_KEY = "espSangramentoOe";
 export const ESP_SANGRAMENTO_OPTIONS: GyOption[] = [
   o("Ausente", "SEM SANGRAMENTO ATIVO"),
   o("Pelo OE", "SANGRAMENTO PELO OE"),
   o("De parede vaginal", "SANGRAMENTO DE PAREDE VAGINAL"),
+];
+export const ESP_SANGRAMENTO_OE_OPTIONS: GyOption[] = [
+  o("Espontâneo", "ESPONTÂNEO"),
+  o("À valsalva", "À VALSALVA"),
 ];
 export const ESP_SANGRAMENTO_QTD_OPTIONS: GyOption[] = [
   o("Pequena", "EM PEQUENA QUANTIDADE"),
@@ -153,16 +186,17 @@ export const ESP_SANGRAMENTO_QTD_OPTIONS: GyOption[] = [
   o("Grande", "EM GRANDE QUANTIDADE"),
 ];
 
-/** Saídas via colo (+ Amniosure/cristalização quando ≠ ausente). */
+/** Perdas líquidas via colo (+ AmniSure/cristalização quando ≠ ausente). */
 export const ESP_SAIDA_COLO_KEY = "espSaidaColo";
 export const ESP_AMNIOSURE_KEY = "espAmniosure";
 export const ESP_CRISTALIZACAO_KEY = "espCristalizacao";
 export const ESP_SAIDA_COLO_OPTIONS: GyOption[] = [
-  o("Ausente", "SEM SAÍDA VIA COLO"),
-  o("Líquido claro", "SAÍDA DE LÍQUIDO CLARO VIA COLO"),
-  o("Purulento", "SAÍDA PURULENTA VIA COLO"),
+  o("Ausente", "SEM PERDA LÍQUIDA VIA COLO"),
+  o("Líquido claro", "PERDA DE LÍQUIDO CLARO VIA COLO"),
+  o("Líquido meconial", "PERDA DE LÍQUIDO MECONIAL VIA COLO"),
+  o("Purulento", "PERDA PURULENTA VIA COLO"),
 ];
-/** Testes (Amniosure/cristalização): "Não realizado" não vai ao prontuário. */
+/** Testes (AmniSure/cristalização): "Não realizado" não vai ao prontuário. */
 export const TEST_OPTIONS = ["Não realizado", "Positivo", "Negativo"];
 
 export const GYNECO_SECTIONS = [
@@ -203,9 +237,15 @@ export function emptyGynecoState(): GynecoState {
   for (const f of [...ABD_FIELDS, ...TOQUE_FIELDS, ...ESP_FIELDS]) {
     values[f.id] = f.options[0].label;
   }
-  // Especular: campos personalizados (secreção multi, sangramento, saída via colo)
-  values[SEC_AUSENTE_KEY] = "1";
+  // Toque: dor ao toque (indolor por padrão).
+  values[TOQUE_DOR_INDOLOR_KEY] = "1";
+  // Especular: campos personalizados (secreção, sangramento, perdas via colo).
+  values[SEC_LOCAL_KEY] = "Ausente";
+  values[SEC_ODOR_KEY] = SEC_ODOR_OPTIONS[0].label;
+  values[SEC_GRUMOS_KEY] = SEC_GRUMOS_OPTIONS[0].label;
+  values[SEC_COR_KEY] = SEC_COR_OPTIONS[0].label;
   values[ESP_SANGRAMENTO_KEY] = "Ausente";
+  values[ESP_SANGRAMENTO_OE_KEY] = ESP_SANGRAMENTO_OE_OPTIONS[0].label;
   values[ESP_SAIDA_COLO_KEY] = "Ausente";
   values[ESP_AMNIOSURE_KEY] = "Não realizado";
   values[ESP_CRISTALIZACAO_KEY] = "Não realizado";
@@ -227,18 +267,24 @@ export function renderGyneco(st: GynecoState, vitals: ExamVitals, pregnant = tru
   const lines: string[] = [];
 
   const abd = (id: string) => pick(ABD_FIELDS.find((f) => f.id === id)!, v);
-  const abdBase = `ABD: ${abd("abdRha")}, ${abd("abdDor")}, ${abd("abdIrritacao")}`;
+  // Dinâmica: "DU AUSENTE" ou, se presente, com o detalhe informado.
+  const duText = () => {
+    if ((v["abdDu"] ?? "Ausente") !== "Presente") return abd("abdDu");
+    const det = (v[ABD_DU_DETALHE_KEY] ?? "").trim();
+    return det ? `DINÂMICA UTERINA ${det.toUpperCase()}` : "COM DINÂMICA UTERINA";
+  };
   lines.push(
     pregnant
-      ? `${abdBase}. GRAVÍDICO, ${abd("abdDu")}, ${abd("abdTonus")}, AU: ${vitals.au ?? ""} CM, BCF: ${vitals.bcf ?? ""} BPM`
-      : `${abdBase}.`,
+      ? `ABD: GRAVÍDICO, ${abd("abdRha")}, ${abd("abdDor")}, ${abd("abdIrritacao")}, ${duText()}, ${abd("abdTonus")}, AU: ${vitals.au ?? ""} CM, BCF: ${vitals.bcf ?? ""} BPM`
+      : `ABD: ${abd("abdRha")}, ${abd("abdDor")}, ${abd("abdIrritacao")}.`,
   );
 
   if (!st.toqueRealizado) {
     lines.push("TOQUE VAGINAL: NÃO REALIZADO");
   } else {
     const t = (id: string) => pick(TOQUE_FIELDS.find((f) => f.id === id)!, v);
-    const auth = st.toqueAutorizado ? " (AUTORIZADO PELA PACIENTE)" : "";
+    // Toque realizado é sempre autorizado pela paciente.
+    const auth = " (AUTORIZADO PELA PACIENTE)";
     // OEEA/OII (cumulativos) substituem a dilatação em cm quando marcados.
     const oeea = v[OEEA_KEY] === "1";
     const oii = v[OII_KEY] === "1";
@@ -246,14 +292,18 @@ export function renderGyneco(st: GynecoState, vitals: ExamVitals, pregnant = tru
       oeea || oii
         ? [oeea ? "OEEA" : "", oii ? "OII" : ""].filter(Boolean).join(" ")
         : t("toqueDilatacao");
+    // Dor ao toque (multisseleção).
+    const dorSel = TOQUE_DOR_OPTIONS.filter((op) => v[op.key] === "1");
+    const dor = dorSel.length ? `, ${dorSel.map((op) => op.text).join(", ")}` : "";
     if (pregnant) {
-      const colo = `COLO ${t("toquePosicao")}, ${t("toqueConsistencia")}, ${t("toqueApagamento")}`;
+      // Ordem: apagamento, posição, consistência, dilatação, apresentação,
+      // altura (De Lee), bolsa, sangue.
       lines.push(
-        `TOQUE VAGINAL${auth}: ${colo}, ${dilat}, ${t("toqueDeLee")}, ${t("toqueApresentacao")}, ${t("toqueBolsa")}, ${t("toqueSangramento")}`,
+        `TOQUE VAGINAL${auth}: COLO ${t("toqueApagamento")}, ${t("toquePosicao")}, ${t("toqueConsistencia")}, ${dilat}, ${t("toqueApresentacao")}, ${t("toqueDeLee")}, ${t("toqueBolsa")}, ${t("toqueSangramento")}${dor}`,
       );
     } else {
       lines.push(
-        `TOQUE VAGINAL${auth}: COLO ${t("toquePosicao")}, ${t("toqueConsistencia")}, ${dilat}, ${t("toqueSangramento")}`,
+        `TOQUE VAGINAL${auth}: COLO ${t("toquePosicao")}, ${t("toqueConsistencia")}, ${dilat}, ${t("toqueSangramento")}${dor}`,
       );
     }
   }
@@ -262,23 +312,30 @@ export function renderGyneco(st: GynecoState, vitals: ExamVitals, pregnant = tru
     lines.push("EXAME ESPECULAR: NÃO REALIZADO");
   } else {
     const parts: string[] = [pick(ESP_FIELDS.find((f) => f.id === "espColo")!, v)];
-    // Secreção (multisseleção)
-    const secSel = SECRECAO_OPTIONS.filter((op) => v[op.key] === "1");
-    if (secSel.length) parts.push(secSel.map((op) => op.text).join(", "));
-    // Sangramento (+ quantidade quando ≠ ausente)
+    // Secreção (local + características quando patológica)
+    const secLocal = v[SEC_LOCAL_KEY] ?? "Ausente";
+    let secText = pickText(SEC_LOCAL_OPTIONS, secLocal);
+    if (secHasCharacteristics(secLocal)) {
+      secText += `, ${pickText(SEC_COR_OPTIONS, v[SEC_COR_KEY])}, ${pickText(SEC_GRUMOS_OPTIONS, v[SEC_GRUMOS_KEY])}, ${pickText(SEC_ODOR_OPTIONS, v[SEC_ODOR_KEY])}`;
+    }
+    parts.push(secText);
+    // Sangramento (+ tipo se pelo OE, + quantidade quando ≠ ausente)
     const sang = v[ESP_SANGRAMENTO_KEY] ?? "Ausente";
     let sangText = pickText(ESP_SANGRAMENTO_OPTIONS, sang);
+    if (sang === "Pelo OE" && v[ESP_SANGRAMENTO_OE_KEY]) {
+      sangText += ` ${pickText(ESP_SANGRAMENTO_OE_OPTIONS, v[ESP_SANGRAMENTO_OE_KEY])}`;
+    }
     if (sang !== "Ausente" && v[ESP_SANGRAMENTO_QTD_KEY]) {
       sangText += ` ${pickText(ESP_SANGRAMENTO_QTD_OPTIONS, v[ESP_SANGRAMENTO_QTD_KEY])}`;
     }
     parts.push(sangText);
-    // Saídas via colo (+ Amniosure/cristalização se ≠ ausente; "Não realizado" omitido)
+    // Perdas líquidas via colo (+ AmniSure/cristalização se ≠ ausente)
     const saida = v[ESP_SAIDA_COLO_KEY] ?? "Ausente";
     parts.push(pickText(ESP_SAIDA_COLO_OPTIONS, saida));
     if (saida !== "Ausente") {
       const am = v[ESP_AMNIOSURE_KEY];
       const cr = v[ESP_CRISTALIZACAO_KEY];
-      if (am === "Positivo" || am === "Negativo") parts.push(`AMNIOSURE ${am.toUpperCase()}`);
+      if (am === "Positivo" || am === "Negativo") parts.push(`AMNISURE ${am.toUpperCase()}`);
       if (cr === "Positivo" || cr === "Negativo") parts.push(`CRISTALIZAÇÃO ${cr.toUpperCase()}`);
     }
     lines.push(`EXAME ESPECULAR: ${parts.filter(Boolean).join(", ")}`);

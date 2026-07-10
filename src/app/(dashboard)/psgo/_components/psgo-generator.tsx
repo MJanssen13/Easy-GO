@@ -18,12 +18,24 @@ import {
   ESP_FIELDS,
   OEEA_KEY,
   OII_KEY,
-  SECRECAO_OPTIONS,
-  SEC_AUSENTE_KEY,
+  ABD_DU_DETALHE_KEY,
+  TOQUE_DOR_OPTIONS,
+  TOQUE_DOR_INDOLOR_KEY,
+  SEC_LOCAL_KEY,
+  SEC_LOCAL_OPTIONS,
+  SEC_ODOR_KEY,
+  SEC_ODOR_OPTIONS,
+  SEC_GRUMOS_KEY,
+  SEC_GRUMOS_OPTIONS,
+  SEC_COR_KEY,
+  SEC_COR_OPTIONS,
+  secHasCharacteristics,
   ESP_SANGRAMENTO_KEY,
   ESP_SANGRAMENTO_QTD_KEY,
   ESP_SANGRAMENTO_OPTIONS,
   ESP_SANGRAMENTO_QTD_OPTIONS,
+  ESP_SANGRAMENTO_OE_KEY,
+  ESP_SANGRAMENTO_OE_OPTIONS,
   ESP_SAIDA_COLO_KEY,
   ESP_SAIDA_COLO_OPTIONS,
   ESP_AMNIOSURE_KEY,
@@ -497,18 +509,18 @@ export function PsgoGenerator({
   function toggleGyneco(key: string) {
     setGynecoValue(key, form.gyneco.values[key] === "1" ? "" : "1");
   }
-  // Secreção (multi): "Ausente" é exclusivo dos demais.
-  function toggleSecrecao(key: string) {
+  // Dor ao toque (multi): "Indolor" é exclusivo dos demais.
+  function toggleDor(key: string) {
     setForm((f) => {
       const cur = f.gyneco.values;
       const on = cur[key] === "1";
       const next = { ...cur };
-      if (key === SEC_AUSENTE_KEY) {
-        for (const op of SECRECAO_OPTIONS) next[op.key] = "";
-        next[SEC_AUSENTE_KEY] = on ? "" : "1";
+      if (key === TOQUE_DOR_INDOLOR_KEY) {
+        for (const op of TOQUE_DOR_OPTIONS) next[op.key] = "";
+        next[TOQUE_DOR_INDOLOR_KEY] = on ? "" : "1";
       } else {
         next[key] = on ? "" : "1";
-        if (!on) next[SEC_AUSENTE_KEY] = "";
+        if (!on) next[TOQUE_DOR_INDOLOR_KEY] = "";
       }
       return { ...f, gyneco: { ...f.gyneco, values: next } };
     });
@@ -528,7 +540,7 @@ export function PsgoGenerator({
       <Label className="text-xs text-muted-foreground">{field.label}</Label>
       {field.render === "select" ? (
         <select
-          className={`${selectClass} h-8`}
+          className={`${selectClass} h-8 w-40`}
           value={form.gyneco.values[field.id] ?? field.options[0].label}
           onChange={(e) => setGynecoValue(field.id, e.target.value)}
         >
@@ -1677,7 +1689,19 @@ export function PsgoGenerator({
                       </Chip>
                       <Chip
                         active={st.mode === "altered"}
-                        onClick={() => update({ exam: { ...form.exam, [s.id]: { ...st, mode: "altered" } } })}
+                        onClick={() =>
+                          update({
+                            exam: {
+                              ...form.exam,
+                              [s.id]: {
+                                ...st,
+                                mode: "altered",
+                                // Mantém o exame padrão na caixa para edição.
+                                text: st.text.trim() ? st.text : buildNormalLine(s.id, form.vitals),
+                              },
+                            },
+                          })
+                        }
                       >
                         Alterado
                       </Chip>
@@ -1710,6 +1734,15 @@ export function PsgoGenerator({
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {abdFieldsFor(form.pregnant).map(gyField)}
               </div>
+              {form.pregnant && form.gyneco.values["abdDu"] === "Presente" && (
+                <Field label="Dinâmica uterina (descrição)" className="max-w-md">
+                  <Input
+                    value={form.gyneco.values[ABD_DU_DETALHE_KEY] ?? ""}
+                    onChange={(e) => setGynecoValue(ABD_DU_DETALHE_KEY, e.target.value)}
+                    placeholder="ex.: 2 em 10 minutos"
+                  />
+                </Field>
+              )}
               {form.pregnant && (
                 <p className="text-xs text-muted-foreground">
                   AU e BCF vêm dos sinais vitais do exame físico.
@@ -1734,35 +1767,52 @@ export function PsgoGenerator({
               </div>
               {form.gyneco.toqueRealizado && (
                 <>
-                  <label className="flex items-center gap-2 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={form.gyneco.toqueAutorizado}
-                      onChange={(e) => setGyneco({ toqueAutorizado: e.target.checked })}
-                      className="h-4 w-4 rounded border-input"
-                    />
-                    Autorizado pela paciente
-                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Toque realizado é sempre autorizado pela paciente.
+                  </p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {toqueFieldsFor(form.pregnant).map(gyField)}
+                    {toqueFieldsFor(form.pregnant).map((field) =>
+                      field.id === "toqueDilatacao" ? (
+                        <div key={field.id} className="space-y-1">
+                          {gyField(field)}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground">
+                              Alternativa (substitui os cm):
+                            </span>
+                            <Chip
+                              active={form.gyneco.values[OEEA_KEY] === "1"}
+                              onClick={() => toggleGyneco(OEEA_KEY)}
+                            >
+                              OEEA
+                            </Chip>
+                            <Chip
+                              active={form.gyneco.values[OII_KEY] === "1"}
+                              onClick={() => toggleGyneco(OII_KEY)}
+                            >
+                              OII
+                            </Chip>
+                          </div>
+                        </div>
+                      ) : (
+                        gyField(field)
+                      ),
+                    )}
                   </div>
+                  {/* Dor ao toque (multi; "Indolor" exclusivo) */}
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">
-                      Dilatação alternativa (OEEA/OII — substitui os cm)
+                      Dor ao toque (pode marcar mais de um)
                     </Label>
                     <div className="flex flex-wrap gap-1.5">
-                      <Chip
-                        active={form.gyneco.values[OEEA_KEY] === "1"}
-                        onClick={() => toggleGyneco(OEEA_KEY)}
-                      >
-                        OEEA
-                      </Chip>
-                      <Chip
-                        active={form.gyneco.values[OII_KEY] === "1"}
-                        onClick={() => toggleGyneco(OII_KEY)}
-                      >
-                        OII
-                      </Chip>
+                      {TOQUE_DOR_OPTIONS.map((op) => (
+                        <Chip
+                          key={op.key}
+                          active={form.gyneco.values[op.key] === "1"}
+                          onClick={() => toggleDor(op.key)}
+                        >
+                          {op.label}
+                        </Chip>
+                      ))}
                     </div>
                   </div>
                 </>
@@ -1787,26 +1837,34 @@ export function PsgoGenerator({
               {form.gyneco.espRealizado && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {ESP_FIELDS.map(gyField)}
-                  {/* Secreção (multisseleção) */}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Secreção (pode marcar mais de um)
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {SECRECAO_OPTIONS.map((op) => (
-                        <Chip
-                          key={op.key}
-                          active={form.gyneco.values[op.key] === "1"}
-                          onClick={() => toggleSecrecao(op.key)}
-                        >
-                          {op.label}
-                        </Chip>
-                      ))}
-                    </div>
+                  {/* Secreção (local; características se patológica) */}
+                  <div className="space-y-1 sm:col-span-2">
+                    {gyChipRow("Secreção", SEC_LOCAL_KEY, SEC_LOCAL_OPTIONS)}
+                    {secHasCharacteristics(form.gyneco.values[SEC_LOCAL_KEY]) && (
+                      <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
+                        {gyChipRow("Cor", SEC_COR_KEY, SEC_COR_OPTIONS)}
+                        {gyChipRow("Grumos", SEC_GRUMOS_KEY, SEC_GRUMOS_OPTIONS)}
+                        {gyChipRow("Odor", SEC_ODOR_KEY, SEC_ODOR_OPTIONS)}
+                      </div>
+                    )}
                   </div>
-                  {/* Sangramento (+ quantidade se ≠ ausente) */}
-                  <div className="space-y-1">
+                  {/* Sangramento (+ tipo se pelo OE, + quantidade se ≠ ausente) */}
+                  <div className="space-y-1 sm:col-span-2">
                     {gyChipRow("Sangramento", ESP_SANGRAMENTO_KEY, ESP_SANGRAMENTO_OPTIONS)}
+                    {form.gyneco.values[ESP_SANGRAMENTO_KEY] === "Pelo OE" && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-xs text-muted-foreground">Tipo:</span>
+                        {ESP_SANGRAMENTO_OE_OPTIONS.map((op) => (
+                          <Chip
+                            key={op.label}
+                            active={form.gyneco.values[ESP_SANGRAMENTO_OE_KEY] === op.label}
+                            onClick={() => setGynecoValue(ESP_SANGRAMENTO_OE_KEY, op.label)}
+                          >
+                            {op.label}
+                          </Chip>
+                        ))}
+                      </div>
+                    )}
                     {form.gyneco.values[ESP_SANGRAMENTO_KEY] !== "Ausente" && (
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
                         <span className="text-xs text-muted-foreground">Quantidade:</span>
@@ -1822,12 +1880,12 @@ export function PsgoGenerator({
                       </div>
                     )}
                   </div>
-                  {/* Saídas via colo (+ Amniosure/cristalização se ≠ ausente) */}
+                  {/* Perdas líquidas via colo (+ AmniSure/cristalização se ≠ ausente) */}
                   <div className="space-y-1 sm:col-span-2">
-                    {gyChipRow("Saídas via colo", ESP_SAIDA_COLO_KEY, ESP_SAIDA_COLO_OPTIONS)}
+                    {gyChipRow("Perdas líquidas via colo", ESP_SAIDA_COLO_KEY, ESP_SAIDA_COLO_OPTIONS)}
                     {form.gyneco.values[ESP_SAIDA_COLO_KEY] !== "Ausente" && (
                       <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
-                        {gyTestToggle("Amniosure", ESP_AMNIOSURE_KEY)}
+                        {gyTestToggle("AmniSure", ESP_AMNIOSURE_KEY)}
                         {gyTestToggle("Cristalização", ESP_CRISTALIZACAO_KEY)}
                       </div>
                     )}

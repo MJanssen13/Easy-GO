@@ -37,10 +37,16 @@ export const EXAM_SYSTEMS: ExamSystemDef[] = [
 /** Texto "normal" de um sistema, com os sinais vitais preenchidos. */
 export function buildNormalLine(id: string, v: ExamVitals): string {
   switch (id) {
-    case "geral":
-      return `GERAL: BEG, LOTE, ACIANÓTICA, ANICTÉRICA, TEMP: (${v.temp ?? ""}), HIDRATADA, CORADA.`;
-    case "ar":
-      return `AR: MVUA, S/RA, FR ${v.fr ?? ""} IRPM, SAT ${v.sat ?? ""}%`;
+    case "geral": {
+      const temp = v.temp?.trim() ? `, TEMP: (${v.temp.trim()})` : "";
+      return `GERAL: BEG, LOTE, ACIANÓTICA, ANICTÉRICA${temp}, HIDRATADA, CORADA.`;
+    }
+    case "ar": {
+      const segs = ["MVUA", "S/RA"];
+      if (v.fr?.trim()) segs.push(`FR ${v.fr.trim()} IRPM`);
+      segs.push(`SAT ${v.sat ?? ""}%`);
+      return `AR: ${segs.join(", ")}`;
+    }
     case "acv": {
       const pa = v.pas && v.pad ? `${v.pas}X${v.pad}` : "";
       return `ACV: BNF, RR 2T, S/SOPRO, PA ${pa} MMHG, FC ${v.fc ?? ""} BPM`;
