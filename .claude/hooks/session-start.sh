@@ -15,6 +15,13 @@ cd "${CLAUDE_PROJECT_DIR:-.}"
 # Dependências (npm install aproveita o cache do container melhor que npm ci).
 npm install --no-audit --no-fund
 
+# IMPORTANTE: neste ambiente o `npm install` reescreve o package-lock.json e
+# remove os marcadores de plataforma ("libc": ["glibc"/"musl"]) das dependências
+# nativas. Se esse lockfile for commitado, o `npm ci` da Vercel não instala os
+# binários nativos de Linux/glibc e o build QUEBRA. Restauramos o lockfile
+# versionado para que esse ruído nunca entre em um commit.
+git checkout -- package-lock.json 2>/dev/null || true
+
 # .env.local com placeholders (o build valida as variáveis do Supabase).
 # Valores reais ficam de fora do repositório; só habilitam typecheck/build.
 if [ ! -f .env.local ]; then

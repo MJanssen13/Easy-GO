@@ -5,6 +5,140 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — HPMAs padronizadas (v2) e paridade simples
+
+- **Paridade** volta ao modelo simples (em calibração): sem gemelaridade e com
+  **abortos fora de P** (P = N+C+F). Ex.: `G5P3(N1C2A1)`.
+- **HPMA** reescrita com motor de nós (condicionais, multisseleção e split
+  positivo/negativo). O texto sai **em MAIÚSCULAS já na prévia**.
+  - **Frase de chegada** em toda HPMA: "PACIENTE COMPARECE AO PSGO,
+    ACOMPANHADA/DESACOMPANHADA" ou, se **ambulância**, "ENCAMINHADA… VINDO DE X"
+    (novo controle de chegada + origem).
+  - **2ª QP em diante** começa com "RELATA AINDA …".
+  - Modelos revisados de GECA, Febre, Dor em BV, Dengue, Síndrome gripal, Náusea
+    e vômitos, Redução da MF, Fase ativa/Pródromos de TP e Pico hipertensivo,
+    com campos condicionais e listas de sintomas multisseleção; Dengue e Pico
+    escrevem os sintomas escolhidos e negam os demais.
+  - Novas QPs: **Sangramento 1ª M**, **Sangramento 2ª M**, **Disúria** e
+    **Perda de líquido** (substituem o "Sangramento TV").
+  - **Revisão dirigida**: omite a pergunta coberta pela QP; se tudo normal,
+    escreve a frase combinada ("NEGA SANGRAMENTO TRANSVAGINAL E CORRIMENTO…").
+    Secreção renomeada; hábito intestinal com nº de evacuações; urinário e
+    contrações com sub-campos.
+  - **Todas as HPMAs em modo formulário**: cada QP agora aparece como uma grade
+    de campos rotulados (2 colunas), no lugar do texto para completar inline —
+    rótulos claros (ex.: "Evacuações diarreicas por dia") e campos de número
+    mais estreitos. O resultado continua sendo o texto montado em MAIÚSCULAS.
+
+- **Montador de HPMA** na seção Queixa e história: botões de **QP/HD cumulativos**
+  (GECA, Febre, Dor em baixo ventre, Dengue, Síndrome gripal, Náusea e vômitos,
+  Redução da MF, Fase ativa de TP, Pródromos de TP, Pico hipertensivo,
+  Sangramento TV — os três de TP/MF só aparecem para gestantes).
+- Cada QP abre um **modelo com preenchimento inline**: lacunas (`___`) viram
+  campos de texto e escolhas (`[a/b/c]`) viram botões; o que não é respondido
+  fica marcado no texto para completar depois.
+- **Revisão dirigida** com 6 perguntas sempre respondidas (Sangramento,
+  Secreção/perda de líquido, Hábito intestinal, Hábito urinário e — só gestante
+  — Contrações e Movimentação fetal), que montam a frase de negativos/positivos.
+- **Prévia ao vivo** + botão **"Usar no HPMA"** que insere o texto montado na
+  caixa de HPMA, que permanece editável para a finalização.
+- Conteúdo dos 11 modelos conforme validado pela equipe (texto de apoio à
+  documentação, não conduta).
+
+### PSGO — exame especular revisado e CTG laudada
+
+- **Exame especular** reestruturado:
+  - **Sangramento**: Ausente / Pelo OE / De parede vaginal; se ≠ ausente, pede a
+    quantidade (Pequena / Moderada / Grande).
+  - **Secreção** (era "conteúdo vaginal") em multisseleção: Ausente, Fisiológica,
+    Bolhoso, Esverdeado, Purulento, Fétido (Ausente é exclusivo).
+  - **Saídas via colo**: Ausente / Líquido claro / Purulento; se ≠ ausente,
+    aparecem **Amniosure** e **cristalização** (Não realizado / Positivo /
+    Negativo) — "Não realizado" não vai ao prontuário.
+- **CTG laudada** como no pré-parto: laudo estruturado (linha de base,
+  variabilidade, acelerações, AT/MF, movimentação, desacelerações + tipo/nº,
+  contrações, estímulo sonoro) com **escore 0-5** ao vivo e conclusão sugerida;
+  vai ao prontuário na linha `CTG:`.
+
+### PSGO — Coombs múltiplos, toque revisado e integração Labflow
+
+- **Coombs (CI)**: agora é possível registrar vários CI, cada um com sua data
+  (botão "+ CI"); saem no prontuário como `CI: NEGATIVO EM … / POSITIVO EM …`.
+- **Toque vaginal** revisado: **posição** Posterior (P) / Médio-Posterior (MP) /
+  Centralizado (C); **consistência** Nasal (N) / Nasolabial (NL) / Labial (L);
+  **apagamento** vira lista suspensa de 10 em 10 (Grosso→`G`, demais→`APAG X%`);
+  **dilatação** e **altura (De Lee)** viram listas suspensas; opção **OEEA/OII**
+  (cumulativas) que substituem a dilatação em cm.
+- **Hábitos**: adicionados **Erro alimentar** e **Sedentarismo**; ao marcar
+  **UDI**, um campo pergunta qual(is) droga(s) — registrado como `UDI (…)`.
+- **Botão "Acessar Labflow"** (visual moderno, nova aba → labflowai.vercel.app)
+  em "Colar sorologias do hospital" e em "Exames laboratoriais".
+- **VDRL**: a lista suspensa passou a ter largura equivalente aos botões das
+  demais sorologias.
+- **Medicamentos**: lógica revisada — chave **Em uso / Fez uso** por item e
+  campo para adicionar medicamento avulso (Enter ou botão).
+- **Início do TP** rotulado como **"Início do TP (Atual ou predição)"**.
+
+### PSGO — cards colapsáveis, datação e sorologias
+
+- **Cards colapsáveis**: cada seção do formulário vira um card recolhível (clique
+  no cabeçalho), preservando ações/badges (toggle gestante, InfoTip, botões).
+- **Datação numa linha**: DUM (campo estreito), caixa **"DUM incerta"** (rótulo
+  simplificado) e a chave de datação ficam lado a lado; as chaves **nº de fetos ·
+  apresentação · início do TP** também na mesma linha. Botão **"ir aos USGs"** no
+  card de IG pela USG (rola até o quadro de imagem).
+- **DUM no prontuário**: quando "DUM incerta", a data é suprimida e sai
+  `DUM: INCERTA`; quando a datação efetiva vem da USG (por escolha ou pelo ACOG),
+  a linha ganha ` - DISCORDANTE`.
+- **Medicamentos**: no prontuário, os de uso saem um por linha em `MEU:`; havendo
+  medicamentos prévios, pula uma linha e lista sob `FEZ USO:`. Novo campo livre
+  "Fez uso" (omitido se vazio).
+- **Hábitos**: `NEGA` é exclusivo dos demais (cumulativos entre si); `ÁLCOOL`
+  renomeado para `ALCOOLISMO`.
+- **Sorologias**: botões `—/NR/REAG` no mesmo formato do exame físico; **VDRL**
+  vira lista suspensa (NR e titulações 1:1…1:256).
+
+### PSGO — layout do card de identificação
+
+- Campos reorganizados em linhas: **data · idade · RG** (campo de data mais
+  estreito, ajustado ao conteúdo); **nome (2/3) · nome social (1/3)**;
+  **procedência · local do pré-natal · nº de consultas** (campo curto, 2
+  algarismos) com caixa **"Pré-natal irregular"**; **acompanhante · parentesco**,
+  com campo **"Qual parentesco?"** quando o parentesco é "Outro" (registrado no
+  prontuário).
+- A chave **Gestante / Não gestante** fica no cabeçalho do card de identificação,
+  à direita; o card avulso "Gestante no momento?" foi removido.
+- **Pré-natal irregular** grava `PRN IRREGULAR` na linha de consultas e entra
+  como diagnóstico na **HD**; pacientes **< 18 anos** ganham `ADOLESCENTE` na HD
+  (gestantes e não gestantes).
+- Correções: a datação não lança mais quando a DUM é marcada como incerta sem
+  USG (retorna sem IG); a data da consulta passa a ser calculada no servidor e
+  injetada no formulário, evitando divergência de hidratação (erro React #418).
+
+### PSGO — gestante/não gestante + notação de paridade do serviço
+
+- **Chave "Gestante no momento?"** no topo da admissão (o PSGO também atende
+  pessoas não gestantes). Quando "Não gestante": G não soma a gestação atual;
+  somem pré-natal, Robson, IG/datação (fica só a DUM), AU/BCF, campos
+  obstétricos do abdome/toque, quadro de USG obstétrico e CTG; o prontuário
+  registra "NÃO GESTANTE NO MOMENTO" e a HD passa a listar só as comorbidades.
+  Admissões antigas continuam abrindo como gestantes.
+- **Notação de paridade na convenção do serviço**: `G{g}P{p}(detalhe)`, em que
+  **P soma todos os desfechos** (N normal, C cesárea, F fórceps e A abortos) e
+  as **ectópicas ficam aninhadas em A** — ex.: `G5P4(N1C2A1)`,
+  `G5P5(N2C1A2(E1))`. **Gemelares** (novo controle por gestação prévia, com via
+  do 2º gemelar): 1 gestação; via vaginal conta 1 parto por feto e cesárea
+  conta 1 para os dois — ex.: `G2P3(N3(GEM2))`, `G3P2(N1C1(GEM2))`,
+  `G3P3(N2C1(GEM2[N1C1]))`. O "i" do card documenta a convenção e a divergência
+  do GPA/GTPAL clássico (ACOG/Williams: abortos não somam em P; gemelar = 1
+  parto) — *apoio à documentação, validar com a equipe*.
+- Botão **"Sem intercorrências"** por gestação prévia, só em parto normal e
+  cesárea; no parto normal oculta o campo de comemorativos e registra
+  `SEM INTERCORRÊNCIAS` na linha. Cesárea e fórceps exigem o motivo; aborto e
+  ectópica exigem a IG: a caixa de texto mostra um prompt obrigatório em
+  vermelho (`INDICAR MOTIVO` / `INFORMAR IG`) enquanto vazia — na cesárea o
+  prompt aparece mesmo com "sem intercorrências" marcado.
+
 ### PSGO — Fase 2 (revisão da admissão)
 
 - **Paridade** com interface mais dinâmica: botões de adição rápida por tipo

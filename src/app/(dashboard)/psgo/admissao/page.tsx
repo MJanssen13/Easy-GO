@@ -4,6 +4,7 @@ import { Siren, ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { getPatient } from "@/core/patients/repository";
 import { patientToPsgoForm } from "@/core/psgo/patient-mapper";
+import { toISODateLocal } from "@/core/obstetric/gestational-age";
 import type { PsgoForm } from "@/core/psgo/types";
 import { PsgoGenerator } from "../_components/psgo-generator";
 
@@ -47,7 +48,11 @@ export default async function PsgoAdmissionPage({
         </Link>
       </div>
 
-      <PsgoGenerator initialForm={initialForm} patientId={editId} />
+      <PsgoGenerator
+        initialForm={initialForm}
+        patientId={editId}
+        today={toISODateLocal(new Date())}
+      />
     </div>
   );
 }

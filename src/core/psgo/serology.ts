@@ -23,6 +23,20 @@ export const SEROLOGY_ANALYTES = [
   "RUB-IGM",
 ];
 
+/** Opções do VDRL: não reagente + titulações em diluições dobradas até 1:256. */
+export const VDRL_TITERS = [
+  "NR",
+  "1:1",
+  "1:2",
+  "1:4",
+  "1:8",
+  "1:16",
+  "1:32",
+  "1:64",
+  "1:128",
+  "1:256",
+];
+
 export interface SerologyColumn {
   id: string;
   date: string; // ISO date

@@ -33,3 +33,9 @@ export function formatMedication(m: MedicationUse): string {
   }
   return m.label;
 }
+
+/** Linha do medicamento na seção FEZ USO (só o intervalo entre parênteses). */
+export function formatPastMedication(m: MedicationUse): string {
+  const range = [m.pastStart, m.pastEnd].filter(Boolean).join(" A ");
+  return range ? `${m.label} (${range})` : m.label;
+}
