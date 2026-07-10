@@ -607,26 +607,21 @@ export function PsgoGenerator({
       );
     });
 
-  // Renderiza um modelo de HPMA como formulário (rótulo + controle por linha).
-  const hpmaFormRows = (nodes: HpmaNode[], prefix: string): React.ReactNode[] => {
-    const rows: React.ReactNode[] = [];
+  // Renderiza um modelo de HPMA como formulário (campos rotulados, em grade).
+  const hpmaFormFields = (nodes: HpmaNode[], prefix: string): React.ReactNode[] => {
+    const items: React.ReactNode[] = [];
     for (const n of nodes) {
       if (n.k === "t") continue;
       if (n.k === "cond") {
-        if (hpmaVals[`${prefix}.${n.ref}`] === n.eq) rows.push(...hpmaFormRows(n.nodes, prefix));
+        if (hpmaVals[`${prefix}.${n.ref}`] === n.eq) items.push(...hpmaFormFields(n.nodes, prefix));
         continue;
       }
       if (n.k === "blank") {
         const key = `${prefix}.${n.id}`;
-        rows.push(
-          <div key={key} className="flex flex-wrap items-center gap-1.5">
-            <span className="w-44 text-xs text-muted-foreground">{n.q ?? n.id}</span>
-            <input
-              value={hpmaVals[key] ?? ""}
-              onChange={(e) => setHpmaVal(key, e.target.value)}
-              className={`${hpmaInputCls} w-28`}
-            />
-          </div>,
+        items.push(
+          <Field key={key} label={n.q ?? n.id}>
+            <Input value={hpmaVals[key] ?? ""} onChange={(e) => setHpmaVal(key, e.target.value)} />
+          </Field>,
         );
         continue;
       }
@@ -634,47 +629,43 @@ export function PsgoGenerator({
         const key = `${prefix}.${n.id}`;
         const cur = hpmaVals[key];
         const selOpt = n.opts.find((x) => x.label === cur);
-        rows.push(
-          <div key={key} className="flex flex-wrap items-center gap-1.5">
-            <span className="w-44 text-xs text-muted-foreground">{n.q ?? n.id}</span>
-            {n.opts.map((op) => (
-              <button
-                key={op.label}
-                type="button"
-                onClick={() => setHpmaVal(key, cur === op.label ? "" : op.label)}
-                className={hpmaChipCls(cur === op.label)}
-              >
-                {op.label}
-              </button>
-            ))}
-          </div>,
+        items.push(
+          <Field key={key} label={n.q ?? n.id}>
+            <div className="flex flex-wrap gap-1.5">
+              {n.opts.map((op) => (
+                <Chip
+                  key={op.label}
+                  active={cur === op.label}
+                  onClick={() => setHpmaVal(key, cur === op.label ? "" : op.label)}
+                >
+                  {op.label}
+                </Chip>
+              ))}
+            </div>
+          </Field>,
         );
-        if (selOpt?.reveal) rows.push(...hpmaFormRows(selOpt.reveal, prefix));
+        if (selOpt?.reveal) items.push(...hpmaFormFields(selOpt.reveal, prefix));
         continue;
       }
       // multi
       const base = `${prefix}.${n.id}`;
-      rows.push(
-        <div key={base} className="flex flex-wrap items-center gap-1.5">
-          <span className="w-44 text-xs text-muted-foreground">{n.q ?? n.id}</span>
-          {n.opts.map((op) => {
-            const key = `${base}#${op.label}`;
-            const on = hpmaVals[key] === "1";
-            return (
-              <button
-                key={op.label}
-                type="button"
-                onClick={() => setHpmaVal(key, on ? "" : "1")}
-                className={hpmaChipCls(on)}
-              >
-                {op.label}
-              </button>
-            );
-          })}
-        </div>,
+      items.push(
+        <Field key={base} label={n.q ?? n.id}>
+          <div className="flex flex-wrap gap-1.5">
+            {n.opts.map((op) => {
+              const key = `${base}#${op.label}`;
+              const on = hpmaVals[key] === "1";
+              return (
+                <Chip key={op.label} active={on} onClick={() => setHpmaVal(key, on ? "" : "1")}>
+                  {op.label}
+                </Chip>
+              );
+            })}
+          </div>
+        </Field>,
       );
     }
-    return rows;
+    return items;
   };
 
   // Sub-campo de uma pergunta da revisão dirigida.
@@ -1464,7 +1455,9 @@ export function PsgoGenerator({
                         </button>
                       </div>
                       {tpl.mode === "form" ? (
-                        <div className="space-y-1">{hpmaFormRows(tpl.nodes, tpl.id)}</div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {hpmaFormFields(tpl.nodes, tpl.id)}
+                        </div>
                       ) : (
                         <div className="text-sm leading-8">{renderNodes(tpl.nodes, tpl.id)}</div>
                       )}
