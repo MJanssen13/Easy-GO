@@ -18,7 +18,11 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Sangramento 1ª M**: removida a IG. **Sangramento 2ª M** e **Perda de
   líquido**: removidas contrações e IG.
 - **Controles segmentados** (ex.: Chegada) viram uma **pílula dividida em partes
-  iguais**, no lugar de botões quadrados soltos.
+  iguais**, no lugar de botões quadrados soltos; os rótulos ficam em **uma única
+  linha** (a pílula se estende e os campos ao lado se reorganizam).
+- Cabeçalho **"QP/HD"** renomeado para **"Gerador de HPMA"**, com subtítulo
+  ("Possível selecionar vários. É possível escrever/editar manualmente em HPMA
+  (edição final)").
 - **HPMA (edição final)**: a caixa de texto **cresce com o conteúdo** (altura
   automática, sem rolagem interna).
 

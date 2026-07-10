@@ -160,7 +160,7 @@ function Segmented<T extends string>({
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={`flex-1 px-3 py-1.5 text-center transition-colors ${i > 0 ? "border-l" : ""} ${
+          className={`flex-1 whitespace-nowrap px-3 py-1.5 text-center transition-colors ${i > 0 ? "border-l" : ""} ${
             value === opt.value
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:bg-muted"
@@ -1462,39 +1462,44 @@ export function PsgoGenerator({
             {/* Montador de HPMA padronizada */}
             <div className="space-y-3 rounded-md border p-3">
               {/* Chegada da paciente */}
-              <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Chegada</Label>
-                  <div className="w-96">
-                    <Segmented
-                      value={hpmaArrival}
-                      onChange={setHpmaArrival}
-                      options={[
-                        { value: "espontanea", label: "Demanda espontânea" },
-                        { value: "ambulancia", label: "Ambulância" },
-                        { value: "carta", label: "Encaminhamento com carta" },
-                      ]}
-                    />
-                  </div>
+                  <Segmented
+                    value={hpmaArrival}
+                    onChange={setHpmaArrival}
+                    options={[
+                      { value: "espontanea", label: "Demanda espontânea" },
+                      { value: "ambulancia", label: "Ambulância" },
+                      { value: "carta", label: "Encaminhamento com carta" },
+                    ]}
+                  />
                 </div>
                 {hpmaArrival === "ambulancia" && (
-                  <Field label="Ambulância — de onde?" className="min-w-[10rem] flex-1">
+                  <Field label="Ambulância — de onde?" className="max-w-md">
                     <Input value={hpmaFrom} onChange={(e) => setHpmaFrom(e.target.value)} />
                   </Field>
                 )}
                 {hpmaArrival === "carta" && (
-                  <>
+                  <div className="flex flex-wrap items-end gap-3">
                     <Field label="Quem encaminhou?" className="min-w-[10rem] flex-1">
                       <Input value={hpmaReferrer} onChange={(e) => setHpmaReferrer(e.target.value)} />
                     </Field>
                     <Field label="Motivo do encaminhamento" className="min-w-[10rem] flex-1">
                       <Input value={hpmaReason} onChange={(e) => setHpmaReason(e.target.value)} />
                     </Field>
-                  </>
+                  </div>
                 )}
               </div>
 
-              <p className="text-sm font-semibold">QP/HD (pode marcar mais de uma)</p>
+              <div>
+                <p className="text-sm font-semibold">Gerador de HPMA</p>
+                <p className="text-xs text-muted-foreground">
+                  Possível selecionar vários.
+                  <br />
+                  É possível escrever/editar manualmente em HPMA (edição final).
+                </p>
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {HPMA_TEMPLATES.filter((t) => form.pregnant || !t.gestanteOnly).map((t) => (
                   <Chip key={t.id} active={hpmaSel.includes(t.id)} onClick={() => toggleHpmaQp(t.id)}>
