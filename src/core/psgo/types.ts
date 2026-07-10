@@ -9,8 +9,17 @@ import { emptySerologyGrid } from "./serology";
 import type { ImagingExam } from "./imaging";
 import type { GynecoState } from "./gyneco-exam";
 import { emptyGynecoState } from "./gyneco-exam";
+import type { PsgoCtg } from "./ctg";
+import { emptyPsgoCtg } from "./ctg";
 
-export const HABITS = ["NEGA", "UDI", "TBG", "ÁLCOOL"];
+export const HABITS = ["NEGA", "UDI", "TBG", "ALCOOLISMO", "ERRO ALIMENTAR", "SEDENTARISMO"];
+
+/** Um resultado de Coombs indireto (CI) com sua data. */
+export interface CoombsEntry {
+  id: string;
+  result: "" | "pos" | "neg";
+  date: string;
+}
 
 export const COMPANION_RELATIONS = [
   "ESPOSO",
@@ -34,10 +43,16 @@ export interface PsgoForm {
   origin: string;
   companion: string;
   companionRelation: string;
+  /** Preenchido quando `companionRelation === "OUTRO"`. */
+  companionRelationOther: string;
 
   // pré-natal
   prenatalCount: string;
   prenatalPlace: string;
+  prenatalIrregular: boolean;
+
+  // situação atual (o PSGO também atende pessoas não gestantes)
+  pregnant: boolean;
 
   // paridade
   priorPregnancies: PriorPregnancy[];
@@ -54,8 +69,11 @@ export interface PsgoForm {
 
   // tipo sanguíneo / coombs
   bloodType: string;
-  coombs: "" | "pos" | "neg";
-  coombsDate: string;
+  /** Coombs indiretos (CI) realizados, cada um com sua data. */
+  coombsList: CoombsEntry[];
+  /** Legado (CI único) — migrado para `coombsList` ao reabrir. */
+  coombs?: "" | "pos" | "neg";
+  coombsDate?: string;
 
   // comorbidades
   comorbidities: string[];
@@ -64,12 +82,16 @@ export interface PsgoForm {
   // medicamentos
   medications: MedicationUse[];
   medicationsOther: string;
+  /** Texto livre de medicamentos que a paciente já usou ("fez uso"). */
+  medicationsPast: string;
 
   // cirurgias / alergias / hábitos
   surgeries: string;
   allergies: string;
   habits: string[];
   habitsOther: string;
+  /** Droga(s) informada(s) quando UDI está marcado. */
+  udiWhich: string;
 
   // queixa / história
   qp: string;
@@ -82,8 +104,9 @@ export interface PsgoForm {
   exam: Record<string, ExamSystemState>;
   gyneco: GynecoState;
 
-  // CTG
+  // CTG (laudo estruturado; `ctg` legado = texto livre)
   ctg: string;
+  ctgLaudo: PsgoCtg;
 
   // conduta
   cd: string;
@@ -105,12 +128,16 @@ function todayISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function emptyPsgoForm(): PsgoForm {
+/**
+ * Formulário vazio. `date` pode ser passada (ex.: calculada no servidor) para
+ * evitar divergência de hidratação; sem ela, usa a data local de hoje.
+ */
+export function emptyPsgoForm(date?: string): PsgoForm {
   const exam: Record<string, ExamSystemState> = {};
   for (const s of EXAM_SYSTEMS) exam[s.id] = { mode: "normal", text: "" };
 
   return {
-    date: todayISO(),
+    date: date ?? todayISO(),
     name: "",
     socialName: "",
     rg: "",
@@ -118,8 +145,11 @@ export function emptyPsgoForm(): PsgoForm {
     origin: "",
     companion: "",
     companionRelation: "",
+    companionRelationOther: "",
     prenatalCount: "",
     prenatalPlace: "",
+    prenatalIrregular: false,
+    pregnant: true,
     priorPregnancies: [],
     lmp: "",
     lmpUncertain: false,
@@ -128,16 +158,17 @@ export function emptyPsgoForm(): PsgoForm {
     fetuses: "",
     laborOnset: "",
     bloodType: "",
-    coombs: "",
-    coombsDate: "",
+    coombsList: [],
     comorbidities: [],
     comorbiditiesOther: "",
     medications: [],
     medicationsOther: "",
+    medicationsPast: "",
     surgeries: "",
     allergies: "",
     habits: [],
     habitsOther: "",
+    udiWhich: "",
     qp: "",
     hpma: "",
     weight: "",
@@ -146,6 +177,7 @@ export function emptyPsgoForm(): PsgoForm {
     exam,
     gyneco: emptyGynecoState(),
     ctg: "",
+    ctgLaudo: emptyPsgoCtg(),
     cd: "",
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),

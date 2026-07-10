@@ -12,6 +12,7 @@ import {
   gaFromUltrasound,
 } from "@/core/obstetric/gestational-age";
 import type { PsgoForm } from "./types";
+import { emptyPsgoCtg } from "./ctg";
 import { formatParity } from "./parity";
 import { autoComorbidities } from "./comorbidities";
 import { resolvePsgoDating } from "./dating";
@@ -54,7 +55,7 @@ function dedup(items: string[]): string[] {
 export function psgoRiskFactors(form: PsgoForm): string[] {
   const weight = form.weight ? Number(form.weight) : null;
   const height = form.height ? Number(form.height) : null;
-  const parity = formatParity(form.priorPregnancies);
+  const parity = formatParity(form.priorPregnancies, form.pregnant);
   return dedup([
     ...form.comorbidities,
     ...splitOther(form.comorbiditiesOther),
@@ -69,6 +70,10 @@ function datingColumns(form: PsgoForm): {
   gaWeeks: number | null;
   gaDays: number | null;
 } {
+  // Não gestante: guarda a DUM como dado ginecológico, sem IG/DPP.
+  if (!form.pregnant) {
+    return { lmp: form.lmp || null, edd: null, gaWeeks: null, gaDays: null };
+  }
   const dating = resolvePsgoDating({
     lmp: form.lmp,
     lmpUncertain: form.lmpUncertain,
@@ -100,7 +105,7 @@ function datingColumns(form: PsgoForm): {
 
 /** Admissão do PSGO → paciente (module="psgo"), com o form completo no JSON. */
 export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
-  const parity = formatParity(form.priorPregnancies);
+  const parity = formatParity(form.priorPregnancies, form.pregnant);
   const { robsonGroup } = computePsgo(form);
   const dt = datingColumns(form);
 
@@ -131,5 +136,23 @@ export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
 /** Recupera o `PsgoForm` salvo de uma paciente (para reabrir/editar a admissão). */
 export function patientToPsgoForm(patient: Patient): PsgoForm | null {
   const cs = patient.clinicalSummary as unknown as PsgoClinicalSummary | null;
-  return cs && cs.form ? cs.form : null;
+  if (!cs?.form) return null;
+  // Defaults para campos adicionados depois (admissões antigas não os têm).
+  const coombsList =
+    cs.form.coombsList && cs.form.coombsList.length > 0
+      ? cs.form.coombsList
+      : cs.form.coombs
+        ? [{ id: "legacy", result: cs.form.coombs, date: cs.form.coombsDate ?? "" }]
+        : [];
+  return {
+    ...cs.form,
+    pregnant: cs.form.pregnant ?? true,
+    companionRelationOther: cs.form.companionRelationOther ?? "",
+    prenatalIrregular: cs.form.prenatalIrregular ?? false,
+    medicationsPast: cs.form.medicationsPast ?? "",
+    coombsList,
+    udiWhich: cs.form.udiWhich ?? "",
+    // CTG legada (texto livre) migra para as observações do laudo.
+    ctgLaudo: cs.form.ctgLaudo ?? { ...emptyPsgoCtg(), notes: cs.form.ctg ?? "" },
+  };
 }

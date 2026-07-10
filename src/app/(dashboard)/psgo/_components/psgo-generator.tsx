@@ -2,17 +2,56 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info } from "lucide-react";
-import { emptyPsgoForm, HABITS, COMPANION_RELATIONS, type PsgoForm } from "@/core/psgo/types";
+import { Plus, Trash2, Siren, Info, ChevronDown, FlaskConical, ExternalLink } from "lucide-react";
+import {
+  emptyPsgoForm,
+  HABITS,
+  COMPANION_RELATIONS,
+  type PsgoForm,
+  type CoombsEntry,
+} from "@/core/psgo/types";
 import { renderPsgo, computePsgo } from "@/core/psgo/render";
 import { datingDisplay } from "@/core/psgo/dating";
-import { ABD_FIELDS, TOQUE_FIELDS, ESP_FIELDS, type GyField } from "@/core/psgo/gyneco-exam";
+import {
+  abdFieldsFor,
+  toqueFieldsFor,
+  ESP_FIELDS,
+  OEEA_KEY,
+  OII_KEY,
+  SECRECAO_OPTIONS,
+  SEC_AUSENTE_KEY,
+  ESP_SANGRAMENTO_KEY,
+  ESP_SANGRAMENTO_QTD_KEY,
+  ESP_SANGRAMENTO_OPTIONS,
+  ESP_SANGRAMENTO_QTD_OPTIONS,
+  ESP_SAIDA_COLO_KEY,
+  ESP_SAIDA_COLO_OPTIONS,
+  ESP_AMNIOSURE_KEY,
+  ESP_CRISTALIZACAO_KEY,
+  TEST_OPTIONS,
+  type GyField,
+} from "@/core/psgo/gyneco-exam";
+import { psgoCtgScore, psgoCtgConclusion, type PsgoCtg } from "@/core/psgo/ctg";
+import {
+  HPMA_TEMPLATES,
+  REVISION_QUESTIONS,
+  assembleHpma,
+  type HpmaNode,
+  type RevSub,
+} from "@/core/psgo/hpma";
 import { savePsgoAdmission } from "../actions";
-import { PRIOR_TYPE_LABELS, type PriorPregnancyType } from "@/core/psgo/parity";
+import {
+  PRIOR_TYPE_LABELS,
+  NO_COMPLICATIONS_LABEL,
+  formatParity,
+  canMarkNoComplications,
+  requiredNotePrompt,
+  type PriorPregnancyType,
+} from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
-import { SEROLOGY_ANALYTES } from "@/core/psgo/serology";
+import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
 import { renderImagingExam, examCpr, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +62,16 @@ import { CopyButton } from "@/components/copy-button";
 
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+const CTG_CONCLUSIONS = [
+  "Feto ativo",
+  "Feto hipoativo",
+  "Feto inativo",
+  "Reativo",
+  "Hiporreativo",
+  "Não reativo",
+  "Bifásico",
+];
 
 function uid(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
@@ -123,17 +172,87 @@ function Segmented<T extends string>({
   );
 }
 
+/** Card de seção colapsável. `headerExtra` recebe ações/badges (fora do toggle). */
+function Section({
+  title,
+  children,
+  headerExtra,
+  defaultOpen = true,
+  id,
+  contentClassName,
+}: {
+  title: React.ReactNode;
+  children: React.ReactNode;
+  headerExtra?: React.ReactNode;
+  defaultOpen?: boolean;
+  id?: string;
+  contentClassName?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card id={id}>
+      <div className="flex items-center justify-between gap-2 p-6">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex flex-1 items-center gap-2 text-left"
+        >
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+              open ? "" : "-rotate-90"
+            }`}
+          />
+          <span className="text-base font-semibold leading-none tracking-tight">{title}</span>
+        </button>
+        {headerExtra && <div className="flex items-center gap-2">{headerExtra}</div>}
+      </div>
+      {open && <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>{children}</div>}
+    </Card>
+  );
+}
+
+/** Rola a página até o quadro de exames de imagem (USG). */
+function scrollToUsg() {
+  document.getElementById("psgo-usg")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/** Botão para abrir o Labflow (laboratório) em nova aba — visual moderno. */
+function LabflowButton() {
+  return (
+    <a
+      href="https://labflowai.vercel.app/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow-md hover:brightness-110"
+    >
+      <FlaskConical className="h-3.5 w-3.5" />
+      Acessar Labflow
+      <ExternalLink className="h-3 w-3 opacity-80" />
+    </a>
+  );
+}
+
 export function PsgoGenerator({
   initialForm,
   patientId,
+  today,
 }: {
   initialForm?: PsgoForm;
   patientId?: string;
+  /** Data de hoje (ISO) calculada no servidor — evita mismatch de hidratação. */
+  today?: string;
 } = {}) {
   const router = useRouter();
-  const [form, setForm] = useState<PsgoForm>(initialForm ?? emptyPsgoForm);
+  const [form, setForm] = useState<PsgoForm>(() => initialForm ?? emptyPsgoForm(today));
   const [saving, startSaving] = useTransition();
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [medInput, setMedInput] = useState("");
+  // Montador de HPMA (estado transitório; só o texto final vai para form.hpma)
+  const [hpmaSel, setHpmaSel] = useState<string[]>([]);
+  const [hpmaVals, setHpmaVals] = useState<Record<string, string>>({});
+  const [hpmaAmb, setHpmaAmb] = useState(false);
+  const [hpmaFrom, setHpmaFrom] = useState("");
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -153,10 +272,33 @@ export function PsgoGenerator({
   }
 
   const text = useMemo(() => renderPsgo(form), [form]);
+  const hpmaPreview = useMemo(
+    () =>
+      assembleHpma({
+        selectedIds: hpmaSel,
+        vals: hpmaVals,
+        pregnant: form.pregnant,
+        ambulance: hpmaAmb,
+        from: hpmaFrom,
+        hasCompanion: !!form.companion.trim(),
+      }),
+    [hpmaSel, hpmaVals, hpmaAmb, hpmaFrom, form.pregnant, form.companion],
+  );
+  const hpmaCovered = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of HPMA_TEMPLATES) {
+      if (hpmaSel.includes(t.id)) for (const c of t.covers ?? []) s.add(c);
+    }
+    return s;
+  }, [hpmaSel]);
   const { robsonMissing } = useMemo(() => computePsgo(form), [form]);
   const imagingCentiles = useMemo(
     () => Object.fromEntries(form.imagingExams.map((e) => [e.id, examCentiles(e)])),
     [form.imagingExams],
+  );
+  const parityView = useMemo(
+    () => formatParity(form.priorPregnancies, form.pregnant),
+    [form.priorPregnancies, form.pregnant],
   );
   const datingView = useMemo(
     () =>
@@ -180,10 +322,26 @@ export function PsgoGenerator({
     });
   }
 
+  // Hábitos: "NEGA" é exclusivo dos demais (que podem ser cumulativos).
+  function toggleHabit(value: string) {
+    setForm((f) => {
+      const has = f.habits.includes(value);
+      let habits: string[];
+      if (value === "NEGA") {
+        habits = has ? [] : ["NEGA"];
+      } else {
+        habits = has
+          ? f.habits.filter((x) => x !== value)
+          : [...f.habits.filter((x) => x !== "NEGA"), value];
+      }
+      return { ...f, habits };
+    });
+  }
+
   // Paridade
-  function addPrior() {
+  function addPrior(type: PriorPregnancyType = "N") {
     update({
-      priorPregnancies: [...form.priorPregnancies, { id: uid(), type: "N", year: "", note: "" }],
+      priorPregnancies: [...form.priorPregnancies, { id: uid(), type, year: "", note: "" }],
     });
   }
   function updatePrior(id: string, patch: Partial<PsgoForm["priorPregnancies"][number]>) {
@@ -195,10 +353,27 @@ export function PsgoGenerator({
     update({ priorPregnancies: form.priorPregnancies.filter((p) => p.id !== id) });
   }
 
+  // Coombs indireto (lista)
+  function addCoombs() {
+    update({ coombsList: [...form.coombsList, { id: uid(), result: "", date: "" }] });
+  }
+  function updateCoombs(id: string, patch: Partial<CoombsEntry>) {
+    update({ coombsList: form.coombsList.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+  }
+  function removeCoombs(id: string) {
+    update({ coombsList: form.coombsList.filter((c) => c.id !== id) });
+  }
+
   // Medicamentos
-  function addMed(label: string) {
-    if (form.medications.some((m) => m.label === label)) return;
-    update({ medications: [...form.medications, { id: uid(), label, current: true }] });
+  function addMed(label: string, current = true) {
+    if (form.medications.some((m) => m.label.toUpperCase() === label.toUpperCase())) return;
+    update({ medications: [...form.medications, { id: uid(), label, current }] });
+  }
+  function addMedCustom() {
+    const label = medInput.trim();
+    if (!label) return;
+    addMed(label);
+    setMedInput("");
   }
   function updateMed(id: string, patch: Partial<PsgoForm["medications"][number]>) {
     update({ medications: form.medications.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
@@ -269,15 +444,75 @@ export function PsgoGenerator({
   function setGynecoValue(fieldId: string, label: string) {
     update({ gyneco: { ...form.gyneco, values: { ...form.gyneco.values, [fieldId]: label } } });
   }
+  function toggleGyneco(key: string) {
+    setGynecoValue(key, form.gyneco.values[key] === "1" ? "" : "1");
+  }
+  // Secreção (multi): "Ausente" é exclusivo dos demais.
+  function toggleSecrecao(key: string) {
+    setForm((f) => {
+      const cur = f.gyneco.values;
+      const on = cur[key] === "1";
+      const next = { ...cur };
+      if (key === SEC_AUSENTE_KEY) {
+        for (const op of SECRECAO_OPTIONS) next[op.key] = "";
+        next[SEC_AUSENTE_KEY] = on ? "" : "1";
+      } else {
+        next[key] = on ? "" : "1";
+        if (!on) next[SEC_AUSENTE_KEY] = "";
+      }
+      return { ...f, gyneco: { ...f.gyneco, values: next } };
+    });
+  }
+  function setCtg(patch: Partial<PsgoCtg>) {
+    update({ ctgLaudo: { ...form.ctgLaudo, ...patch } });
+  }
+  // Montador de HPMA
+  function toggleHpmaQp(id: string) {
+    setHpmaSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
+  function setHpmaVal(key: string, value: string) {
+    setHpmaVals((v) => ({ ...v, [key]: value }));
+  }
   const gyField = (field: GyField) => (
     <div key={field.id} className="space-y-1">
       <Label className="text-xs text-muted-foreground">{field.label}</Label>
+      {field.render === "select" ? (
+        <select
+          className={`${selectClass} h-8`}
+          value={form.gyneco.values[field.id] ?? field.options[0].label}
+          onChange={(e) => setGynecoValue(field.id, e.target.value)}
+        >
+          {field.options.map((op) => (
+            <option key={op.label} value={op.label}>
+              {op.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {field.options.map((op) => (
+            <Chip
+              key={op.label}
+              active={form.gyneco.values[field.id] === op.label}
+              onClick={() => setGynecoValue(field.id, op.label)}
+            >
+              {op.label}
+            </Chip>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+  // Linha de chips de seleção única (especular).
+  const gyChipRow = (label: string, fieldId: string, options: { label: string }[]) => (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
       <div className="flex flex-wrap gap-1.5">
-        {field.options.map((op) => (
+        {options.map((op) => (
           <Chip
             key={op.label}
-            active={form.gyneco.values[field.id] === op.label}
-            onClick={() => setGynecoValue(field.id, op.label)}
+            active={form.gyneco.values[fieldId] === op.label}
+            onClick={() => setGynecoValue(fieldId, op.label)}
           >
             {op.label}
           </Chip>
@@ -285,125 +520,442 @@ export function PsgoGenerator({
       </div>
     </div>
   );
+  // Botões de teste (Não realizado / Positivo / Negativo).
+  const gyTestToggle = (label: string, fieldId: string) => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-24 text-xs text-muted-foreground">{label}</span>
+      {TEST_OPTIONS.map((t) => (
+        <Chip
+          key={t}
+          active={form.gyneco.values[fieldId] === t}
+          onClick={() => setGynecoValue(fieldId, t)}
+        >
+          {t}
+        </Chip>
+      ))}
+    </div>
+  );
+  // Chip inline pequeno (para o montador de HPMA).
+  const hpmaChipCls = (active: boolean) =>
+    `rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
+      active
+        ? "border-primary bg-primary text-primary-foreground"
+        : "bg-background text-muted-foreground hover:bg-muted"
+    }`;
+  const hpmaInputCls =
+    "mx-0.5 inline-block h-6 w-14 rounded border border-input bg-background px-1 align-middle text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+  // Renderiza os nós de um modelo de HPMA (texto, campo, escolha, multi).
+  const renderNodes = (nodes: HpmaNode[], prefix: string): React.ReactNode =>
+    nodes.map((n, k) => {
+      if (n.k === "t") return <span key={k}>{n.v}</span>;
+      if (n.k === "cond") {
+        return hpmaVals[`${prefix}.${n.ref}`] === n.eq ? (
+          <span key={k}>{renderNodes(n.nodes, prefix)}</span>
+        ) : null;
+      }
+      if (n.k === "blank") {
+        const key = `${prefix}.${n.id}`;
+        return (
+          <input
+            key={k}
+            value={hpmaVals[key] ?? ""}
+            onChange={(e) => setHpmaVal(key, e.target.value)}
+            className={hpmaInputCls}
+          />
+        );
+      }
+      if (n.k === "single") {
+        const key = `${prefix}.${n.id}`;
+        const cur = hpmaVals[key];
+        const selOpt = n.opts.find((x) => x.label === cur);
+        return (
+          <span key={k} className="mx-0.5 inline-flex flex-wrap items-center gap-1 align-middle">
+            {n.opts.map((op) => (
+              <button
+                key={op.label}
+                type="button"
+                onClick={() => setHpmaVal(key, cur === op.label ? "" : op.label)}
+                className={hpmaChipCls(cur === op.label)}
+              >
+                {op.label}
+              </button>
+            ))}
+            {selOpt?.reveal && renderNodes(selOpt.reveal, prefix)}
+          </span>
+        );
+      }
+      // multi
+      const base = `${prefix}.${n.id}`;
+      return (
+        <span key={k} className="mx-0.5 inline-flex flex-wrap items-center gap-1 align-middle">
+          {n.opts.map((op) => {
+            const key = `${base}#${op.label}`;
+            const on = hpmaVals[key] === "1";
+            return (
+              <button
+                key={op.label}
+                type="button"
+                onClick={() => setHpmaVal(key, on ? "" : "1")}
+                className={hpmaChipCls(on)}
+              >
+                {op.label}
+              </button>
+            );
+          })}
+        </span>
+      );
+    });
+
+  // Renderiza um modelo de HPMA como formulário (campos rotulados, em grade).
+  const hpmaFormFields = (nodes: HpmaNode[], prefix: string): React.ReactNode[] => {
+    const items: React.ReactNode[] = [];
+    for (const n of nodes) {
+      if (n.k === "t") continue;
+      if (n.k === "cond") {
+        if (hpmaVals[`${prefix}.${n.ref}`] === n.eq) items.push(...hpmaFormFields(n.nodes, prefix));
+        continue;
+      }
+      if (n.k === "blank") {
+        const key = `${prefix}.${n.id}`;
+        items.push(
+          <Field key={key} label={n.q ?? n.id}>
+            <Input
+              className={n.wide ? undefined : "w-24"}
+              value={hpmaVals[key] ?? ""}
+              onChange={(e) => setHpmaVal(key, e.target.value)}
+            />
+          </Field>,
+        );
+        continue;
+      }
+      if (n.k === "single") {
+        const key = `${prefix}.${n.id}`;
+        const cur = hpmaVals[key];
+        const selOpt = n.opts.find((x) => x.label === cur);
+        items.push(
+          <Field key={key} label={n.q ?? n.id}>
+            <div className="flex flex-wrap gap-1.5">
+              {n.opts.map((op) => (
+                <Chip
+                  key={op.label}
+                  active={cur === op.label}
+                  onClick={() => setHpmaVal(key, cur === op.label ? "" : op.label)}
+                >
+                  {op.label}
+                </Chip>
+              ))}
+            </div>
+          </Field>,
+        );
+        if (selOpt?.reveal) items.push(...hpmaFormFields(selOpt.reveal, prefix));
+        continue;
+      }
+      // multi
+      const base = `${prefix}.${n.id}`;
+      items.push(
+        <Field key={base} label={n.q ?? n.id}>
+          <div className="flex flex-wrap gap-1.5">
+            {n.opts.map((op) => {
+              const key = `${base}#${op.label}`;
+              const on = hpmaVals[key] === "1";
+              return (
+                <Chip key={op.label} active={on} onClick={() => setHpmaVal(key, on ? "" : "1")}>
+                  {op.label}
+                </Chip>
+              );
+            })}
+          </div>
+        </Field>,
+      );
+    }
+    return items;
+  };
+
+  // Sub-campo de uma pergunta da revisão dirigida.
+  const renderRevSub = (qid: string, sub: RevSub) => {
+    const base = `rev.${qid}.${sub.id}`;
+    if (sub.kind === "blank") {
+      return (
+        <span key={sub.id} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          {sub.label}
+          <input
+            value={hpmaVals[base] ?? ""}
+            onChange={(e) => setHpmaVal(base, e.target.value)}
+            className={hpmaInputCls}
+          />
+        </span>
+      );
+    }
+    return (
+      <span key={sub.id} className="inline-flex flex-wrap items-center gap-1">
+        <span className="text-xs text-muted-foreground">{sub.label}:</span>
+        {(sub.opts ?? []).map((op) => {
+          const key = sub.kind === "multi" ? `${base}#${op}` : base;
+          const active = sub.kind === "multi" ? hpmaVals[key] === "1" : hpmaVals[key] === op;
+          return (
+            <button
+              key={op}
+              type="button"
+              onClick={() =>
+                setHpmaVal(key, sub.kind === "multi" ? (active ? "" : "1") : active ? "" : op)
+              }
+              className={hpmaChipCls(active)}
+            >
+              {op}
+            </button>
+          );
+        })}
+      </span>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
-        {/* Identificação */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Identificação</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <Field label="Data da consulta">
-              <Input type="date" value={form.date} onChange={(e) => update({ date: e.target.value })} />
-            </Field>
-            <Field label="Idade">
-              <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
-            </Field>
-            <Field label="Nome" className="col-span-2">
-              <Input value={form.name} onChange={(e) => update({ name: e.target.value })} />
-            </Field>
-            <Field label="Nome social (opcional)">
-              <Input value={form.socialName} onChange={(e) => update({ socialName: e.target.value })} />
-            </Field>
-            <Field label="RG">
-              <Input value={form.rg} onChange={(e) => update({ rg: e.target.value })} />
-            </Field>
-            <Field label="Procedente de">
-              <Input value={form.origin} onChange={(e) => update({ origin: e.target.value })} />
-            </Field>
-            <Field label="Acompanhante">
-              <Input value={form.companion} onChange={(e) => update({ companion: e.target.value })} />
-            </Field>
-            <Field label="Parentesco do acompanhante">
-              <select
-                className={selectClass}
-                value={form.companionRelation}
-                onChange={(e) => update({ companionRelation: e.target.value })}
-              >
-                <option value="">—</option>
-                {COMPANION_RELATIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Consultas pré-natal (nº)">
-              <Input
-                value={form.prenatalCount}
-                onChange={(e) => update({ prenatalCount: e.target.value })}
-                inputMode="numeric"
+        {/* Identificação (toggle gestante/não gestante no cabeçalho, à direita) */}
+        <Section
+          title="Identificação"
+          contentClassName="space-y-3"
+          headerExtra={
+            <div className="w-56 max-w-full">
+              <Segmented
+                value={form.pregnant ? "sim" : "nao"}
+                onChange={(v) => update({ pregnant: v === "sim" })}
+                options={[
+                  { value: "sim", label: "Gestante" },
+                  { value: "nao", label: "Não gestante" },
+                ]}
               />
-            </Field>
-            <Field label="Local do pré-natal">
-              <Input value={form.prenatalPlace} onChange={(e) => update({ prenatalPlace: e.target.value })} />
-            </Field>
-          </CardContent>
-        </Card>
+            </div>
+          }
+        >
+            {/* Data · Idade · RG */}
+            <div className="flex flex-wrap gap-3">
+              <Field label="Data da consulta" className="w-44">
+                <Input type="date" value={form.date} onChange={(e) => update({ date: e.target.value })} />
+              </Field>
+              <Field label="Idade" className="w-24">
+                <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
+              </Field>
+              <Field label="RG" className="min-w-[8rem] flex-1">
+                <Input value={form.rg} onChange={(e) => update({ rg: e.target.value })} />
+              </Field>
+            </div>
 
-        {/* Paridade */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
-              Paridade
-              <Button type="button" size="sm" variant="outline" onClick={addPrior}>
-                <Plus className="h-4 w-4" /> Gestação
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {form.priorPregnancies.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Primigesta (G1). Adicione gestações prévias se houver.
-              </p>
-            )}
-            {form.priorPregnancies.map((p) => (
-              <div key={p.id} className="flex items-center gap-2">
+            {/* Nome (2/3) · Nome social (1/3) */}
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Nome" className="col-span-2">
+                <Input value={form.name} onChange={(e) => update({ name: e.target.value })} />
+              </Field>
+              <Field label="Nome social (opcional)" className="col-span-1">
+                <Input value={form.socialName} onChange={(e) => update({ socialName: e.target.value })} />
+              </Field>
+            </div>
+
+            {/* Procedência · Local do pré-natal · Nº consultas · irregular */}
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="Procedente de" className="min-w-[12rem] flex-1">
+                <Input value={form.origin} onChange={(e) => update({ origin: e.target.value })} />
+              </Field>
+              {form.pregnant && (
+                <>
+                  <Field label="Local do pré-natal" className="min-w-[12rem] flex-1">
+                    <Input
+                      value={form.prenatalPlace}
+                      onChange={(e) => update({ prenatalPlace: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Consultas (nº)" className="w-20">
+                    <Input
+                      value={form.prenatalCount}
+                      onChange={(e) => update({ prenatalCount: e.target.value })}
+                      inputMode="numeric"
+                      maxLength={2}
+                    />
+                  </Field>
+                  <label className="flex items-center gap-2 whitespace-nowrap pb-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.prenatalIrregular}
+                      onChange={(e) => update({ prenatalIrregular: e.target.checked })}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    Pré-natal irregular
+                  </label>
+                </>
+              )}
+            </div>
+
+            {/* Acompanhante · Parentesco (+ Qual? se OUTRO) */}
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="Acompanhante" className="min-w-[12rem] flex-1">
+                <Input value={form.companion} onChange={(e) => update({ companion: e.target.value })} />
+              </Field>
+              <Field label="Parentesco" className="min-w-[10rem] flex-1">
                 <select
-                  className={`${selectClass} w-28`}
-                  value={p.type}
-                  onChange={(e) => updatePrior(p.id, { type: e.target.value as PriorPregnancyType })}
+                  className={selectClass}
+                  value={form.companionRelation}
+                  onChange={(e) => update({ companionRelation: e.target.value })}
                 >
-                  {(Object.keys(PRIOR_TYPE_LABELS) as PriorPregnancyType[]).map((t) => (
-                    <option key={t} value={t}>
-                      {t} — {PRIOR_TYPE_LABELS[t]}
+                  <option value="">—</option>
+                  {COMPANION_RELATIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
                     </option>
                   ))}
                 </select>
-                <Input
-                  className="w-24"
-                  placeholder="Ano"
-                  value={p.year ?? ""}
-                  inputMode="numeric"
-                  onChange={(e) => updatePrior(p.id, { year: e.target.value })}
-                />
-                <Input
-                  className="flex-1"
-                  placeholder="Intercorrência"
-                  value={p.note ?? ""}
-                  onChange={(e) => updatePrior(p.id, { note: e.target.value })}
-                />
-                <Button type="button" variant="ghost" size="icon" onClick={() => removePrior(p.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              </Field>
+              {form.companionRelation === "OUTRO" && (
+                <Field label="Qual parentesco?" className="min-w-[10rem] flex-1">
+                  <Input
+                    value={form.companionRelationOther}
+                    onChange={(e) => update({ companionRelationOther: e.target.value })}
+                  />
+                </Field>
+              )}
+            </div>
+        </Section>
 
-        {/* Datação + dados do Robson */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Datação e dados obstétricos</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="DUM">
+        {/* Paridade */}
+        <Section
+          title="Paridade"
+          contentClassName="space-y-3"
+          headerExtra={
+            <>
+              <InfoTip title="Como codificar a paridade">
+                  <p>
+                    <strong>G</strong> = gestações (soma a atual se gestante).{" "}
+                    <strong>P</strong> = partos: <strong>N</strong> normal, <strong>C</strong> cesárea,{" "}
+                    <strong>F</strong> fórceps. <strong>A</strong> = abortos (ectópicas contam como
+                    aborto, aninhadas: <strong>A2(E1)</strong>).
+                  </p>
+                  <p>Abortos não entram em P. Ex.: <strong>G5P3(N1C2A1)</strong>.</p>
+                  <p>Modelo em calibração — validar com a equipe.</p>
+              </InfoTip>
+              {parityView.summary && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-bold tabular-nums text-primary">
+                  {parityView.summary}
+                </span>
+              )}
+            </>
+          }
+        >
+            <div className="flex flex-wrap gap-1.5">
+              {(["N", "C", "F", "A", "E"] as PriorPregnancyType[]).map((t) => (
+                <Button
+                  key={t}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => addPrior(t)}
+                >
+                  <Plus className="h-3.5 w-3.5" /> {PRIOR_TYPE_LABELS[t]}
+                </Button>
+              ))}
+            </div>
+
+            {form.priorPregnancies.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {form.pregnant
+                  ? "Primigesta (G1P0). Use os botões acima para registrar gestações prévias."
+                  : "Sem gestações prévias (G0P0). Use os botões acima para registrá-las."}
+              </p>
+            ) : (
+              form.priorPregnancies.map((p, idx) => (
+                <div key={p.id} className="space-y-2 rounded-md border p-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {idx + 1}ª gestação
+                    </span>
+                    <select
+                      className={`${selectClass} h-8 w-40`}
+                      value={p.type}
+                      onChange={(e) => {
+                        const type = e.target.value as PriorPregnancyType;
+                        // "sem intercorrências" só p/ parto normal e cesárea.
+                        updatePrior(p.id, {
+                          type,
+                          ...(canMarkNoComplications(type) ? {} : { noComplications: false }),
+                        });
+                      }}
+                    >
+                      {(Object.keys(PRIOR_TYPE_LABELS) as PriorPregnancyType[]).map((t) => (
+                        <option key={t} value={t}>
+                          {t} — {PRIOR_TYPE_LABELS[t]}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      className="h-8 w-24"
+                      placeholder="Ano"
+                      value={p.year ?? ""}
+                      inputMode="numeric"
+                      onChange={(e) => updatePrior(p.id, { year: e.target.value })}
+                    />
+                    <div className="ml-auto flex items-center gap-1">
+                      {canMarkNoComplications(p.type) && (
+                        <Chip
+                          active={!!p.noComplications}
+                          onClick={() => updatePrior(p.id, { noComplications: !p.noComplications })}
+                        >
+                          {NO_COMPLICATIONS_LABEL}
+                        </Chip>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removePrior(p.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                  {(!p.noComplications || !!requiredNotePrompt(p.type)) && (
+                    <Textarea
+                      rows={2}
+                      placeholder={
+                        requiredNotePrompt(p.type) ??
+                        "Intercorrências / dados comemorativos (peso do RN, local, complicações, aleitamento…)"
+                      }
+                      value={p.note ?? ""}
+                      onChange={(e) => updatePrior(p.id, { note: e.target.value })}
+                      className={
+                        requiredNotePrompt(p.type) && !(p.note ?? "").trim()
+                          ? "border-rose-400 placeholder:font-semibold placeholder:text-rose-600 focus-visible:ring-rose-400"
+                          : undefined
+                      }
+                    />
+                  )}
+                </div>
+              ))
+            )}
+        </Section>
+
+        {/* Datação + dados do Robson (não gestante: apenas a DUM) */}
+        <Section
+          title={form.pregnant ? "Datação e dados obstétricos" : "DUM"}
+          contentClassName="space-y-3"
+        >
+            {/* DUM · DUM incerta · datação na mesma linha */}
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="DUM" className="w-40">
                 <Input type="date" value={form.lmp} onChange={(e) => update({ lmp: e.target.value })} />
               </Field>
+              {form.pregnant && (
+                <label className="flex items-center gap-2 whitespace-nowrap pb-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.lmpUncertain}
+                    onChange={(e) => update({ lmpUncertain: e.target.checked })}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  DUM incerta
+                </label>
+              )}
+              {form.pregnant && (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
                   <Label className="text-xs">Datação</Label>
@@ -435,17 +987,10 @@ export function PsgoGenerator({
                   ]}
                 />
               </div>
+              )}
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.lmpUncertain}
-                onChange={(e) => update({ lmpUncertain: e.target.checked })}
-                className="h-4 w-4 rounded border-input"
-              />
-              DUM incerta (datar pelo US)
-            </label>
-
+            {form.pregnant && (
+            <>
             {/* IG pela DUM × pela USG (o usado para a HD fica destacado) */}
             <div className="grid grid-cols-2 gap-2">
               <div
@@ -513,10 +1058,18 @@ export function PsgoGenerator({
                     Marque um USG em &ldquo;Datar&rdquo; no quadro de imagem.
                   </p>
                 )}
+                <button
+                  type="button"
+                  onClick={scrollToUsg}
+                  className="mt-2 text-[11px] font-medium text-primary hover:underline"
+                >
+                  ir aos USGs ↓
+                </button>
               </div>
             </div>
 
-            <div className="space-y-3">
+            {/* Nº de fetos · Apresentação · Início do TP na mesma linha */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label className="text-xs">Nº de fetos</Label>
                 <Segmented
@@ -541,7 +1094,7 @@ export function PsgoGenerator({
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Início do TP</Label>
+                <Label className="text-xs">Início do TP (Atual ou predição)</Label>
                 <Segmented
                   value={form.laborOnset}
                   onChange={(v) => update({ laborOnset: v })}
@@ -558,16 +1111,21 @@ export function PsgoGenerator({
                 Robson incompleto — faltam: {robsonMissing.join(", ")}.
               </p>
             )}
-          </CardContent>
-        </Card>
+            </>
+            )}
+        </Section>
 
         {/* Tipo sanguíneo / Coombs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Tipo sanguíneo e Coombs</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-3 gap-3">
-            <Field label="Tipo sanguíneo">
+        <Section
+          title="Tipo sanguíneo e Coombs"
+          contentClassName="space-y-3"
+          headerExtra={
+            <Button type="button" size="sm" variant="outline" onClick={addCoombs}>
+              <Plus className="h-4 w-4" /> CI
+            </Button>
+          }
+        >
+            <Field label="Tipo sanguíneo" className="w-40">
               <select
                 className={selectClass}
                 value={form.bloodType}
@@ -581,29 +1139,48 @@ export function PsgoGenerator({
                 ))}
               </select>
             </Field>
-            <Field label="Coombs indireto">
-              <select
-                className={selectClass}
-                value={form.coombs}
-                onChange={(e) => update({ coombs: e.target.value as PsgoForm["coombs"] })}
-              >
-                <option value="">—</option>
-                <option value="neg">Negativo</option>
-                <option value="pos">Positivo</option>
-              </select>
-            </Field>
-            <Field label="Data do CI">
-              <Input type="date" value={form.coombsDate} onChange={(e) => update({ coombsDate: e.target.value })} />
-            </Field>
-          </CardContent>
-        </Card>
+            <div className="space-y-2">
+              <Label className="text-xs">Coombs indireto (CI)</Label>
+              {form.coombsList.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum CI registrado. Use &ldquo;+ CI&rdquo; para adicionar.
+                </p>
+              ) : (
+                form.coombsList.map((c) => (
+                  <div key={c.id} className="flex flex-wrap items-center gap-2">
+                    <select
+                      className={`${selectClass} h-8 w-36`}
+                      value={c.result}
+                      onChange={(e) =>
+                        updateCoombs(c.id, { result: e.target.value as CoombsEntry["result"] })
+                      }
+                    >
+                      <option value="">—</option>
+                      <option value="neg">Negativo</option>
+                      <option value="pos">Positivo</option>
+                    </select>
+                    <Input
+                      type="date"
+                      className="h-8 w-40"
+                      value={c.date}
+                      onChange={(e) => updateCoombs(c.id, { date: e.target.value })}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeCoombs(c.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+        </Section>
 
         {/* Comorbidades */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Comorbidades (CMB)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+        <Section title="Comorbidades (CMB)" contentClassName="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {COMMON_COMORBIDITIES.map((c) => (
                 <Chip key={c} active={form.comorbidities.includes(c)} onClick={() => toggleArray("comorbidities", c)}>
@@ -619,15 +1196,10 @@ export function PsgoGenerator({
             {bmi?.label && (
               <p className="text-xs text-muted-foreground">Automático: {bmi.label}</p>
             )}
-          </CardContent>
-        </Card>
+        </Section>
 
         {/* Medicamentos */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Medicamentos em uso (MEU)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+        <Section title="Medicamentos (MEU / fez uso)" contentClassName="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {COMMON_MEDICATIONS.map((m) => (
                 <Chip key={m} active={form.medications.some((x) => x.label === m)} onClick={() => addMed(m)}>
@@ -635,52 +1207,67 @@ export function PsgoGenerator({
                 </Chip>
               ))}
             </div>
-            {form.medications.map((m) => (
-              <div key={m.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
-                <span className="flex-1 font-medium">{m.label}</span>
-                <label className="flex items-center gap-1 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={m.current}
-                    onChange={(e) => updateMed(m.id, { current: e.target.checked })}
-                  />
-                  Em uso
-                </label>
-                {!m.current && (
-                  <>
-                    <Input
-                      className="w-24"
-                      placeholder="Início"
-                      value={m.pastStart ?? ""}
-                      onChange={(e) => updateMed(m.id, { pastStart: e.target.value })}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Adicionar medicamento…"
+                value={medInput}
+                onChange={(e) => setMedInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addMedCustom();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={addMedCustom} disabled={!medInput.trim()}>
+                <Plus className="h-4 w-4" /> Adicionar
+              </Button>
+            </div>
+            {form.medications.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Nenhum medicamento. Use os atalhos ou adicione acima; marque cada um como{" "}
+                <strong>Em uso</strong> ou <strong>Fez uso</strong>.
+              </p>
+            ) : (
+              form.medications.map((m) => (
+                <div key={m.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
+                  <span className="min-w-[8rem] flex-1 font-medium">{m.label}</span>
+                  <div className="w-40">
+                    <Segmented
+                      value={m.current ? "uso" : "fez"}
+                      onChange={(v) => updateMed(m.id, { current: v === "uso" })}
+                      options={[
+                        { value: "uso", label: "Em uso" },
+                        { value: "fez", label: "Fez uso" },
+                      ]}
                     />
-                    <Input
-                      className="w-24"
-                      placeholder="Fim"
-                      value={m.pastEnd ?? ""}
-                      onChange={(e) => updateMed(m.id, { pastEnd: e.target.value })}
-                    />
-                  </>
-                )}
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeMed(m.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-            <Input
-              placeholder="Outros medicamentos (separados por vírgula)"
-              value={form.medicationsOther}
-              onChange={(e) => update({ medicationsOther: e.target.value })}
-            />
-          </CardContent>
-        </Card>
+                  </div>
+                  {!m.current && (
+                    <>
+                      <Input
+                        className="w-24"
+                        placeholder="Início"
+                        value={m.pastStart ?? ""}
+                        onChange={(e) => updateMed(m.id, { pastStart: e.target.value })}
+                      />
+                      <Input
+                        className="w-24"
+                        placeholder="Fim"
+                        value={m.pastEnd ?? ""}
+                        onChange={(e) => updateMed(m.id, { pastEnd: e.target.value })}
+                      />
+                    </>
+                  )}
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeMed(m.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))
+            )}
+        </Section>
 
         {/* Cirurgias / alergias / hábitos */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Cirurgias, alergias e hábitos</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <Section title="Cirurgias, alergias e hábitos" contentClassName="space-y-3">
             <Field label="Cirurgias prévias">
               <Input value={form.surgeries} onChange={(e) => update({ surgeries: e.target.value })} />
             </Field>
@@ -690,39 +1277,48 @@ export function PsgoGenerator({
             <Field label="Hábitos de vida (HCV)">
               <div className="flex flex-wrap gap-1.5">
                 {HABITS.map((h) => (
-                  <Chip key={h} active={form.habits.includes(h)} onClick={() => toggleArray("habits", h)}>
+                  <Chip key={h} active={form.habits.includes(h)} onClick={() => toggleHabit(h)}>
                     {h}
                   </Chip>
                 ))}
               </div>
             </Field>
+            {form.habits.includes("UDI") && (
+              <Input
+                placeholder="UDI — qual(is) droga(s)?"
+                value={form.udiWhich}
+                onChange={(e) => update({ udiWhich: e.target.value })}
+              />
+            )}
             <Input
               placeholder="Outros hábitos"
               value={form.habitsOther}
               onChange={(e) => update({ habitsOther: e.target.value })}
             />
-          </CardContent>
-        </Card>
+        </Section>
 
         {/* Sorologias */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
-              Sorologias
-              <Button type="button" size="sm" variant="outline" onClick={addSerologyColumn}>
-                <Plus className="h-4 w-4" /> Coleta externa
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Field label="Colar sorologias do hospital">
+        <Section
+          title="Sorologias"
+          contentClassName="space-y-3"
+          headerExtra={
+            <Button type="button" size="sm" variant="outline" onClick={addSerologyColumn}>
+              <Plus className="h-4 w-4" /> Coleta externa
+            </Button>
+          }
+        >
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Colar sorologias do hospital</Label>
+                <LabflowButton />
+              </div>
               <Textarea
                 rows={3}
                 placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
                 value={form.serologyPasted}
                 onChange={(e) => update({ serologyPasted: e.target.value })}
               />
-            </Field>
+            </div>
 
             {form.serologyGrid.columns.length > 0 && (
               <div className="overflow-x-auto">
@@ -764,44 +1360,37 @@ export function PsgoGenerator({
                           if (a === "VDRL") {
                             return (
                               <td key={c.id} className="border-b p-1">
-                                <Input
-                                  className="h-7 w-24 text-xs"
-                                  placeholder="NR / 1:..."
+                                <select
+                                  className={`${selectClass} h-7 w-32 px-2 text-xs`}
                                   value={val}
                                   onChange={(e) => setSerologyValue(a, c.id, e.target.value)}
-                                />
+                                >
+                                  <option value="">—</option>
+                                  {VDRL_TITERS.map((t) => (
+                                    <option key={t} value={t}>
+                                      {t}
+                                    </option>
+                                  ))}
+                                </select>
                               </td>
                             );
                           }
                           return (
                             <td key={c.id} className="border-b p-1">
-                              <div className="inline-flex rounded-md border p-0.5">
+                              <div className="flex gap-1">
                                 {[
-                                  { v: "", label: "—", title: "Não realizado" },
-                                  { v: "NR", label: "NR", title: "Não reagente" },
-                                  { v: "REAG", label: "REAG", title: "Reagente" },
-                                ].map((o) => {
-                                  const active = val === o.v;
-                                  return (
-                                    <button
-                                      key={o.v || "nd"}
-                                      type="button"
-                                      title={o.title}
-                                      onClick={() => setSerologyValue(a, c.id, o.v)}
-                                      className={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
-                                        active
-                                          ? o.v === "REAG"
-                                            ? "bg-rose-600 text-white"
-                                            : o.v === "NR"
-                                              ? "bg-emerald-600 text-white"
-                                              : "bg-muted text-foreground"
-                                          : "text-muted-foreground hover:bg-muted"
-                                      }`}
-                                    >
-                                      {o.label}
-                                    </button>
-                                  );
-                                })}
+                                  { v: "", label: "—" },
+                                  { v: "NR", label: "NR" },
+                                  { v: "REAG", label: "REAG" },
+                                ].map((o) => (
+                                  <Chip
+                                    key={o.v || "nd"}
+                                    active={val === o.v}
+                                    onClick={() => setSerologyValue(a, c.id, o.v)}
+                                  >
+                                    {o.label}
+                                  </Chip>
+                                ))}
                               </div>
                             </td>
                           );
@@ -812,30 +1401,136 @@ export function PsgoGenerator({
                 </table>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </Section>
 
         {/* QP / HPMA */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Queixa e história</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <Section title="Queixa e história" contentClassName="space-y-3">
             <Field label="Queixa principal (QP)">
               <Input value={form.qp} onChange={(e) => update({ qp: e.target.value })} />
             </Field>
-            <Field label="HPMA">
-              <Textarea rows={3} value={form.hpma} onChange={(e) => update({ hpma: e.target.value })} />
+
+            {/* Montador de HPMA padronizada */}
+            <div className="space-y-3 rounded-md border p-3">
+              {/* Chegada da paciente */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Chegada</Label>
+                  <div className="w-56">
+                    <Segmented
+                      value={hpmaAmb ? "amb" : "comp"}
+                      onChange={(v) => setHpmaAmb(v === "amb")}
+                      options={[
+                        { value: "comp", label: "Comparece" },
+                        { value: "amb", label: "Ambulância" },
+                      ]}
+                    />
+                  </div>
+                </div>
+                {hpmaAmb && (
+                  <Field label="Ambulância — de onde?" className="min-w-[10rem] flex-1">
+                    <Input value={hpmaFrom} onChange={(e) => setHpmaFrom(e.target.value)} />
+                  </Field>
+                )}
+              </div>
+
+              <p className="text-sm font-semibold">QP/HD (pode marcar mais de uma)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {HPMA_TEMPLATES.filter((t) => form.pregnant || !t.gestanteOnly).map((t) => (
+                  <Chip key={t.id} active={hpmaSel.includes(t.id)} onClick={() => toggleHpmaQp(t.id)}>
+                    {t.label}
+                  </Chip>
+                ))}
+              </div>
+
+              {hpmaSel.length > 0 && (
+                <div className="space-y-2">
+                  {HPMA_TEMPLATES.filter((t) => hpmaSel.includes(t.id)).map((tpl, i) => (
+                    <div key={tpl.id} className="space-y-1 rounded-md border p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-primary">
+                          {i === 0 ? "Refere" : "Relata ainda"}: {tpl.label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleHpmaQp(tpl.id)}
+                          className="text-xs text-destructive hover:underline"
+                        >
+                          remover
+                        </button>
+                      </div>
+                      {tpl.mode === "form" ? (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {hpmaFormFields(tpl.nodes, tpl.id)}
+                        </div>
+                      ) : (
+                        <div className="text-sm leading-8">{renderNodes(tpl.nodes, tpl.id)}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Revisão dirigida (perguntas obrigatórias; omite as cobertas pela QP) */}
+              <div className="space-y-1.5 border-t pt-2">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Revisão dirigida (sempre respondida)
+                </p>
+                {REVISION_QUESTIONS.filter(
+                  (q) => (form.pregnant || !q.gestanteOnly) && !hpmaCovered.has(q.id),
+                ).map((q) => {
+                  const key = `rev.${q.id}`;
+                  const cur = hpmaVals[key] ?? q.options[0].value;
+                  const curOpt = q.options.find((op) => op.value === cur);
+                  return (
+                    <div key={q.id} className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="w-36 text-xs text-muted-foreground">{q.label}</span>
+                        {q.options.map((op) => (
+                          <Chip
+                            key={op.value}
+                            active={cur === op.value}
+                            onClick={() => setHpmaVal(key, op.value)}
+                          >
+                            {op.label}
+                          </Chip>
+                        ))}
+                      </div>
+                      {curOpt?.subs && (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-36">
+                          {curOpt.subs.map((sub) => renderRevSub(q.id, sub))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Prévia + inserir na HPMA */}
+              <div className="space-y-1 border-t pt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">Prévia</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => hpmaPreview.trim() && update({ hpma: hpmaPreview })}
+                    disabled={!hpmaPreview.trim()}
+                  >
+                    Usar no HPMA ↓
+                  </Button>
+                </div>
+                <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
+                  {hpmaPreview || "Selecione uma QP/HD e responda a revisão dirigida."}
+                </p>
+              </div>
+            </div>
+
+            <Field label="HPMA (edição final)">
+              <Textarea rows={4} value={form.hpma} onChange={(e) => update({ hpma: e.target.value })} />
             </Field>
-          </CardContent>
-        </Card>
+        </Section>
 
         {/* Exame físico */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Exame físico</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <Section title="Exame físico" contentClassName="space-y-3">
             <div className="grid grid-cols-4 gap-2">
               <Field label="Peso (kg)">
                 <Input value={form.weight} onChange={(e) => update({ weight: e.target.value })} inputMode="decimal" />
@@ -879,18 +1574,22 @@ export function PsgoGenerator({
                   onChange={(e) => update({ vitals: { ...form.vitals, fc: e.target.value } })}
                 />
               </Field>
-              <Field label="AU (cm)">
-                <Input
-                  value={form.vitals.au ?? ""}
-                  onChange={(e) => update({ vitals: { ...form.vitals, au: e.target.value } })}
-                />
-              </Field>
-              <Field label="BCF (bpm)">
-                <Input
-                  value={form.vitals.bcf ?? ""}
-                  onChange={(e) => update({ vitals: { ...form.vitals, bcf: e.target.value } })}
-                />
-              </Field>
+              {form.pregnant && (
+                <>
+                  <Field label="AU (cm)">
+                    <Input
+                      value={form.vitals.au ?? ""}
+                      onChange={(e) => update({ vitals: { ...form.vitals, au: e.target.value } })}
+                    />
+                  </Field>
+                  <Field label="BCF (bpm)">
+                    <Input
+                      value={form.vitals.bcf ?? ""}
+                      onChange={(e) => update({ vitals: { ...form.vitals, bcf: e.target.value } })}
+                    />
+                  </Field>
+                </>
+              )}
             </div>
 
             {EXAM_SYSTEMS.map((s) => {
@@ -928,22 +1627,24 @@ export function PsgoGenerator({
                 </div>
               );
             })}
-          </CardContent>
-        </Card>
+        </Section>
 
         {/* Exame ginecológico e obstétrico */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Exame ginecológico e obstétrico</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <Section
+          title={form.pregnant ? "Exame ginecológico e obstétrico" : "Exame ginecológico"}
+          contentClassName="space-y-4"
+        >
             {/* Abdome */}
             <div className="space-y-2">
-              <p className="text-sm font-semibold">Abdome (gravídico)</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{ABD_FIELDS.map(gyField)}</div>
-              <p className="text-xs text-muted-foreground">
-                AU e BCF vêm dos sinais vitais do exame físico.
-              </p>
+              <p className="text-sm font-semibold">{form.pregnant ? "Abdome (gravídico)" : "Abdome"}</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {abdFieldsFor(form.pregnant).map(gyField)}
+              </div>
+              {form.pregnant && (
+                <p className="text-xs text-muted-foreground">
+                  AU e BCF vêm dos sinais vitais do exame físico.
+                </p>
+              )}
             </div>
 
             {/* Toque vaginal */}
@@ -972,7 +1673,28 @@ export function PsgoGenerator({
                     />
                     Autorizado pela paciente
                   </label>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{TOQUE_FIELDS.map(gyField)}</div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {toqueFieldsFor(form.pregnant).map(gyField)}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Dilatação alternativa (OEEA/OII — substitui os cm)
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Chip
+                        active={form.gyneco.values[OEEA_KEY] === "1"}
+                        onClick={() => toggleGyneco(OEEA_KEY)}
+                      >
+                        OEEA
+                      </Chip>
+                      <Chip
+                        active={form.gyneco.values[OII_KEY] === "1"}
+                        onClick={() => toggleGyneco(OII_KEY)}
+                      >
+                        OII
+                      </Chip>
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -993,38 +1715,80 @@ export function PsgoGenerator({
                 </div>
               </div>
               {form.gyneco.espRealizado && (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{ESP_FIELDS.map(gyField)}</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {ESP_FIELDS.map(gyField)}
+                  {/* Secreção (multisseleção) */}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">
+                      Secreção (pode marcar mais de um)
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SECRECAO_OPTIONS.map((op) => (
+                        <Chip
+                          key={op.key}
+                          active={form.gyneco.values[op.key] === "1"}
+                          onClick={() => toggleSecrecao(op.key)}
+                        >
+                          {op.label}
+                        </Chip>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Sangramento (+ quantidade se ≠ ausente) */}
+                  <div className="space-y-1">
+                    {gyChipRow("Sangramento", ESP_SANGRAMENTO_KEY, ESP_SANGRAMENTO_OPTIONS)}
+                    {form.gyneco.values[ESP_SANGRAMENTO_KEY] !== "Ausente" && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-xs text-muted-foreground">Quantidade:</span>
+                        {ESP_SANGRAMENTO_QTD_OPTIONS.map((op) => (
+                          <Chip
+                            key={op.label}
+                            active={form.gyneco.values[ESP_SANGRAMENTO_QTD_KEY] === op.label}
+                            onClick={() => setGynecoValue(ESP_SANGRAMENTO_QTD_KEY, op.label)}
+                          >
+                            {op.label}
+                          </Chip>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Saídas via colo (+ Amniosure/cristalização se ≠ ausente) */}
+                  <div className="space-y-1 sm:col-span-2">
+                    {gyChipRow("Saídas via colo", ESP_SAIDA_COLO_KEY, ESP_SAIDA_COLO_OPTIONS)}
+                    {form.gyneco.values[ESP_SAIDA_COLO_KEY] !== "Ausente" && (
+                      <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
+                        {gyTestToggle("Amniosure", ESP_AMNIOSURE_KEY)}
+                        {gyTestToggle("Cristalização", ESP_CRISTALIZACAO_KEY)}
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+        </Section>
 
         {/* Exames laboratoriais */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Exames laboratoriais</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Section title="Exames laboratoriais" headerExtra={<LabflowButton />}>
             <Textarea
               rows={3}
               placeholder="Cole os exames laboratoriais..."
               value={form.labs}
               onChange={(e) => update({ labs: e.target.value })}
             />
-          </CardContent>
-        </Card>
+        </Section>
 
-        {/* Exames de imagem (USG) — seção própria, em quadro */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
-              Exames de imagem (USG)
-              <Button type="button" size="sm" variant="outline" onClick={addImaging}>
-                <Plus className="h-4 w-4" /> USG
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        {/* Exames de imagem (USG obstétrico) — seção própria, em quadro */}
+        {form.pregnant && (
+        <Section
+          id="psgo-usg"
+          title="Exames de imagem (USG)"
+          contentClassName="space-y-3"
+          headerExtra={
+            <Button type="button" size="sm" variant="outline" onClick={addImaging}>
+              <Plus className="h-4 w-4" /> USG
+            </Button>
+          }
+        >
             {form.imagingExams.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL pela Hadlock; IP-AUmb, IP-ACM e
@@ -1268,23 +2032,195 @@ export function PsgoGenerator({
                 {renderImagingExam(e)}
               </p>
             ))}
-          </CardContent>
-        </Card>
+        </Section>
+        )}
 
         {/* CTG / Conduta */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">CTG e conduta</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Field label="CTG">
-              <Input value={form.ctg} onChange={(e) => update({ ctg: e.target.value })} />
-            </Field>
+        <Section title={form.pregnant ? "CTG e conduta" : "Conduta"} contentClassName="space-y-3">
+            {form.pregnant && (
+              <div className="space-y-3 rounded-md border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold">CTG (laudo)</p>
+                  <div className="w-52">
+                    <Segmented
+                      value={form.ctgLaudo.done ? "sim" : "nao"}
+                      onChange={(v) => setCtg({ done: v === "sim" })}
+                      options={[
+                        { value: "sim", label: "Realizada" },
+                        { value: "nao", label: "Não realizada" },
+                      ]}
+                    />
+                  </div>
+                </div>
+                {form.ctgLaudo.done && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <Field label="Linha de base (bpm)">
+                        <Input
+                          inputMode="numeric"
+                          value={form.ctgLaudo.baseline}
+                          onChange={(e) => setCtg({ baseline: e.target.value })}
+                        />
+                      </Field>
+                      <Field label="Variabilidade">
+                        <select
+                          className={selectClass}
+                          value={form.ctgLaudo.variability}
+                          onChange={(e) =>
+                            setCtg({ variability: e.target.value as PsgoCtg["variability"] })
+                          }
+                        >
+                          <option value="absent">Ausente (0)</option>
+                          <option value="lt5">&lt; 5 (0)</option>
+                          <option value="6-25">6-25 (1)</option>
+                          <option value="gt25">&gt; 25 (0)</option>
+                          <option value="sinusoidal">Sinusoidal (0)</option>
+                        </select>
+                      </Field>
+                      <Field label="Acelerações (AT)">
+                        <select
+                          className={selectClass}
+                          value={form.ctgLaudo.accelerations}
+                          onChange={(e) =>
+                            setCtg({ accelerations: e.target.value as PsgoCtg["accelerations"] })
+                          }
+                        >
+                          <option value="present">Presentes</option>
+                          <option value="absent">Ausentes</option>
+                        </select>
+                      </Field>
+                      <Field label="Relação AT/MF">
+                        <select
+                          className={selectClass}
+                          value={form.ctgLaudo.atMfRatio}
+                          onChange={(e) =>
+                            setCtg({ atMfRatio: e.target.value as PsgoCtg["atMfRatio"] })
+                          }
+                        >
+                          <option value="lt60">&lt; 60% (0)</option>
+                          <option value="gte60">&gt; 60% ou 2 AT/20min (2)</option>
+                        </select>
+                      </Field>
+                      <Field label="Movimentação fetal">
+                        <select
+                          className={selectClass}
+                          value={form.ctgLaudo.movements}
+                          onChange={(e) =>
+                            setCtg({ movements: e.target.value as PsgoCtg["movements"] })
+                          }
+                        >
+                          <option value="present">Presentes</option>
+                          <option value="absent">Ausentes</option>
+                        </select>
+                      </Field>
+                      <Field label="Desacelerações">
+                        <select
+                          className={selectClass}
+                          value={form.ctgLaudo.decelerations}
+                          onChange={(e) =>
+                            setCtg({ decelerations: e.target.value as PsgoCtg["decelerations"] })
+                          }
+                        >
+                          <option value="absent">Ausentes (1)</option>
+                          <option value="present">Presentes (0)</option>
+                        </select>
+                      </Field>
+                    </div>
+                    {form.ctgLaudo.decelerations === "present" && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Tipo de desaceleração">
+                          <select
+                            className={selectClass}
+                            value={form.ctgLaudo.decelerationType}
+                            onChange={(e) =>
+                              setCtg({
+                                decelerationType: e.target.value as PsgoCtg["decelerationType"],
+                              })
+                            }
+                          >
+                            <option value="">—</option>
+                            <option value="early">Precoce</option>
+                            <option value="late">Tardia</option>
+                            <option value="variable">Variável</option>
+                          </select>
+                        </Field>
+                        <Field label="Número">
+                          <Input
+                            value={form.ctgLaudo.decelerationCount}
+                            onChange={(e) => setCtg({ decelerationCount: e.target.value })}
+                          />
+                        </Field>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <Field label="Contrações">
+                        <select
+                          className={selectClass}
+                          value={form.ctgLaudo.contractions}
+                          onChange={(e) =>
+                            setCtg({ contractions: e.target.value as PsgoCtg["contractions"] })
+                          }
+                        >
+                          <option value="absent">Ausentes</option>
+                          <option value="present">Presentes</option>
+                        </select>
+                      </Field>
+                      <Field label="Estímulo sonoro">
+                        <select
+                          className={selectClass}
+                          value={form.ctgLaudo.soundStimulus}
+                          onChange={(e) =>
+                            setCtg({ soundStimulus: e.target.value as PsgoCtg["soundStimulus"] })
+                          }
+                        >
+                          <option value="not_done">Não realizado</option>
+                          <option value="done">Realizado</option>
+                        </select>
+                      </Field>
+                      {form.ctgLaudo.soundStimulus === "done" && (
+                        <Field label="Nº de estímulos">
+                          <Input
+                            value={form.ctgLaudo.stimulusCount}
+                            onChange={(e) => setCtg({ stimulusCount: e.target.value })}
+                          />
+                        </Field>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-2">
+                      <span className="text-sm">
+                        Pontuação:{" "}
+                        <strong className="text-primary">{psgoCtgScore(form.ctgLaudo)}/5</strong>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">Conclusão</Label>
+                        <select
+                          className={`${selectClass} h-8 w-44 font-semibold`}
+                          value={psgoCtgConclusion(form.ctgLaudo)}
+                          onChange={(e) => setCtg({ conclusion: e.target.value })}
+                        >
+                          {CTG_CONCLUSIONS.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <Field label="Observações">
+                      <Textarea
+                        rows={2}
+                        value={form.ctgLaudo.notes}
+                        onChange={(e) => setCtg({ notes: e.target.value })}
+                      />
+                    </Field>
+                  </>
+                )}
+              </div>
+            )}
             <Field label="Conduta (CD)">
               <Textarea rows={2} value={form.cd} onChange={(e) => update({ cd: e.target.value })} />
             </Field>
-          </CardContent>
-        </Card>
+        </Section>
       </div>
 
       {/* ----- Preview ----- */}
