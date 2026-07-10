@@ -1518,14 +1518,19 @@ export function PsgoGenerator({
                     Usar no HPMA ↓
                   </Button>
                 </div>
-                <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
+                <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px] text-justify">
                   {hpmaPreview || "Selecione uma QP/HD e responda a revisão dirigida."}
                 </p>
               </div>
             </div>
 
             <Field label="HPMA (edição final)">
-              <Textarea rows={4} value={form.hpma} onChange={(e) => update({ hpma: e.target.value })} />
+              <Textarea
+                rows={4}
+                value={form.hpma}
+                onChange={(e) => update({ hpma: e.target.value })}
+                className="text-justify"
+              />
             </Field>
         </Section>
 

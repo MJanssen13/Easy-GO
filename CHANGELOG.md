@@ -5,6 +5,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — HPMA com botões Sim/Não e prévia justificada
+
+- Perguntas de presença/ausência na HPMA agora usam botões **Sim/Não** no lugar
+  de "Refere/Nega" e "Associa/Não associa". O texto montado preserva o verbo
+  clínico (Sim → "Refere"/"Associa"/"Relata"; Não → "Nega"/"Não associa"), então
+  o sentido do HPMA não muda. Botões descritivos e não binários (ex.: quantidade,
+  cor, "Fez/Não fez") ficam como estavam.
+- **Prévia** e **HPMA (edição final)** passam a exibir o texto **justificado**.
+
 ### PSGO — HPMAs padronizadas (v2) e paridade simples
 
 - **Paridade** volta ao modelo simples (em calibração): sem gemelaridade e com
