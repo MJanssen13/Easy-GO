@@ -607,6 +607,76 @@ export function PsgoGenerator({
       );
     });
 
+  // Renderiza um modelo de HPMA como formulário (rótulo + controle por linha).
+  const hpmaFormRows = (nodes: HpmaNode[], prefix: string): React.ReactNode[] => {
+    const rows: React.ReactNode[] = [];
+    for (const n of nodes) {
+      if (n.k === "t") continue;
+      if (n.k === "cond") {
+        if (hpmaVals[`${prefix}.${n.ref}`] === n.eq) rows.push(...hpmaFormRows(n.nodes, prefix));
+        continue;
+      }
+      if (n.k === "blank") {
+        const key = `${prefix}.${n.id}`;
+        rows.push(
+          <div key={key} className="flex flex-wrap items-center gap-1.5">
+            <span className="w-44 text-xs text-muted-foreground">{n.q ?? n.id}</span>
+            <input
+              value={hpmaVals[key] ?? ""}
+              onChange={(e) => setHpmaVal(key, e.target.value)}
+              className={`${hpmaInputCls} w-28`}
+            />
+          </div>,
+        );
+        continue;
+      }
+      if (n.k === "single") {
+        const key = `${prefix}.${n.id}`;
+        const cur = hpmaVals[key];
+        const selOpt = n.opts.find((x) => x.label === cur);
+        rows.push(
+          <div key={key} className="flex flex-wrap items-center gap-1.5">
+            <span className="w-44 text-xs text-muted-foreground">{n.q ?? n.id}</span>
+            {n.opts.map((op) => (
+              <button
+                key={op.label}
+                type="button"
+                onClick={() => setHpmaVal(key, cur === op.label ? "" : op.label)}
+                className={hpmaChipCls(cur === op.label)}
+              >
+                {op.label}
+              </button>
+            ))}
+          </div>,
+        );
+        if (selOpt?.reveal) rows.push(...hpmaFormRows(selOpt.reveal, prefix));
+        continue;
+      }
+      // multi
+      const base = `${prefix}.${n.id}`;
+      rows.push(
+        <div key={base} className="flex flex-wrap items-center gap-1.5">
+          <span className="w-44 text-xs text-muted-foreground">{n.q ?? n.id}</span>
+          {n.opts.map((op) => {
+            const key = `${base}#${op.label}`;
+            const on = hpmaVals[key] === "1";
+            return (
+              <button
+                key={op.label}
+                type="button"
+                onClick={() => setHpmaVal(key, on ? "" : "1")}
+                className={hpmaChipCls(on)}
+              >
+                {op.label}
+              </button>
+            );
+          })}
+        </div>,
+      );
+    }
+    return rows;
+  };
+
   // Sub-campo de uma pergunta da revisão dirigida.
   const renderRevSub = (qid: string, sub: RevSub) => {
     const base = `rev.${qid}.${sub.id}`;
@@ -1393,7 +1463,11 @@ export function PsgoGenerator({
                           remover
                         </button>
                       </div>
-                      <div className="text-sm leading-8">{renderNodes(tpl.nodes, tpl.id)}</div>
+                      {tpl.mode === "form" ? (
+                        <div className="space-y-1">{hpmaFormRows(tpl.nodes, tpl.id)}</div>
+                      ) : (
+                        <div className="text-sm leading-8">{renderNodes(tpl.nodes, tpl.id)}</div>
+                      )}
                     </div>
                   ))}
                 </div>

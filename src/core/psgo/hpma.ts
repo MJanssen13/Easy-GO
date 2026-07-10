@@ -34,20 +34,21 @@ export interface MultiCfg {
 
 export type HpmaNode =
   | { k: "t"; v: string }
-  | { k: "blank"; id: string; ph?: string }
-  | { k: "single"; id: string; opts: HpmaOpt[] }
-  | ({ k: "multi"; id: string; opts: HpmaOpt[] } & MultiCfg)
+  | { k: "blank"; id: string; q?: string }
+  | { k: "single"; id: string; opts: HpmaOpt[]; q?: string }
+  | ({ k: "multi"; id: string; opts: HpmaOpt[]; q?: string } & MultiCfg)
   /** Mostra `nodes` só quando a escolha única `ref` estiver no valor `eq`. */
   | { k: "cond"; ref: string; eq: string; nodes: HpmaNode[] };
 
-// Construtores compactos
+// Construtores compactos (`q` = rótulo no modo formulário)
 const T = (v: string): HpmaNode => ({ k: "t", v });
-const B = (id: string, ph?: string): HpmaNode => ({ k: "blank", id, ph });
+const B = (id: string, q?: string): HpmaNode => ({ k: "blank", id, q });
 const o = (x: string | HpmaOpt): HpmaOpt => (typeof x === "string" ? { label: x } : x);
-const ONE = (id: string, opts: (string | HpmaOpt)[]): HpmaNode => ({
+const ONE = (id: string, opts: (string | HpmaOpt)[], q?: string): HpmaNode => ({
   k: "single",
   id,
   opts: opts.map(o),
+  q,
 });
 const MANY = (id: string, opts: (string | HpmaOpt)[], cfg: MultiCfg = {}): HpmaNode => ({
   k: "multi",
@@ -65,6 +66,8 @@ export interface HpmaTemplate {
   gestanteOnly?: boolean;
   /** IDs de perguntas da revisão dirigida omitidas (a QP já as cobre). */
   covers?: string[];
+  /** "inline" (texto com campos embutidos) ou "form" (rótulo + controle). */
+  mode?: "inline" | "form";
   nodes: HpmaNode[];
 }
 
@@ -104,6 +107,49 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("dieta", ["boa", "parcial", "ruim"]),
       T(" da dieta e ingesta hídrica de "),
       B("agua"),
+      T(" L por dia."),
+    ],
+  },
+  {
+    id: "geca2",
+    label: "GECA 2.0",
+    covers: ["intestinal"],
+    mode: "form",
+    nodes: [
+      T("quadro de dor abdominal em cólica, difusa, associada a evacuações diarreicas em número de "),
+      B("ep", "Episódios/dia"),
+      T(" episódios ao dia, com início há "),
+      B("dias", "Início (dias)"),
+      T(" dias. "),
+      ONE("nv", ["Associa", "Nega"], "Náuseas/vômitos"),
+      T(" náuseas/vômitos"),
+      COND("nv", "Associa", [T(" ("), B("nvn", "Nº de vômitos"), T(" episódios)")]),
+      T(". "),
+      ONE("febre", ["Refere", "Nega"], "Febre"),
+      T(" febre"),
+      COND("febre", "Refere", [
+        T(" "),
+        ONE(
+          "febret",
+          [
+            { label: "termometrada", reveal: [T(" ("), B("temp", "Temperatura (°)"), T("º)")] },
+            { label: "não termometrada" },
+          ],
+          "Termometração",
+        ),
+      ]),
+      T(". "),
+      ONE("muco", ["Nega", "Relata"], "Muco/sangue nas fezes"),
+      T(" muco ou sangue nas fezes. "),
+      ONE("contato", ["Refere", "Nega"], "Contato c/ sintomáticos"),
+      T(" contato com pessoas com sintomas semelhantes, "),
+      ONE("alim", ["Refere", "Nega"], "Alimento suspeito"),
+      T(" consumo de alimento suspeito"),
+      COND("alim", "Refere", [T(" ("), B("alimq", "Qual alimento"), T(")")]),
+      T(". Relata aceitação "),
+      ONE("dieta", ["boa", "parcial", "ruim"], "Aceitação da dieta"),
+      T(" da dieta e ingesta hídrica de "),
+      B("agua", "Ingesta hídrica (L/dia)"),
       T(" L por dia."),
     ],
   },
