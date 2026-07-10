@@ -41,13 +41,10 @@ import {
 import { savePsgoAdmission } from "../actions";
 import {
   PRIOR_TYPE_LABELS,
-  BIRTH_ROUTE_LABELS,
   NO_COMPLICATIONS_LABEL,
   formatParity,
-  isBirthType,
   canMarkNoComplications,
   requiredNotePrompt,
-  type BirthRoute,
   type PriorPregnancyType,
 } from "@/core/psgo/parity";
 import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
@@ -689,25 +686,15 @@ export function PsgoGenerator({
           contentClassName="space-y-3"
           headerExtra={
             <>
-              <InfoTip title="Como codificar a paridade (convenção do serviço)">
+              <InfoTip title="Como codificar a paridade">
                   <p>
-                    <strong>G</strong> = gestações (gemelar = 1; soma a atual se gestante).{" "}
-                    <strong>P</strong> = todos os desfechos: partos <strong>N</strong> (normal),{" "}
-                    <strong>C</strong> (cesárea) e <strong>F</strong> (fórceps) e também abortos{" "}
-                    <strong>A</strong>, com as ectópicas <strong>E</strong> aninhadas em A.
+                    <strong>G</strong> = gestações (soma a atual se gestante).{" "}
+                    <strong>P</strong> = partos: <strong>N</strong> normal, <strong>C</strong> cesárea,{" "}
+                    <strong>F</strong> fórceps. <strong>A</strong> = abortos (ectópicas contam como
+                    aborto, aninhadas: <strong>A2(E1)</strong>).
                   </p>
-                  <p>
-                    Gemelar: via vaginal conta 1 parto por feto; cesárea conta 1 parto para os dois
-                    fetos.
-                  </p>
-                  <p>
-                    Ex.: <strong>G5P4(N1C2A1)</strong> · <strong>G5P5(N2C1A2(E1))</strong> ·{" "}
-                    <strong>G2P3(N3(GEM2))</strong> · <strong>G3P3(N2C1(GEM2[N1C1]))</strong>.
-                  </p>
-                  <p>
-                    Difere do GPA/GTPAL clássico (ACOG/Williams), em que abortos não somam em P e
-                    gemelar conta 1 parto — validar com a equipe.
-                  </p>
+                  <p>Abortos não entram em P. Ex.: <strong>G5P3(N1C2A1)</strong>.</p>
+                  <p>Modelo em calibração — validar com a equipe.</p>
               </InfoTip>
               {parityView.summary && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-bold tabular-nums text-primary">
@@ -749,10 +736,9 @@ export function PsgoGenerator({
                       value={p.type}
                       onChange={(e) => {
                         const type = e.target.value as PriorPregnancyType;
-                        // Gemelar só p/ parto (N/F/C); "sem intercorrências" só p/ N e C.
+                        // "sem intercorrências" só p/ parto normal e cesárea.
                         updatePrior(p.id, {
                           type,
-                          ...(isBirthType(type) ? {} : { twin: false, twinRoute2: undefined }),
                           ...(canMarkNoComplications(type) ? {} : { noComplications: false }),
                         });
                       }}
@@ -770,25 +756,6 @@ export function PsgoGenerator({
                       inputMode="numeric"
                       onChange={(e) => updatePrior(p.id, { year: e.target.value })}
                     />
-                    {isBirthType(p.type) && (
-                      <label className="flex items-center gap-1.5 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={!!p.twin}
-                          onChange={(e) =>
-                            updatePrior(p.id, {
-                              twin: e.target.checked,
-                              twinRoute2:
-                                e.target.checked && isBirthType(p.type)
-                                  ? (p.twinRoute2 ?? p.type)
-                                  : undefined,
-                            })
-                          }
-                          className="h-4 w-4 rounded border-input"
-                        />
-                        Gemelar
-                      </label>
-                    )}
                     <div className="ml-auto flex items-center gap-1">
                       {canMarkNoComplications(p.type) && (
                         <Chip
@@ -808,21 +775,6 @@ export function PsgoGenerator({
                       </Button>
                     </div>
                   </div>
-                  {isBirthType(p.type) && p.twin && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Via do 2º gemelar:</span>
-                      <div className="w-56">
-                        <Segmented
-                          value={(p.twinRoute2 ?? p.type) as BirthRoute}
-                          onChange={(v) => updatePrior(p.id, { twinRoute2: v })}
-                          options={(Object.keys(BIRTH_ROUTE_LABELS) as BirthRoute[]).map((r) => ({
-                            value: r,
-                            label: BIRTH_ROUTE_LABELS[r],
-                          }))}
-                        />
-                      </div>
-                    </div>
-                  )}
                   {(!p.noComplications || !!requiredNotePrompt(p.type)) && (
                     <Textarea
                       rows={2}
