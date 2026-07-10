@@ -39,9 +39,6 @@ export interface PsgoForm {
   prenatalCount: string;
   prenatalPlace: string;
 
-  // gestante no momento? (o PSGO também atende não gestantes)
-  pregnant: boolean;
-
   // paridade
   priorPregnancies: PriorPregnancy[];
 
@@ -123,7 +120,6 @@ export function emptyPsgoForm(): PsgoForm {
     companionRelation: "",
     prenatalCount: "",
     prenatalPlace: "",
-    pregnant: true,
     priorPregnancies: [],
     lmp: "",
     lmpUncertain: false,

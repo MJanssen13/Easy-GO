@@ -54,7 +54,7 @@ function dedup(items: string[]): string[] {
 export function psgoRiskFactors(form: PsgoForm): string[] {
   const weight = form.weight ? Number(form.weight) : null;
   const height = form.height ? Number(form.height) : null;
-  const parity = formatParity(form.priorPregnancies, form.pregnant);
+  const parity = formatParity(form.priorPregnancies);
   return dedup([
     ...form.comorbidities,
     ...splitOther(form.comorbiditiesOther),
@@ -100,7 +100,7 @@ function datingColumns(form: PsgoForm): {
 
 /** Admissão do PSGO → paciente (module="psgo"), com o form completo no JSON. */
 export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
-  const parity = formatParity(form.priorPregnancies, form.pregnant);
+  const parity = formatParity(form.priorPregnancies);
   const { robsonGroup } = computePsgo(form);
   const dt = datingColumns(form);
 

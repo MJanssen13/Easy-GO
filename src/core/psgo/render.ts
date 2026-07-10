@@ -45,7 +45,7 @@ export interface PsgoComputed {
 }
 
 export function computePsgo(form: PsgoForm): PsgoComputed {
-  const parity = formatParity(form.priorPregnancies, form.pregnant);
+  const parity = formatParity(form.priorPregnancies);
   const dating = resolvePsgoDating({
     lmp: form.lmp,
     lmpUncertain: form.lmpUncertain,
@@ -66,7 +66,7 @@ export function computePsgo(form: PsgoForm): PsgoComputed {
 export function renderPsgo(form: PsgoForm): string {
   const L: string[] = [];
 
-  const parity = formatParity(form.priorPregnancies, form.pregnant);
+  const parity = formatParity(form.priorPregnancies);
   const dating = resolvePsgoDating({
     lmp: form.lmp,
     lmpUncertain: form.lmpUncertain,
