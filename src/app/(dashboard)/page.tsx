@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { MODULES } from "@/lib/modules";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ShiftTeamCard } from "@/components/shift-team-card";
 
 export default function HubPage() {
   return (
@@ -13,6 +14,8 @@ export default function HubPage() {
           acompanhamento persistem com segurança.
         </p>
       </div>
+
+      <ShiftTeamCard />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {MODULES.map((m) => {

@@ -5,6 +5,14 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Plataforma — Equipe de plantão na página inicial
+
+- A **Equipe de plantão** saiu do Pré-Parto e passou para a **página inicial**,
+  pois vale para toda a plataforma. O armazenamento (localStorage) virou um
+  módulo compartilhado (`@/lib/shift-team`) e o card, um componente
+  compartilhado (`@/components/shift-team-card`). O prontuário do **PSGO** passa
+  a trazer a **equipe de plantão ao final** do texto.
+
 ### PSGO — Exame físico e ginecológico revisados
 
 - **Exame físico**: Temp e FR são **omitidos** do texto quando não preenchidos;
@@ -15,19 +23,25 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Toque vaginal**: toque realizado é **sempre autorizado** (removida a
   confirmação; a frase permanece no prontuário). Descrição reordenada para
   **apagamento, posição, consistência, dilatação, apresentação, altura, bolsa e
-  sangue**; OEEA/OII ficam **ao lado da dilatação**. Nova característica **Dor ao
-  toque** (Indolor / à mobilização do colo / à palpação de anexos).
+  sangue**; a dilatação lista **OEI/OEEA/OII/1–10 cm** (sem botões alternativos).
+  Nova característica **Dor ao toque** (Indolor / à mobilização do colo / à
+  palpação de anexos).
 - **Exame especular**: sangramento **pelo OE** permite especificar **espontâneo
   ou à valsalva**; "Saídas via colo" vira **"Perdas líquidas via colo"** (com
-  **líquido meconial**); **AmniSure** (grafia corrigida); **Secreção** com opções
-  Ausente/Fisiológica/Aderida à parede/Em fórnice posterior e, se patológica,
-  detalha **odor, grumos e cor** (como na HPMA).
+  **líquido meconial** e tipo espontânea/à valsalva); **AmniSure** (grafia
+  corrigida); **Secreção** com opções Ausente/Fisiológica/Aderida à parede/Em
+  fórnice posterior e, se patológica, detalha **odor, grumos e cor**.
 - Listas suspensas do toque com **largura reduzida** ao conteúdo; demais listas
   suspensas **padronizadas** (~ largura de um campo de data).
 - **Exames de imagem (USG)**: novos campos **CCN, DBP, TN e osso nasal**, com
   aviso de que nem todos os aspectos constam no mesmo US.
 - Campos numéricos aceitam **vírgula ou ponto** como separador decimal
   (peso, altura, biometria/Doppler do USG).
+- **Coombs indireto** vira pílula dividida com a data na mesma linha;
+  **medicamento** escolhido tem rótulo editável; **Normal/Alterado** do exame
+  físico viram pílula dividida; **botão LabFlow** adota o teal da marca.
+- **CTG**: horário de realização e **múltiplas CTGs**; se nenhuma for feita, é
+  omitida do prontuário. **CTG** e **Conduta** em cards separados.
 
 ### PSGO — Chegada, revisão dirigida e ajustes de UI da HPMA
 
