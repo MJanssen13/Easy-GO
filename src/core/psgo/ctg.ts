@@ -31,9 +31,13 @@ export interface PsgoCtg {
   contractions: CtgPresence | "";
   soundStimulus: CtgSoundStimulus | "";
   stimulusCount: string;
+  mechanicalStimulus: CtgSoundStimulus | "";
+  mechanicalStimulusCount: string;
   /** Vazio = usa a conclusão sugerida pelo escore. */
   conclusion: string;
   notes: string;
+  /** Conduta da CTG (texto livre); vazia = sai vazia no laudo. */
+  cd: string;
 }
 
 export function emptyPsgoCtg(): PsgoCtg {
@@ -51,8 +55,11 @@ export function emptyPsgoCtg(): PsgoCtg {
     contractions: "absent",
     soundStimulus: "not_done",
     stimulusCount: "",
+    mechanicalStimulus: "not_done",
+    mechanicalStimulusCount: "",
     conclusion: "",
     notes: "",
+    cd: "",
   };
 }
 
@@ -94,6 +101,11 @@ export function renderPsgoCtg(c: PsgoCtg): string {
   if (c.contractions) parts.push(`CONTRAÇÕES ${PRESENCE_UP[c.contractions]}`);
   if (c.soundStimulus === "done") {
     parts.push(`ESTÍMULO SONORO REALIZADO${c.stimulusCount ? ` x${c.stimulusCount}` : ""}`);
+  }
+  if (c.mechanicalStimulus === "done") {
+    parts.push(
+      `ESTÍMULO MECÂNICO REALIZADO${c.mechanicalStimulusCount ? ` x${c.mechanicalStimulusCount}` : ""}`,
+    );
   }
   parts.push(`PONTUAÇÃO ${psgoCtgScore(c)}/5 - ${psgoCtgConclusion(c).toUpperCase()}`);
   if (c.notes.trim()) parts.push(`OBS: ${c.notes.trim().toUpperCase()}`);

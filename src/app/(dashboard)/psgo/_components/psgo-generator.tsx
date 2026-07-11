@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info, ChevronDown, FlaskConical, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Siren, Info, ChevronDown, FlaskConical, ExternalLink, Printer } from "lucide-react";
 import {
   emptyPsgoForm,
   HABITS,
@@ -10,7 +10,9 @@ import {
   type PsgoForm,
   type CoombsEntry,
 } from "@/core/psgo/types";
-import { renderPsgo, computePsgo } from "@/core/psgo/render";
+import { renderPsgo, computePsgo, psgoHd } from "@/core/psgo/render";
+import { renderCtgLaudoHtml, letterheadFor } from "@/core/ctg/laudo";
+import { printHtml } from "@/lib/print";
 import { datingDisplay } from "@/core/psgo/dating";
 import {
   abdFieldsFor,
@@ -67,7 +69,7 @@ import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
 import { renderImagingExam, examCpr, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
 import { parseDecimal } from "@/lib/num";
-import { readShiftTeam, formatShiftTeamBlock, EMPTY_TEAM } from "@/lib/shift-team";
+import { readShiftTeam, formatShiftTeamBlock, formatShiftTeamInline, EMPTY_TEAM } from "@/lib/shift-team";
 import type { TeamInput } from "@/core/prontuario/preparto-evolution";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,6 +96,13 @@ function uid(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
+}
+
+/** Data ISO → DD/MM/AAAA (para o cabeçalho do laudo). */
+function formatDateBR(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("pt-BR");
 }
 
 function Field({
@@ -385,6 +394,8 @@ export function PsgoGenerator({
     [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference],
   );
   const bmi = classifyBmi(parseDecimal(form.weight), parseDecimal(form.height));
+  // HD automática (gestação + comorbidades) — usada como sugestão/placeholder.
+  const autoHd = useMemo(() => psgoHd(form), [form]);
 
   function toggleArray(key: "comorbidities" | "habits", value: string) {
     setForm((f) => {
@@ -542,6 +553,38 @@ export function PsgoGenerator({
   }
   function removeCtg(id: string) {
     update({ ctgLaudos: form.ctgLaudos.filter((c) => c.id !== id) });
+  }
+  // Gera e imprime o laudo da CTG no modelo em papel timbrado do HC-UFTM.
+  function printCtgLaudo(c: PsgoCtg) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const html = renderCtgLaudoHtml(
+      {
+        name: form.socialName.trim() ? `${form.name} (${form.socialName})` : form.name,
+        rg: form.rg,
+        date: formatDateBR(form.date),
+        time: c.time,
+        hd: form.hd.trim() ? form.hd.trim() : psgoHd(form),
+        baseline: c.baseline,
+        variability: c.variability,
+        accelerations: c.accelerations,
+        atMfRatio: c.atMfRatio,
+        movements: c.movements,
+        decelerations: c.decelerations,
+        decelerationType: c.decelerationType,
+        decelerationCount: c.decelerationCount,
+        contractions: c.contractions,
+        soundStimulus: c.soundStimulus,
+        stimulusCount: c.stimulusCount,
+        mechanicalStimulus: c.mechanicalStimulus,
+        mechanicalStimulusCount: c.mechanicalStimulusCount,
+        conclusion: c.conclusion,
+        notes: c.notes,
+        cd: c.cd,
+        equipe: formatShiftTeamInline(shiftTeam),
+      },
+      letterheadFor(origin),
+    );
+    printHtml(html);
   }
   // Montador de HPMA
   function toggleHpmaQp(id: string) {
@@ -797,6 +840,15 @@ export function PsgoGenerator({
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground">Horário</Label>
             <Input type="time" className="h-8 w-28" value={c.time} onChange={(e) => set({ time: e.target.value })} />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => printCtgLaudo(c)}
+              title="Imprimir laudo no modelo do HC-UFTM"
+            >
+              <Printer className="h-4 w-4" /> Imprimir laudo
+            </Button>
             <Button type="button" variant="ghost" size="icon" onClick={() => removeCtg(c.id)}>
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
@@ -905,6 +957,24 @@ export function PsgoGenerator({
               <Input value={c.stimulusCount} onChange={(e) => set({ stimulusCount: e.target.value })} />
             </Field>
           )}
+          <Field label="Estímulo mecânico">
+            <select
+              className={selectClass}
+              value={c.mechanicalStimulus}
+              onChange={(e) => set({ mechanicalStimulus: e.target.value as PsgoCtg["mechanicalStimulus"] })}
+            >
+              <option value="not_done">Não realizado</option>
+              <option value="done">Realizado</option>
+            </select>
+          </Field>
+          {c.mechanicalStimulus === "done" && (
+            <Field label="Nº de estímulos">
+              <Input
+                value={c.mechanicalStimulusCount}
+                onChange={(e) => set({ mechanicalStimulusCount: e.target.value })}
+              />
+            </Field>
+          )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-2">
           <span className="text-sm">
@@ -927,6 +997,14 @@ export function PsgoGenerator({
         </div>
         <Field label="Observações">
           <Textarea rows={2} value={c.notes} onChange={(e) => set({ notes: e.target.value })} />
+        </Field>
+        <Field label="Conduta (CD)">
+          <Textarea
+            rows={2}
+            value={c.cd}
+            onChange={(e) => set({ cd: e.target.value })}
+            placeholder="Preenche o 'QUE ORIENTA:' no laudo; em branco = vazio na exportação"
+          />
         </Field>
       </div>
     );
@@ -2425,6 +2503,36 @@ export function PsgoGenerator({
             )}
           </Section>
         )}
+
+        {/* HD — hipótese diagnóstica (editável; em branco usa a automática) */}
+        <Section
+          title="HD (hipótese diagnóstica)"
+          contentClassName="space-y-2"
+          headerExtra={
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => update({ hd: autoHd })}
+              disabled={!autoHd || form.hd.trim() === autoHd}
+              title="Copia a HD automática para o campo, para você editar"
+            >
+              Preencher com a automática
+            </Button>
+          }
+        >
+            <Field label="HD">
+              <Textarea
+                rows={2}
+                value={form.hd}
+                onChange={(e) => update({ hd: e.target.value })}
+                placeholder={autoHd || "GESTAÇÃO DE..."}
+              />
+            </Field>
+            <p className="text-xs text-muted-foreground">
+              Em branco, usa a HD automática: <strong>{autoHd || "—"}</strong>
+            </p>
+        </Section>
 
         {/* Conduta — card próprio */}
         <Section title="Conduta" contentClassName="space-y-3">

@@ -5,6 +5,39 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Alta e exclusão de admissão
+
+- Nova ação **Dar alta** (desfecho "alta"): o prontuário **fica salvo por 24h**
+  e depois é **excluído automaticamente**. A limpeza é feita ao abrir o board
+  (`purgeExpiredDischarges`, best-effort — sem cron/Supabase). As altas
+  recentes aparecem numa seção própria com o aviso da retenção, e há **Reabrir**
+  para desfazer a alta dentro das 24h.
+- Nova ação **Excluir admissão** (com confirmação) que apaga a paciente e o
+  prontuário de imediato. Card "Alta e exclusão" na página da paciente.
+- **Sem alteração de schema**: usa colunas já existentes (`status`, `outcome`,
+  `discharge_time`); nenhuma migração do Supabase é necessária.
+
+### PSGO — Imprimir laudo da CTG
+
+- Cada CTG do PSGO ganha o botão **"Imprimir laudo"**, que gera o laudo no
+  **modelo em papel timbrado do HC-UFTM** (UFTM · SUS · HUBRASIL) e abre o
+  diálogo de impressão. O impresso traz o cabeçalho (nome, RG, data, hora e
+  **HD** — reaproveitada do prontuário), o quadro de pontuação com as caixas
+  marcadas e os pontos por parâmetro (escore `@/core/ctg/scoring`), estímulos,
+  conclusão (feto ativo/hipoativo/inativo pelo escore + reativo/etc.),
+  observações, conduta e equipe de plantão.
+- Novo `@/core/ctg/laudo` (montagem do HTML autocontido, pura/testável) e
+  `@/lib/print` (impressão via `<iframe>` isolado, sem pop-up). A HD virou o
+  helper reaproveitável `psgoHd` em `@/core/psgo/render`. Logotipos em
+  `public/laudo`. A **equipe de plantão** sai na última linha da folha.
+- A CTG ganhou o campo **estímulo mecânico** (realizado/não + nº), espelhando
+  o estímulo sonoro — no card, no prontuário e no laudo.
+- A CTG ganhou uma **conduta (CD) própria** (caixa de texto no card) que
+  preenche o "QUE ORIENTA:" do laudo; em branco, sai vazia na exportação.
+- A **HD** ganhou uma seção editável no PSGO (`form.hd`): em branco usa a HD
+  automática (`psgoHd`); preenchida, sobrepõe-se a ela no prontuário e no laudo.
+  Há um botão "Preencher com a automática" para editar a partir da sugestão.
+
 ### Biometria — Percentil do DBP (Hadlock)
 
 - **DBP (BPD)** ganha percentil por IG (Hadlock 1984: média cm = −3,08 + 0,41·IG

@@ -136,7 +136,10 @@ export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
 
 /** CTGs a partir do form salvo, migrando o laudo único legado (`ctgLaudo`). */
 function legacyCtgLaudos(form: PsgoForm): PsgoCtg[] {
-  if (form.ctgLaudos && form.ctgLaudos.length > 0) return form.ctgLaudos;
+  if (form.ctgLaudos && form.ctgLaudos.length > 0) {
+    // Preenche campos adicionados depois (ex.: estímulo mecânico) em CTGs antigas.
+    return form.ctgLaudos.map((c) => ({ ...emptyPsgoCtg(), ...c }));
+  }
   const legacy = (form as { ctgLaudo?: PsgoCtg & { done?: boolean } }).ctgLaudo;
   if (legacy?.done) return [{ ...emptyPsgoCtg(), ...legacy, id: legacy.id || "ctg-1" }];
   return [];
@@ -161,6 +164,7 @@ export function patientToPsgoForm(patient: Patient): PsgoForm | null {
     medicationsPast: cs.form.medicationsPast ?? "",
     coombsList,
     udiWhich: cs.form.udiWhich ?? "",
+    hd: cs.form.hd ?? "",
     // CTG: admissões antigas guardavam um único laudo (`ctgLaudo`, com `done`).
     ctgLaudos: legacyCtgLaudos(cs.form),
   };

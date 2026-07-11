@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
 import { PsgoTransfer } from "../_components/psgo-transfer";
+import { PsgoLifecycle } from "../_components/psgo-lifecycle";
 
 export const metadata: Metadata = { title: "Paciente — PSGO" };
 
@@ -78,18 +79,33 @@ export default async function PsgoPatientPage({ params }: { params: Promise<{ id
           </CardContent>
         </Card>
 
-        <Card className="lg:h-fit">
-          <CardHeader>
-            <CardTitle className="text-base">Transferir</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Move a paciente para outro módulo. Os dados comuns e a admissão viajam junto; a
-              transferência fica registrada.
-            </p>
-            <PsgoTransfer patientId={patient.id} />
-          </CardContent>
-        </Card>
+        <div className="space-y-5 lg:h-fit">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Transferir</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Move a paciente para outro módulo. Os dados comuns e a admissão viajam junto; a
+                transferência fica registrada.
+              </p>
+              <PsgoTransfer patientId={patient.id} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Alta e exclusão</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PsgoLifecycle
+                patientId={patient.id}
+                discharged={patient.outcome === "discharge"}
+                dischargeTime={patient.dischargeTime}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

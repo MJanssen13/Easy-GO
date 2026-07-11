@@ -67,9 +67,45 @@ export function computePsgo(form: PsgoForm): PsgoComputed {
   return { robsonGroup: robson.group, robsonMissing: robson.missing };
 }
 
-export function renderPsgo(form: PsgoForm): string {
-  const L: string[] = [];
+/**
+ * Monta a HD (hipótese diagnóstica) do PSGO, sem o prefixo "HD:". Para
+ * gestantes: "GESTAÇÃO DE {IG} ({método})" + comorbidades e diagnósticos
+ * automáticos (adolescente < 18; PRN irregular). Caso contrário, apenas a lista
+ * de diagnósticos. Reaproveitado pelo laudo impresso da CTG.
+ */
+export function psgoHd(form: PsgoForm): string {
+  const parity = formatParity(form.priorPregnancies, form.pregnant);
+  const dating = resolvePsgoDating({
+    lmp: form.lmp,
+    lmpUncertain: form.lmpUncertain,
+    usgExams: form.imagingExams,
+    preference: form.datingPreference,
+  });
+  const cmb = dedup([
+    ...form.comorbidities,
+    ...splitOther(form.comorbiditiesOther),
+    ...autoComorbidities({
+      weightKg: parseDecimal(form.weight),
+      heightM: parseDecimal(form.height),
+      cesareanCount: parity.cesareanCount,
+    }),
+  ]);
+  const ageNum = form.age ? Number(form.age) : NaN;
+  const hdFlags: string[] = [];
+  if (!Number.isNaN(ageNum) && ageNum < 18) hdFlags.push("ADOLESCENTE");
+  if (form.pregnant && form.prenatalIrregular) hdFlags.push("PRN IRREGULAR");
+  const hdDiagnoses = dedup([...cmb, ...hdFlags]);
 
+  if (form.pregnant) {
+    const gaPart = dating.gaPhrase ? `GESTAÇÃO DE ${dating.gaPhrase}` : "GESTAÇÃO DE";
+    const method = dating.methodTag ? ` (${dating.methodTag})` : "";
+    const hdExtra = hdDiagnoses.length > 0 ? ` + ${hdDiagnoses.join(" + ")}` : "";
+    return `${gaPart}${method}${hdExtra}`;
+  }
+  return hdDiagnoses.join(" + ");
+}
+
+export function renderPsgo(form: PsgoForm): string {
   const parity = formatParity(form.priorPregnancies, form.pregnant);
   const dating = resolvePsgoDating({
     lmp: form.lmp,
@@ -81,30 +117,34 @@ export function renderPsgo(form: PsgoForm): string {
   const height = parseDecimal(form.height);
   const bmi = classifyBmi(weight, height);
 
+  // Cada bloco carrega o nº de linhas em branco que o segue (`gap`): 1 nas
+  // seções de dados, 2 nas seções clínicas de texto livre — o espaçamento do
+  // MODELO PS. O último bloco não recebe espaço ao final.
+  const blocks: { lines: string[]; gap: number }[] = [];
+  const push = (gap: number, ...lines: string[]) => blocks.push({ lines, gap });
+
   // Cabeçalho
-  L.push(`## PSGO - ${dateBR(form.date)} ##`);
+  push(1, `## PSGO - ${dateBR(form.date)} ##`);
 
   // Identificação
-  const nameLine = `${form.name}${form.socialName ? ` (NOME SOCIAL: ${form.socialName})` : ""}, RG ${form.rg}`;
-  L.push(nameLine);
-  L.push(`IDADE ${form.age}`);
-  L.push(`PROCEDENTE DE ${form.origin}`);
   const relation =
     form.companionRelation === "OUTRO"
       ? form.companionRelationOther.trim() || "OUTRO"
       : form.companionRelation;
-  L.push(
+  push(
+    1,
+    `${form.name}${form.socialName ? ` (NOME SOCIAL: ${form.socialName})` : ""}, RG ${form.rg}`,
+    `IDADE ${form.age}`,
+    `PROCEDENTE DE ${form.origin}`,
     `ACOMPANHANTE: ${form.companion}${relation ? ` (${relation})` : ""}`,
   );
 
   if (form.pregnant) {
-    const prenatalDetail = [
-      form.prenatalPlace,
-      form.prenatalIrregular ? "PRN IRREGULAR" : "",
-    ]
+    const prenatalDetail = [form.prenatalPlace, form.prenatalIrregular ? "PRN IRREGULAR" : ""]
       .filter(Boolean)
       .join(", ");
-    L.push(
+    push(
+      1,
       `CONSULTAS PRÉ-NATAL: ${form.prenatalCount}${prenatalDetail ? ` - ${prenatalDetail}` : ""}`,
     );
 
@@ -117,40 +157,34 @@ export function renderPsgo(form: PsgoForm): string {
       term: dating.term,
       onset: form.laborOnset || null,
     });
-    L.push(`CLASSIFICAÇÃO DE ROBSON: ${robson.group ?? ""}`);
+    push(1, `CLASSIFICAÇÃO DE ROBSON: ${robson.group ?? ""}`);
   } else {
-    L.push("NÃO GESTANTE NO MOMENTO");
+    push(1, "NÃO GESTANTE NO MOMENTO");
   }
 
   // Paridade
-  L.push(`PARIDADE: ${parity.summary}`);
-  for (const line of parity.lines) L.push(line);
+  push(1, `PARIDADE: ${parity.summary}`, ...parity.lines);
 
   // Datação (para não gestantes registra-se apenas a DUM, sem IG)
   if (form.pregnant) {
-    L.push(dating.dumLine ?? "DUM:");
-    L.push(dating.igUsLine ?? "IG US :");
+    push(1, dating.dumLine ?? "DUM:", dating.igUsLine ?? "IG US :");
   } else {
-    L.push(`DUM: ${dateBR(form.lmp)}`);
+    push(1, `DUM: ${dateBR(form.lmp)}`);
   }
 
   // Tipo sanguíneo / Coombs (um ou mais CI, com datas)
-  L.push(`TIPO SANGUÍNEO: ${form.bloodType}`);
   const ci = (form.coombsList ?? [])
     .filter((c) => c.result)
     .map((c) => `${c.result === "pos" ? "POSITIVO" : "NEGATIVO"}${c.date ? ` EM ${dateBR(c.date)}` : ""}`)
     .join(" / ");
-  L.push(`CI: ${ci}`);
+  push(1, `TIPO SANGUÍNEO: ${form.bloodType}`, `CI: ${ci}`);
 
-  // Comorbidades (selecionadas + outras + automáticas)
+  // Comorbidades + medicamentos + cirurgias / alergias / hábitos (bloco único)
   const cmb = dedup([
     ...form.comorbidities,
     ...splitOther(form.comorbiditiesOther),
     ...autoComorbidities({ weightKg: weight, heightM: height, cesareanCount: parity.cesareanCount }),
   ]);
-  L.push(`CMB: ${cmb.join(" + ")}`);
-
-  // Medicamentos em uso (um por linha); depois FEZ USO (um por linha), se houver
   const meu = dedup([
     ...form.medications.filter((m) => m.current).map((m) => m.label),
     ...splitOther(form.medicationsOther),
@@ -159,82 +193,75 @@ export function renderPsgo(form: PsgoForm): string {
     ...form.medications.filter((m) => !m.current).map(formatPastMedication),
     ...splitOther(form.medicationsPast),
   ]);
-  L.push("MEU:");
-  for (const m of meu) L.push(m);
-  if (fezUso.length > 0) {
-    L.push("");
-    L.push("FEZ USO:");
-    for (const m of fezUso) L.push(m);
-  }
-
-  // Cirurgias / alergias / hábitos
-  L.push(`CIRURGIAS: ${form.surgeries}`);
-  L.push(`ALERGIAS: ${form.allergies}`);
   const habitsList = form.habits.map((h) =>
     h === "UDI" && (form.udiWhich ?? "").trim() ? `UDI (${form.udiWhich.trim()})` : h,
   );
   const hcv = dedup([...habitsList, ...splitOther(form.habitsOther)]);
-  L.push(`HCV: ${hcv.join(", ")}`);
+  const medsBlock = [`CMB: ${cmb.join(" + ")}`, "MEU:", ...meu];
+  if (fezUso.length > 0) medsBlock.push("", "FEZ USO:", ...fezUso);
+  medsBlock.push(
+    `CIRURGIAS: ${form.surgeries}`,
+    `ALERGIAS: ${form.allergies}`,
+    `HCV: ${hcv.join(", ")}`,
+  );
+  push(1, ...medsBlock);
 
   // Sorologias (colado + quadro externo, ordenado por data)
-  L.push("SOROLOGIAS");
+  const seroBlock = ["SOROLOGIAS"];
   const serologies = renderSerologies(form.serologyPasted, form.serologyGrid);
-  if (serologies.trim()) L.push(serologies);
+  if (serologies.trim()) seroBlock.push(serologies);
+  push(2, ...seroBlock);
 
   // Queixa / história
-  L.push(`QP: ${form.qp}`);
-  L.push(`HPMA: ${form.hpma}`);
+  push(2, `QP: ${form.qp}`, `HPMA: ${form.hpma}`);
 
   // Exame físico
-  L.push("AO EXAME FÍSICO:");
-  L.push(
+  const examBlock = [
+    "AO EXAME FÍSICO:",
     `PESO: ${form.weight} KG // ALTURA: ${form.height} M // IMC: ${bmi ? bmi.imc : ""} KG/M²`,
-  );
+  ];
   for (const s of EXAM_SYSTEMS) {
     // Exame ginecológico/obstétrico (ABD, toque, especular) antes de MMII.
     if (s.id === "mmii") {
-      for (const line of renderGyneco(form.gyneco, form.vitals, form.pregnant)) L.push(line);
+      for (const line of renderGyneco(form.gyneco, form.vitals, form.pregnant)) examBlock.push(line);
     }
-    L.push(buildExamLine(s.id, form.exam[s.id], form.vitals));
+    examBlock.push(buildExamLine(s.id, form.exam[s.id], form.vitals));
   }
+  push(2, ...examBlock);
 
   // Laboratoriais
-  L.push("EXAMES LABORATORIAIS:");
-  if (form.labs.trim()) L.push(form.labs.trim());
+  const labBlock = ["EXAMES LABORATORIAIS:"];
+  if (form.labs.trim()) labBlock.push(form.labs.trim());
+  push(2, ...labBlock);
 
   // Exames de imagem (seção própria, em quadro; o quadro USG é obstétrico)
   const imaging = form.pregnant ? renderImaging(form.imagingExams) : "";
   if (imaging.trim()) {
-    L.push("EXAMES DE IMAGEM (USG):");
-    L.push(imaging);
+    push(2, "EXAMES DE IMAGEM (USG):", imaging);
   } else {
-    L.push(form.pregnant ? "EXAMES DE IMAGEM (ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):" : "EXAMES DE IMAGEM:");
+    push(
+      2,
+      form.pregnant ? "EXAMES DE IMAGEM (ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):" : "EXAMES DE IMAGEM:",
+    );
   }
 
   // CTG (monitorização fetal — só gestantes): omitida se nenhuma foi realizada.
   if (form.pregnant) {
     const ctgBlock = renderPsgoCtgs(form.ctgLaudos ?? []);
-    if (ctgBlock) L.push(ctgBlock);
+    if (ctgBlock) push(2, ctgBlock);
   }
 
-  // HD — comorbidades + diagnósticos automáticos (adolescente < 18; PRN irregular)
-  const ageNum = form.age ? Number(form.age) : NaN;
-  const hdFlags: string[] = [];
-  if (!Number.isNaN(ageNum) && ageNum < 18) hdFlags.push("ADOLESCENTE");
-  if (form.pregnant && form.prenatalIrregular) hdFlags.push("PRN IRREGULAR");
-  const hdDiagnoses = dedup([...cmb, ...hdFlags]);
-
-  if (form.pregnant) {
-    const gaPart = dating.gaPhrase ? `GESTAÇÃO DE ${dating.gaPhrase}` : "GESTAÇÃO DE";
-    const method = dating.methodTag ? ` (${dating.methodTag})` : "";
-    const hdExtra = hdDiagnoses.length > 0 ? ` + ${hdDiagnoses.join(" + ")}` : "";
-    L.push(`HD: ${gaPart}${method}${hdExtra}`);
-  } else {
-    L.push(`HD: ${hdDiagnoses.join(" + ")}`);
-  }
+  // HD — editável (form.hd); em branco, usa a automática (gestação + comorbidades)
+  push(1, `HD: ${form.hd.trim() ? form.hd.trim() : psgoHd(form)}`);
 
   // Conduta
-  L.push(`CD: ${form.cd ? `${form.cd} ` : ""}DISCUTIDO COM PLANTÃO QUE ORIENTA:`);
+  push(1, `CD: ${form.cd ? `${form.cd} ` : ""}DISCUTIDO COM PLANTÃO QUE ORIENTA:`);
 
-  return L.join("\n").toUpperCase();
+  // Monta o texto aplicando o espaçamento entre blocos.
+  const out: string[] = [];
+  blocks.forEach((b, i) => {
+    out.push(...b.lines);
+    if (i < blocks.length - 1) for (let k = 0; k < b.gap; k++) out.push("");
+  });
+  return out.join("\n").toUpperCase();
 }
