@@ -12,6 +12,7 @@ import {
 } from "@/core/psgo/types";
 import { renderPsgo, computePsgo, psgoHd } from "@/core/psgo/render";
 import { renderCtgLaudoHtml, letterheadFor } from "@/core/ctg/laudo";
+import { renderTermosHtml } from "@/core/psgo/termos";
 import { printHtml } from "@/lib/print";
 import { datingDisplay } from "@/core/psgo/dating";
 import {
@@ -582,6 +583,15 @@ export function PsgoGenerator({
         cd: c.cd,
         equipe: formatShiftTeamInline(shiftTeam),
       },
+      letterheadFor(origin),
+    );
+    printHtml(html);
+  }
+  // Gera e imprime os termos de consentimento (nome/RG/data preenchidos).
+  function printTermos() {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const html = renderTermosHtml(
+      { name: form.name, rg: form.rg, date: formatDateBR(form.date) },
       letterheadFor(origin),
     );
     printHtml(html);
@@ -2559,6 +2569,15 @@ export function PsgoGenerator({
                   title={!form.name.trim() ? "Informe o nome para salvar" : "Salvar admissão"}
                 >
                   {saving ? "Salvando…" : patientId ? "Salvar alterações" : "Salvar admissão"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={printTermos}
+                  title="Imprimir os termos de consentimento (anestesia, cirurgia, parto e indução)"
+                >
+                  <Printer className="h-4 w-4" /> Termos
                 </Button>
                 <CopyButton text={text} />
               </div>

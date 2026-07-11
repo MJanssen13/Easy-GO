@@ -5,6 +5,16 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Imprimir termos de consentimento
+
+- Botão **"Termos"** na admissão do PSGO gera, em um documento (papel timbrado
+  UFTM · SUS · HUBRASIL, uma folha por termo), os 4 termos do modelo do HC-UFTM:
+  **Apêndice B** (anestesia e sedação), **Apêndice C** (procedimentos invasivos
+  e cirurgias), **parto normal/cesariana** e **indução do trabalho de parto**.
+- Só **NOME, RG e DATA** são preenchidos com os dados da paciente; o restante é
+  o texto fixo do termo, com os campos de assinatura em branco. Novo módulo puro
+  `@/core/psgo/termos`; timbre repetido em toda página (via `thead`).
+
 ### PSGO — Alta e exclusão de admissão
 
 - Nova ação **Dar alta** (desfecho "alta"): o prontuário **fica salvo por 24h**
