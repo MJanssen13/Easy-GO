@@ -181,6 +181,28 @@ export async function deletePatient(id: string): Promise<void> {
   if (error) throw new RepositoryError("Não foi possível excluir a paciente.", error);
 }
 
+/** Horas de retenção do prontuário após a alta, antes da exclusão automática. */
+export const DISCHARGE_RETENTION_HOURS = 24;
+
+/**
+ * Exclui as admissões com ALTA (outcome="discharge") há mais de 24h — o
+ * prontuário fica salvo por 24h antes da exclusão. Best-effort, chamada ao abrir
+ * o board (sem cron). Retorna o nº de prontuários removidos.
+ */
+export async function purgeExpiredDischarges(module: PatientModule): Promise<number> {
+  const supabase = await createClient();
+  const cutoff = new Date(Date.now() - DISCHARGE_RETENTION_HOURS * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("patients")
+    .delete()
+    .eq("module", module)
+    .eq("outcome", "discharge")
+    .lt("discharge_time", cutoff)
+    .select("id");
+  if (error) throw new RepositoryError("Falha ao remover altas expiradas.", error);
+  return (data ?? []).length;
+}
+
 /** Overwrite a patient's monitoring schedule (rotina de aferições). */
 export async function updateSchedule(
   patientId: string,
