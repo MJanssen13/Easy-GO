@@ -66,6 +66,7 @@ import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
 import { renderImagingExam, examCpr, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
+import { parseDecimal } from "@/lib/num";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -73,8 +74,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
 
+// Largura padronizada das listas suspensas (~ tamanho de um campo de data).
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const CTG_CONCLUSIONS = [
   "Feto ativo",
@@ -372,10 +374,7 @@ export function PsgoGenerator({
       }),
     [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference],
   );
-  const bmi = classifyBmi(
-    form.weight ? Number(form.weight) : null,
-    form.height ? Number(form.height) : null,
-  );
+  const bmi = classifyBmi(parseDecimal(form.weight), parseDecimal(form.height));
 
   function toggleArray(key: "comorbidities" | "habits", value: string) {
     setForm((f) => {
@@ -2046,6 +2045,61 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
+                      <td className="border-b p-1 font-medium">CCN (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <Input
+                            className="h-7 w-16 text-xs"
+                            inputMode="decimal"
+                            value={e.crl ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">DBP (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <Input
+                            className="h-7 w-16 text-xs"
+                            inputMode="decimal"
+                            value={e.bpd ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { bpd: ev.target.value })}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">TN (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <Input
+                            className="h-7 w-16 text-xs"
+                            inputMode="decimal"
+                            value={e.nt ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { nt: ev.target.value })}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Osso nasal</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <select
+                            className={`${selectClass} h-7 w-28 text-xs`}
+                            value={e.nasalBone ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { nasalBone: ev.target.value })}
+                          >
+                            <option value="">—</option>
+                            <option value="PRESENTE">Presente</option>
+                            <option value="AUSENTE">Ausente</option>
+                          </select>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
                       <td className="border-b p-1 font-medium">Placenta (inserção)</td>
                       {form.imagingExams.map((e) => (
                         <td key={e.id} className="border-b p-1">
@@ -2153,6 +2207,13 @@ export function PsgoGenerator({
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {form.imagingExams.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, DBP, TN,
+                osso nasal, biometria, Doppler) aparecem no mesmo US.
+              </p>
             )}
 
             {form.imagingExams.map((e) => (

@@ -13,6 +13,7 @@ import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
 import { renderImaging } from "./imaging";
 import { renderPsgoCtg } from "./ctg";
+import { parseDecimal } from "@/lib/num";
 
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
@@ -76,8 +77,8 @@ export function renderPsgo(form: PsgoForm): string {
     usgExams: form.imagingExams,
     preference: form.datingPreference,
   });
-  const weight = form.weight ? Number(form.weight) : null;
-  const height = form.height ? Number(form.height) : null;
+  const weight = parseDecimal(form.weight);
+  const height = parseDecimal(form.height);
   const bmi = classifyBmi(weight, height);
 
   // Cabeçalho

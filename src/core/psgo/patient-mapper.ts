@@ -17,6 +17,7 @@ import { formatParity } from "./parity";
 import { autoComorbidities } from "./comorbidities";
 import { resolvePsgoDating } from "./dating";
 import { computePsgo, renderPsgo } from "./render";
+import { parseDecimal } from "@/lib/num";
 
 /** Formato do `clinical_summary` de uma paciente do PSGO. */
 export interface PsgoClinicalSummary {
@@ -53,8 +54,8 @@ function dedup(items: string[]): string[] {
 
 /** Comorbidades (selecionadas + outras + automáticas) → fatores de risco. */
 export function psgoRiskFactors(form: PsgoForm): string[] {
-  const weight = form.weight ? Number(form.weight) : null;
-  const height = form.height ? Number(form.height) : null;
+  const weight = parseDecimal(form.weight);
+  const height = parseDecimal(form.height);
   const parity = formatParity(form.priorPregnancies, form.pregnant);
   return dedup([
     ...form.comorbidities,

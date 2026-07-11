@@ -10,6 +10,7 @@
 import { efwCentile, acCentile } from "@/core/fmf/biometry";
 import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr";
 import { formatCentile } from "@/core/fmf/centile";
+import { parseDecimal } from "@/lib/num";
 
 export interface ImagingExam {
   id: string;
@@ -25,6 +26,10 @@ export interface ImagingExam {
   mbv?: string; // maior bolsão vertical (cm)
   uaPi?: string; // IP AUMB — IP da artéria umbilical
   mcaPi?: string; // IP ACM — IP da artéria cerebral média
+  crl?: string; // CCN — comprimento cabeça-nádega (mm)
+  bpd?: string; // DBP — diâmetro biparietal (mm)
+  nt?: string; // TN — translucência nucal (mm)
+  nasalBone?: string; // ON — osso nasal (presente/ausente)
   notes?: string;
 }
 
@@ -34,9 +39,7 @@ export function examGaDays(e: Pick<ImagingExam, "gaWeeks" | "gaDays">): number |
 }
 
 function num(s?: string): number | null {
-  if (s == null || s.trim() === "") return null;
-  const n = Number(s.replace(",", "."));
-  return Number.isFinite(n) ? n : null;
+  return parseDecimal(s);
 }
 
 function pctSuffix(c: number | null): string {
@@ -97,6 +100,10 @@ export function hasImagingData(e: ImagingExam): boolean {
       e.uaPi ||
       e.mcaPi ||
       e.mbv ||
+      e.crl ||
+      e.bpd ||
+      e.nt ||
+      e.nasalBone ||
       e.placentaSite ||
       e.placentaGrade ||
       e.presentation ||
@@ -112,6 +119,12 @@ export function renderImagingExam(e: ImagingExam): string {
   const ig = igLabel(e);
   if (ig) fields.push(ig);
   if (e.presentation) fields.push(e.presentation);
+
+  // Marcadores/biometria (nem todos presentes no mesmo US).
+  if (num(e.crl) != null) fields.push(`CCN ${e.crl}mm`);
+  if (num(e.bpd) != null) fields.push(`DBP ${e.bpd}mm`);
+  if (num(e.nt) != null) fields.push(`TN ${e.nt}mm`);
+  if (e.nasalBone) fields.push(`OSSO NASAL ${e.nasalBone.toUpperCase()}`);
 
   const efw = num(e.efw);
   if (efw != null) {

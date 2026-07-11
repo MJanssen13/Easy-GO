@@ -22,7 +22,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   **líquido meconial**); **AmniSure** (grafia corrigida); **Secreção** com opções
   Ausente/Fisiológica/Aderida à parede/Em fórnice posterior e, se patológica,
   detalha **odor, grumos e cor** (como na HPMA).
-- Listas suspensas do toque com **largura reduzida** ao conteúdo.
+- Listas suspensas do toque com **largura reduzida** ao conteúdo; demais listas
+  suspensas **padronizadas** (~ largura de um campo de data).
+- **Exames de imagem (USG)**: novos campos **CCN, DBP, TN e osso nasal**, com
+  aviso de que nem todos os aspectos constam no mesmo US.
+- Campos numéricos aceitam **vírgula ou ponto** como separador decimal
+  (peso, altura, biometria/Doppler do USG).
 
 ### PSGO — Chegada, revisão dirigida e ajustes de UI da HPMA
 
