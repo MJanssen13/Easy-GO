@@ -394,6 +394,8 @@ export function PsgoGenerator({
     [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference],
   );
   const bmi = classifyBmi(parseDecimal(form.weight), parseDecimal(form.height));
+  // HD automática (gestação + comorbidades) — usada como sugestão/placeholder.
+  const autoHd = useMemo(() => psgoHd(form), [form]);
 
   function toggleArray(key: "comorbidities" | "habits", value: string) {
     setForm((f) => {
@@ -561,7 +563,7 @@ export function PsgoGenerator({
         rg: form.rg,
         date: formatDateBR(form.date),
         time: c.time,
-        hd: psgoHd(form),
+        hd: form.hd.trim() ? form.hd.trim() : psgoHd(form),
         baseline: c.baseline,
         variability: c.variability,
         accelerations: c.accelerations,
@@ -2501,6 +2503,36 @@ export function PsgoGenerator({
             )}
           </Section>
         )}
+
+        {/* HD — hipótese diagnóstica (editável; em branco usa a automática) */}
+        <Section
+          title="HD (hipótese diagnóstica)"
+          contentClassName="space-y-2"
+          headerExtra={
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => update({ hd: autoHd })}
+              disabled={!autoHd || form.hd.trim() === autoHd}
+              title="Copia a HD automática para o campo, para você editar"
+            >
+              Preencher com a automática
+            </Button>
+          }
+        >
+            <Field label="HD">
+              <Textarea
+                rows={2}
+                value={form.hd}
+                onChange={(e) => update({ hd: e.target.value })}
+                placeholder={autoHd || "GESTAÇÃO DE..."}
+              />
+            </Field>
+            <p className="text-xs text-muted-foreground">
+              Em branco, usa a HD automática: <strong>{autoHd || "—"}</strong>
+            </p>
+        </Section>
 
         {/* Conduta — card próprio */}
         <Section title="Conduta" contentClassName="space-y-3">

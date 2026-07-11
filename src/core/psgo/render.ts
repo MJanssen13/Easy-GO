@@ -251,8 +251,8 @@ export function renderPsgo(form: PsgoForm): string {
     if (ctgBlock) push(2, ctgBlock);
   }
 
-  // HD — gestação (IG) + comorbidades + diagnósticos automáticos
-  push(1, `HD: ${psgoHd(form)}`);
+  // HD — editável (form.hd); em branco, usa a automática (gestação + comorbidades)
+  push(1, `HD: ${form.hd.trim() ? form.hd.trim() : psgoHd(form)}`);
 
   // Conduta
   push(1, `CD: ${form.cd ? `${form.cd} ` : ""}DISCUTIDO COM PLANTÃO QUE ORIENTA:`);
