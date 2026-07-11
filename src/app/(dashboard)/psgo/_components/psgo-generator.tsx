@@ -2069,8 +2069,8 @@ export function PsgoGenerator({
         >
             {form.imagingExams.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL pela Hadlock; IP-AUmb, IP-ACM e
-                RCP pela FMF (Ciobanu 2019).
+                Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL pela Hadlock; IP-AUmb, IP-ACM,
+                RCP, TN (pelo CCN) e IP da a. uterina pela FMF (fetalmedicine.org).
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -2225,12 +2225,17 @@ export function PsgoGenerator({
                       <td className="border-b p-1 font-medium">TN (mm)</td>
                       {form.imagingExams.map((e) => (
                         <td key={e.id} className="border-b p-1">
-                          <Input
-                            className="h-7 w-16 text-xs"
-                            inputMode="decimal"
-                            value={e.nt ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { nt: ev.target.value })}
-                          />
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.nt ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { nt: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.nt}
+                            </span>
+                          </div>
                         </td>
                       ))}
                     </tr>
@@ -2355,6 +2360,24 @@ export function PsgoGenerator({
                         );
                       })}
                     </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">IP A. uterina</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.utPi ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.utPi}
+                            </span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -2363,7 +2386,8 @@ export function PsgoGenerator({
             {form.imagingExams.length > 0 && (
               <p className="text-[11px] text-muted-foreground">
                 Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, DBP, TN,
-                osso nasal, biometria, Doppler) aparecem no mesmo US.
+                osso nasal, biometria, Doppler, IP da a. uterina) aparecem no mesmo US. Percentis
+                de TN e IP da a. uterina seguem os padrões FMF.
               </p>
             )}
 

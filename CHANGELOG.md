@@ -5,6 +5,14 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### FMF — Percentil da TN e do IP da artéria uterina
+
+- Novos módulos `@/core/fmf/nt` (TN pelo CCN, modelo de mistura FMF; CRL
+  45–84 mm) e `@/core/fmf/uterine` (IP da a. uterina por IG, log10-gaussiana
+  FMF; IG > 20 sem), portados **verbatim** do `_fmf.min.js` oficial.
+- No quadro de **USG** do PSGO: a **TN** ganha percentil (a partir do CCN) e
+  há um novo campo **IP da a. uterina** com percentil. Ambos saem no prontuário.
+
 ### Plataforma — Equipe de plantão na página inicial
 
 - A **Equipe de plantão** saiu do Pré-Parto e passou para a **página inicial**,
