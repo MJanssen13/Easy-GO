@@ -259,18 +259,18 @@ function scrollToUsg() {
   document.getElementById("psgo-usg")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-/** Botão para abrir o Labflow (laboratório) em nova aba — visual moderno. */
+/** Botão para abrir o LabFlow (laboratório) em nova aba — teal da marca LabFlow. */
 function LabflowButton() {
   return (
     <a
       href="https://labflowai.vercel.app/"
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow-md hover:brightness-110"
+      className="inline-flex items-center gap-2 rounded-xl bg-[#039a8a] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0a7b71] active:scale-[0.98]"
     >
-      <FlaskConical className="h-3.5 w-3.5" />
-      Acessar Labflow
-      <ExternalLink className="h-3 w-3 opacity-80" />
+      <FlaskConical className="h-4 w-4" />
+      Acessar LabFlow
+      <ExternalLink className="h-3.5 w-3.5 opacity-80" />
     </a>
   );
 }
