@@ -107,6 +107,9 @@ export interface PsgoForm {
   ctg: string;
   ctgLaudos: PsgoCtg[];
 
+  // HD (hipótese diagnóstica); vazia = usa a HD automática (psgoHd)
+  hd: string;
+
   // conduta
   cd: string;
 
@@ -177,6 +180,7 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     gyneco: emptyGynecoState(),
     ctg: "",
     ctgLaudos: [],
+    hd: "",
     cd: "",
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),

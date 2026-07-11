@@ -22,6 +22,9 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   o estímulo sonoro — no card, no prontuário e no laudo.
 - A CTG ganhou uma **conduta (CD) própria** (caixa de texto no card) que
   preenche o "QUE ORIENTA:" do laudo; em branco, sai vazia na exportação.
+- A **HD** ganhou uma seção editável no PSGO (`form.hd`): em branco usa a HD
+  automática (`psgoHd`); preenchida, sobrepõe-se a ela no prontuário e no laudo.
+  Há um botão "Preencher com a automática" para editar a partir da sugestão.
 
 ### Biometria — Percentil do DBP (Hadlock)
 
