@@ -58,7 +58,9 @@ export const ABD_FIELDS: GyField[] = [
 
 // --- Toque vaginal (notação do pré-parto) ---
 const cmOptions: GyOption[] = [
-  o("Impérvio", "OE IMPÉRVIO"),
+  o("OEI", "OE IMPÉRVIO"),
+  o("OEEA", "OEEA"),
+  o("OII", "OII"),
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => o(`${n} cm`, `DILATAÇÃO ${n} CM`)),
 ];
 const deLeeOptions: GyOption[] = [
@@ -71,9 +73,6 @@ const apagamentoOptions: GyOption[] = [
   ...[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((n) => o(`${n}%`, `APAG ${n}%`)),
 ];
 
-/** Chaves das opções OEEA/OII (substituem a dilatação no prontuário). */
-export const OEEA_KEY = "toqueOeea";
-export const OII_KEY = "toqueOii";
 /** Detalhe da dinâmica uterina (quando presente). */
 export const ABD_DU_DETALHE_KEY = "abdDuDetalhe";
 
@@ -186,8 +185,9 @@ export const ESP_SANGRAMENTO_QTD_OPTIONS: GyOption[] = [
   o("Grande", "EM GRANDE QUANTIDADE"),
 ];
 
-/** Perdas líquidas via colo (+ AmniSure/cristalização quando ≠ ausente). */
+/** Perdas líquidas via colo (+ tipo, AmniSure/cristalização quando ≠ ausente). */
 export const ESP_SAIDA_COLO_KEY = "espSaidaColo";
+export const ESP_SAIDA_COLO_TIPO_KEY = "espSaidaColoTipo";
 export const ESP_AMNIOSURE_KEY = "espAmniosure";
 export const ESP_CRISTALIZACAO_KEY = "espCristalizacao";
 export const ESP_SAIDA_COLO_OPTIONS: GyOption[] = [
@@ -195,6 +195,10 @@ export const ESP_SAIDA_COLO_OPTIONS: GyOption[] = [
   o("Líquido claro", "PERDA DE LÍQUIDO CLARO VIA COLO"),
   o("Líquido meconial", "PERDA DE LÍQUIDO MECONIAL VIA COLO"),
   o("Purulento", "PERDA PURULENTA VIA COLO"),
+];
+export const ESP_SAIDA_COLO_TIPO_OPTIONS: GyOption[] = [
+  o("Espontânea", "ESPONTÂNEA"),
+  o("À valsalva", "À VALSALVA"),
 ];
 /** Testes (AmniSure/cristalização): "Não realizado" não vai ao prontuário. */
 export const TEST_OPTIONS = ["Não realizado", "Positivo", "Negativo"];
@@ -247,6 +251,7 @@ export function emptyGynecoState(): GynecoState {
   values[ESP_SANGRAMENTO_KEY] = "Ausente";
   values[ESP_SANGRAMENTO_OE_KEY] = ESP_SANGRAMENTO_OE_OPTIONS[0].label;
   values[ESP_SAIDA_COLO_KEY] = "Ausente";
+  values[ESP_SAIDA_COLO_TIPO_KEY] = ESP_SAIDA_COLO_TIPO_OPTIONS[0].label;
   values[ESP_AMNIOSURE_KEY] = "Não realizado";
   values[ESP_CRISTALIZACAO_KEY] = "Não realizado";
   return { values, toqueRealizado: true, toqueAutorizado: true, espRealizado: false };
@@ -285,13 +290,7 @@ export function renderGyneco(st: GynecoState, vitals: ExamVitals, pregnant = tru
     const t = (id: string) => pick(TOQUE_FIELDS.find((f) => f.id === id)!, v);
     // Toque realizado é sempre autorizado pela paciente.
     const auth = " (AUTORIZADO PELA PACIENTE)";
-    // OEEA/OII (cumulativos) substituem a dilatação em cm quando marcados.
-    const oeea = v[OEEA_KEY] === "1";
-    const oii = v[OII_KEY] === "1";
-    const dilat =
-      oeea || oii
-        ? [oeea ? "OEEA" : "", oii ? "OII" : ""].filter(Boolean).join(" ")
-        : t("toqueDilatacao");
+    const dilat = t("toqueDilatacao");
     // Dor ao toque (multisseleção).
     const dorSel = TOQUE_DOR_OPTIONS.filter((op) => v[op.key] === "1");
     const dor = dorSel.length ? `, ${dorSel.map((op) => op.text).join(", ")}` : "";
@@ -329,9 +328,13 @@ export function renderGyneco(st: GynecoState, vitals: ExamVitals, pregnant = tru
       sangText += ` ${pickText(ESP_SANGRAMENTO_QTD_OPTIONS, v[ESP_SANGRAMENTO_QTD_KEY])}`;
     }
     parts.push(sangText);
-    // Perdas líquidas via colo (+ AmniSure/cristalização se ≠ ausente)
+    // Perdas líquidas via colo (+ tipo, AmniSure/cristalização se ≠ ausente)
     const saida = v[ESP_SAIDA_COLO_KEY] ?? "Ausente";
-    parts.push(pickText(ESP_SAIDA_COLO_OPTIONS, saida));
+    let saidaText = pickText(ESP_SAIDA_COLO_OPTIONS, saida);
+    if (saida !== "Ausente" && v[ESP_SAIDA_COLO_TIPO_KEY]) {
+      saidaText += ` ${pickText(ESP_SAIDA_COLO_TIPO_OPTIONS, v[ESP_SAIDA_COLO_TIPO_KEY])}`;
+    }
+    parts.push(saidaText);
     if (saida !== "Ausente") {
       const am = v[ESP_AMNIOSURE_KEY];
       const cr = v[ESP_CRISTALIZACAO_KEY];

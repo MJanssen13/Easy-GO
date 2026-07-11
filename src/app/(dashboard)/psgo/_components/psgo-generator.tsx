@@ -16,8 +16,6 @@ import {
   abdFieldsFor,
   toqueFieldsFor,
   ESP_FIELDS,
-  OEEA_KEY,
-  OII_KEY,
   ABD_DU_DETALHE_KEY,
   TOQUE_DOR_OPTIONS,
   TOQUE_DOR_INDOLOR_KEY,
@@ -38,6 +36,8 @@ import {
   ESP_SANGRAMENTO_OE_OPTIONS,
   ESP_SAIDA_COLO_KEY,
   ESP_SAIDA_COLO_OPTIONS,
+  ESP_SAIDA_COLO_TIPO_KEY,
+  ESP_SAIDA_COLO_TIPO_OPTIONS,
   ESP_AMNIOSURE_KEY,
   ESP_CRISTALIZACAO_KEY,
   TEST_OPTIONS,
@@ -1209,17 +1209,16 @@ export function PsgoGenerator({
               ) : (
                 form.coombsList.map((c) => (
                   <div key={c.id} className="flex flex-wrap items-center gap-2">
-                    <select
-                      className={`${selectClass} h-8 w-36`}
-                      value={c.result}
-                      onChange={(e) =>
-                        updateCoombs(c.id, { result: e.target.value as CoombsEntry["result"] })
-                      }
-                    >
-                      <option value="">—</option>
-                      <option value="neg">Negativo</option>
-                      <option value="pos">Positivo</option>
-                    </select>
+                    <div className="w-56">
+                      <Segmented
+                        value={c.result as "neg" | "pos"}
+                        onChange={(v) => updateCoombs(c.id, { result: v })}
+                        options={[
+                          { value: "neg", label: "Negativo" },
+                          { value: "pos", label: "Positivo" },
+                        ]}
+                      />
+                    </div>
                     <Input
                       type="date"
                       className="h-8 w-40"
@@ -1292,7 +1291,11 @@ export function PsgoGenerator({
             ) : (
               form.medications.map((m) => (
                 <div key={m.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
-                  <span className="min-w-[8rem] flex-1 font-medium">{m.label}</span>
+                  <Input
+                    className="min-w-[8rem] flex-1 font-medium"
+                    value={m.label}
+                    onChange={(e) => updateMed(m.id, { label: e.target.value })}
+                  />
                   <div className="w-40">
                     <Segmented
                       value={m.current ? "uso" : "fez"}
@@ -1679,31 +1682,29 @@ export function PsgoGenerator({
                 <div key={s.id} className="rounded-md border p-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{s.label}</span>
-                    <div className="flex gap-1">
-                      <Chip
-                        active={st.mode === "normal"}
-                        onClick={() => update({ exam: { ...form.exam, [s.id]: { ...st, mode: "normal" } } })}
-                      >
-                        Normal
-                      </Chip>
-                      <Chip
-                        active={st.mode === "altered"}
-                        onClick={() =>
+                    <div className="w-44">
+                      <Segmented
+                        value={st.mode}
+                        onChange={(v) =>
                           update({
                             exam: {
                               ...form.exam,
                               [s.id]: {
                                 ...st,
-                                mode: "altered",
-                                // Mantém o exame padrão na caixa para edição.
-                                text: st.text.trim() ? st.text : buildNormalLine(s.id, form.vitals),
+                                mode: v,
+                                // Ao alterar, mantém o exame padrão na caixa para edição.
+                                ...(v === "altered" && !st.text.trim()
+                                  ? { text: buildNormalLine(s.id, form.vitals) }
+                                  : {}),
                               },
                             },
                           })
                         }
-                      >
-                        Alterado
-                      </Chip>
+                        options={[
+                          { value: "normal", label: "Normal" },
+                          { value: "altered", label: "Alterado" },
+                        ]}
+                      />
                     </div>
                   </div>
                   {st.mode === "altered" ? (
@@ -1770,32 +1771,7 @@ export function PsgoGenerator({
                     Toque realizado é sempre autorizado pela paciente.
                   </p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {toqueFieldsFor(form.pregnant).map((field) =>
-                      field.id === "toqueDilatacao" ? (
-                        <div key={field.id} className="space-y-1">
-                          {gyField(field)}
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] text-muted-foreground">
-                              Alternativa (substitui os cm):
-                            </span>
-                            <Chip
-                              active={form.gyneco.values[OEEA_KEY] === "1"}
-                              onClick={() => toggleGyneco(OEEA_KEY)}
-                            >
-                              OEEA
-                            </Chip>
-                            <Chip
-                              active={form.gyneco.values[OII_KEY] === "1"}
-                              onClick={() => toggleGyneco(OII_KEY)}
-                            >
-                              OII
-                            </Chip>
-                          </div>
-                        </div>
-                      ) : (
-                        gyField(field)
-                      ),
-                    )}
+                    {toqueFieldsFor(form.pregnant).map(gyField)}
                   </div>
                   {/* Dor ao toque (multi; "Indolor" exclusivo) */}
                   <div className="space-y-1">
@@ -1879,14 +1855,28 @@ export function PsgoGenerator({
                       </div>
                     )}
                   </div>
-                  {/* Perdas líquidas via colo (+ AmniSure/cristalização se ≠ ausente) */}
+                  {/* Perdas líquidas via colo (+ tipo, AmniSure/cristalização se ≠ ausente) */}
                   <div className="space-y-1 sm:col-span-2">
                     {gyChipRow("Perdas líquidas via colo", ESP_SAIDA_COLO_KEY, ESP_SAIDA_COLO_OPTIONS)}
                     {form.gyneco.values[ESP_SAIDA_COLO_KEY] !== "Ausente" && (
-                      <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
-                        {gyTestToggle("AmniSure", ESP_AMNIOSURE_KEY)}
-                        {gyTestToggle("Cristalização", ESP_CRISTALIZACAO_KEY)}
-                      </div>
+                      <>
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-xs text-muted-foreground">Tipo:</span>
+                          {ESP_SAIDA_COLO_TIPO_OPTIONS.map((op) => (
+                            <Chip
+                              key={op.label}
+                              active={form.gyneco.values[ESP_SAIDA_COLO_TIPO_KEY] === op.label}
+                              onClick={() => setGynecoValue(ESP_SAIDA_COLO_TIPO_KEY, op.label)}
+                            >
+                              {op.label}
+                            </Chip>
+                          ))}
+                        </div>
+                        <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
+                          {gyTestToggle("AmniSure", ESP_AMNIOSURE_KEY)}
+                          {gyTestToggle("Cristalização", ESP_CRISTALIZACAO_KEY)}
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
