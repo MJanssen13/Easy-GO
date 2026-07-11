@@ -20,6 +20,8 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   `public/laudo`. A **equipe de plantão** sai na última linha da folha.
 - A CTG ganhou o campo **estímulo mecânico** (realizado/não + nº), espelhando
   o estímulo sonoro — no card, no prontuário e no laudo.
+- A CTG ganhou uma **conduta (CD) própria** (caixa de texto no card) que
+  preenche o "QUE ORIENTA:" do laudo; em branco, sai vazia na exportação.
 
 ### Biometria — Percentil do DBP (Hadlock)
 
