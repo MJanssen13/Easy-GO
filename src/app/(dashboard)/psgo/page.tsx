@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Siren, Plus, AlertTriangle } from "lucide-react";
-import { listPatients } from "@/core/patients/repository";
+import { listPatients, purgeExpiredDischarges } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient } from "@/core/patients/types";
 import { buttonVariants } from "@/components/ui/button";
@@ -13,6 +13,8 @@ export default async function PsgoBoard() {
   let patients: Patient[] = [];
   let loadError = false;
   try {
+    // Retenção: remove as altas cujo prontuário passou das 24h (best-effort).
+    await purgeExpiredDischarges("psgo").catch(() => {});
     patients = await listPatients("psgo");
   } catch {
     loadError = true;
@@ -72,9 +74,14 @@ export default async function PsgoBoard() {
 
       {resolved.length > 0 && (
         <section className="space-y-3 border-t pt-4">
-          <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Resolvidas / transferidas
-          </h2>
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Altas recentes
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              O prontuário fica salvo por 24h após a alta e depois é excluído automaticamente.
+            </p>
+          </div>
           <div className="grid grid-cols-1 gap-4 opacity-75 sm:grid-cols-2 lg:grid-cols-3">
             {resolved.map((p) => (
               <PsgoPatientCard key={p.id} patient={p} />

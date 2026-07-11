@@ -5,6 +5,9 @@ import {
   createPatient,
   updatePatient,
   transferPatient,
+  resolvePatient,
+  reopenPatient,
+  deletePatient,
   RepositoryError,
 } from "@/core/patients/repository";
 import { psgoFormToNewPatient } from "@/core/psgo/patient-mapper";
@@ -79,6 +82,56 @@ export async function transferPsgoPatient(
       err instanceof RepositoryError
         ? err.message
         : "Não foi possível transferir a paciente. Verifique a conexão.";
+    return { error: message };
+  }
+}
+
+/**
+ * Alta da paciente do PSGO: marca desfecho "alta" e hora. O prontuário fica
+ * salvo por 24h antes da exclusão automática (ver `purgeExpiredDischarges`).
+ */
+export async function dischargePsgoPatient(patientId: string): Promise<{ error?: string }> {
+  try {
+    await resolvePatient(patientId, "discharge");
+    revalidatePath("/psgo");
+    revalidatePath(`/psgo/${patientId}`);
+    return {};
+  } catch (err) {
+    const message =
+      err instanceof RepositoryError
+        ? err.message
+        : "Não foi possível dar alta à paciente. Verifique a conexão.";
+    return { error: message };
+  }
+}
+
+/** Desfaz a alta (reabre a admissão), enquanto o prontuário não foi excluído. */
+export async function reopenPsgoPatient(patientId: string): Promise<{ error?: string }> {
+  try {
+    await reopenPatient(patientId);
+    revalidatePath("/psgo");
+    revalidatePath(`/psgo/${patientId}`);
+    return {};
+  } catch (err) {
+    const message =
+      err instanceof RepositoryError
+        ? err.message
+        : "Não foi possível reabrir a admissão. Verifique a conexão.";
+    return { error: message };
+  }
+}
+
+/** Exclui definitivamente a admissão (paciente + prontuário) do PSGO. */
+export async function deletePsgoAdmission(patientId: string): Promise<{ error?: string }> {
+  try {
+    await deletePatient(patientId);
+    revalidatePath("/psgo");
+    return {};
+  } catch (err) {
+    const message =
+      err instanceof RepositoryError
+        ? err.message
+        : "Não foi possível excluir a admissão. Verifique a conexão.";
     return { error: message };
   }
 }

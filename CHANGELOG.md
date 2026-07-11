@@ -5,6 +5,18 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Alta e exclusão de admissão
+
+- Nova ação **Dar alta** (desfecho "alta"): o prontuário **fica salvo por 24h**
+  e depois é **excluído automaticamente**. A limpeza é feita ao abrir o board
+  (`purgeExpiredDischarges`, best-effort — sem cron/Supabase). As altas
+  recentes aparecem numa seção própria com o aviso da retenção, e há **Reabrir**
+  para desfazer a alta dentro das 24h.
+- Nova ação **Excluir admissão** (com confirmação) que apaga a paciente e o
+  prontuário de imediato. Card "Alta e exclusão" na página da paciente.
+- **Sem alteração de schema**: usa colunas já existentes (`status`, `outcome`,
+  `discharge_time`); nenhuma migração do Supabase é necessária.
+
 ### PSGO — Imprimir laudo da CTG
 
 - Cada CTG do PSGO ganha o botão **"Imprimir laudo"**, que gera o laudo no
