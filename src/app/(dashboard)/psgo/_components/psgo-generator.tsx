@@ -67,6 +67,8 @@ import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
 import { renderImagingExam, examCpr, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
 import { parseDecimal } from "@/lib/num";
+import { readShiftTeam, formatShiftTeamBlock, EMPTY_TEAM } from "@/lib/shift-team";
+import type { TeamInput } from "@/core/prontuario/preparto-evolution";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -315,7 +317,15 @@ export function PsgoGenerator({
     });
   }
 
-  const text = useMemo(() => renderPsgo(form), [form]);
+  // Equipe de plantão compartilhada (definida na página inicial) — vai ao final.
+  const [shiftTeam, setShiftTeam] = useState<TeamInput>(EMPTY_TEAM);
+  useEffect(() => setShiftTeam(readShiftTeam()), []);
+
+  const text = useMemo(() => {
+    const base = renderPsgo(form);
+    const team = formatShiftTeamBlock(shiftTeam);
+    return team ? `${base}\n\n${team.toUpperCase()}` : base;
+  }, [form, shiftTeam]);
   const hpmaPreview = useMemo(
     () =>
       assembleHpma({
