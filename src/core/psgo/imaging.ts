@@ -7,7 +7,7 @@
  *   -(DATA): IG: XX / APRESENTAÇÃO / PESO (P X) / CIRC. ABDOMINAL (P X) /
  *    PLACENTA E SUA INSERÇÃO, GRAU / MBV / IP AUMB (P X) / IP ACM (P X) / RCP (P X)
  */
-import { efwCentile, acCentile } from "@/core/fmf/biometry";
+import { efwCentile, acCentile, bpdCentile } from "@/core/fmf/biometry";
 import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr";
 import { ntCentile } from "@/core/fmf/nt";
 import { utPiCentile } from "@/core/fmf/uterine";
@@ -74,6 +74,7 @@ export interface ImagingCentiles {
   cpr: string;
   nt: string; // percentil da TN (pela FMF, a partir do CCN)
   utPi: string; // percentil do IP da artéria uterina (pela FMF)
+  bpd: string; // percentil do DBP (Hadlock 1984)
 }
 
 /** Rótulos de percentil ("P X") de cada medida do exame, para exibição no quadro. */
@@ -91,6 +92,7 @@ export function examCentiles(e: ImagingExam): ImagingCentiles {
   const nt = num(e.nt);
   const crl = num(e.crl);
   const utPi = num(e.utPi);
+  const bpd = num(e.bpd);
   return {
     efw: gaDays != null && efw != null ? lab(efwCentile(efw, gaDays)) : "",
     ac: gaDays != null && ac != null ? lab(acCentile(ac, gaDays)) : "",
@@ -99,6 +101,7 @@ export function examCentiles(e: ImagingExam): ImagingCentiles {
     cpr: gaDays != null && cpr != null ? lab(cprCentile(cpr, gaDays)) : "",
     nt: nt != null && crl != null ? lab(ntCentile(nt, crl)) : "",
     utPi: gaDays != null && utPi != null ? lab(utPiCentile(utPi, gaDays)) : "",
+    bpd: gaDays != null && bpd != null ? lab(bpdCentile(bpd, gaDays)) : "",
   };
 }
 
@@ -134,7 +137,11 @@ export function renderImagingExam(e: ImagingExam): string {
   // Marcadores/biometria (nem todos presentes no mesmo US).
   const crl = num(e.crl);
   if (crl != null) fields.push(`CCN ${e.crl}mm`);
-  if (num(e.bpd) != null) fields.push(`DBP ${e.bpd}mm`);
+  const bpd = num(e.bpd);
+  if (bpd != null) {
+    const c = gaDays != null ? bpdCentile(bpd, gaDays) : null;
+    fields.push(`DBP ${e.bpd}mm${pctSuffix(c)}`);
+  }
   const nt = num(e.nt);
   if (nt != null) {
     const c = crl != null ? ntCentile(nt, crl) : null;

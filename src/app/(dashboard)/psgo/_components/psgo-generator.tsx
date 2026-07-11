@@ -2069,8 +2069,8 @@ export function PsgoGenerator({
         >
             {form.imagingExams.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL pela Hadlock; IP-AUmb, IP-ACM,
-                RCP, TN (pelo CCN) e IP da a. uterina pela FMF (fetalmedicine.org).
+                Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL/DBP pela Hadlock; IP-AUmb,
+                IP-ACM, RCP, TN (pelo CCN) e IP da a. uterina pela FMF (fetalmedicine.org).
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -2212,12 +2212,17 @@ export function PsgoGenerator({
                       <td className="border-b p-1 font-medium">DBP (mm)</td>
                       {form.imagingExams.map((e) => (
                         <td key={e.id} className="border-b p-1">
-                          <Input
-                            className="h-7 w-16 text-xs"
-                            inputMode="decimal"
-                            value={e.bpd ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { bpd: ev.target.value })}
-                          />
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.bpd ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { bpd: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.bpd}
+                            </span>
+                          </div>
                         </td>
                       ))}
                     </tr>

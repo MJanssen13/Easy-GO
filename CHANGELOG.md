@@ -5,6 +5,14 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Biometria — Percentil do DBP (Hadlock)
+
+- **DBP (BPD)** ganha percentil por IG (Hadlock 1984: média cm = −3,08 + 0,41·IG
+  − 0,000061·IG³, DP 0,30 cm), portado do "Fetal Biometry 5.0" (Perinatology.com)
+  — mesma referência já usada para PESO/CA. Exibido no quadro de USG e no
+  prontuário. **CCN não foi implementado**: o arquivo enviado não contém
+  referência de CRL (pendente de fonte).
+
 ### FMF — Percentil da TN e do IP da artéria uterina
 
 - Novos módulos `@/core/fmf/nt` (TN pelo CCN, modelo de mistura FMF; CRL

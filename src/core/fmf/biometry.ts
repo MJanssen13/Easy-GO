@@ -12,6 +12,8 @@
  * - CIRC. ABDOMINAL: Hadlock FP et al., "Estimating fetal age...", Radiology
  *   1984;152:497-501 (PMID 6739822). Média (cm) = −13,3 + 1,61·IG − 0,00998·IG²
  *   (IG limitada a 12–42 sem), DP = 1,34 cm (13,4 mm); z normal.
+ * - DBP (BPD): mesmo Hadlock 1984. Média (cm) = −3,08 + 0,41·IG − 0,000061·IG³
+ *   (IG limitada a 12–42 sem), DP = 0,30 cm (3,0 mm); z normal.
  * - CC e CF: referência FMF (fetalmedicine.org).
  *
  * IG em DIAS; biometria em mm. Percentil pela CDF normal padrão. Apoio à decisão.
@@ -92,6 +94,28 @@ export function acZ(acMm: number, gaDays: number): number | null {
 
 export function acCentile(acMm: number, gaDays: number): number | null {
   return zToCentile(acZ(acMm, gaDays));
+}
+
+// --- DBP (BPD): Hadlock 1984, como no Fetal Biometry 5.0 ---
+const BPD_SD_MM = 3.0; // DP = 0,30 cm
+
+/** DBP esperado (mediana, mm) para a IG — Hadlock 1984 (IG limitada a 12–42 sem). */
+export function expectedBpd(gaDays: number): number | null {
+  if (!Number.isFinite(gaDays)) return null;
+  const g = Math.max(12, Math.min(42, gaDays / 7));
+  return (-3.08 + 0.41 * g - 0.000061 * g * g * g) * 10;
+}
+
+/** Z-score do DBP (mm) para a IG (dias) — normal, DP 3,0 mm. */
+export function bpdZ(bpdMm: number, gaDays: number): number | null {
+  if (!bpdMm || bpdMm <= 0) return null;
+  const mean = expectedBpd(gaDays);
+  if (mean === null) return null;
+  return (bpdMm - mean) / BPD_SD_MM;
+}
+
+export function bpdCentile(bpdMm: number, gaDays: number): number | null {
+  return zToCentile(bpdZ(bpdMm, gaDays));
 }
 
 /** Z-score da circunferência cefálica (mm) para a IG (dias) — FMF. */
