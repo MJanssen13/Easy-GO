@@ -577,7 +577,7 @@ export function PsgoGenerator({
         mechanicalStimulusCount: c.mechanicalStimulusCount,
         conclusion: c.conclusion,
         notes: c.notes,
-        cd: form.cd,
+        cd: c.cd,
         equipe: formatShiftTeamInline(shiftTeam),
       },
       letterheadFor(origin),
@@ -995,6 +995,14 @@ export function PsgoGenerator({
         </div>
         <Field label="Observações">
           <Textarea rows={2} value={c.notes} onChange={(e) => set({ notes: e.target.value })} />
+        </Field>
+        <Field label="Conduta (CD)">
+          <Textarea
+            rows={2}
+            value={c.cd}
+            onChange={(e) => set({ cd: e.target.value })}
+            placeholder="Preenche o 'QUE ORIENTA:' no laudo; em branco = vazio na exportação"
+          />
         </Field>
       </div>
     );

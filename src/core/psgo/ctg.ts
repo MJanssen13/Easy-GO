@@ -36,6 +36,8 @@ export interface PsgoCtg {
   /** Vazio = usa a conclusão sugerida pelo escore. */
   conclusion: string;
   notes: string;
+  /** Conduta da CTG (texto livre); vazia = sai vazia no laudo. */
+  cd: string;
 }
 
 export function emptyPsgoCtg(): PsgoCtg {
@@ -57,6 +59,7 @@ export function emptyPsgoCtg(): PsgoCtg {
     mechanicalStimulusCount: "",
     conclusion: "",
     notes: "",
+    cd: "",
   };
 }
 
