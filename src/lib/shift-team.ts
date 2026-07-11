@@ -51,8 +51,16 @@ export function formatShiftTeamLines(team: TeamInput): string[] {
   });
 }
 
-/** Bloco "EQUIPE DE PLANTÃO:" (vazio se nenhum cargo preenchido). */
+/** Cargos preenchidos em linha única, separados por " / " (ex.: "CHEFIA: X / R3: Y"). */
+export function formatShiftTeamInline(team: TeamInput): string {
+  return formatShiftTeamLines(team).join(" / ");
+}
+
+/**
+ * Linha "EQUIPE DE PLANTÃO: ..." — todos os cargos em uma única linha,
+ * separados por " / " (vazio se nenhum cargo preenchido).
+ */
 export function formatShiftTeamBlock(team: TeamInput): string {
-  const lines = formatShiftTeamLines(team);
-  return lines.length ? ["EQUIPE DE PLANTÃO:", ...lines].join("\n") : "";
+  const inline = formatShiftTeamInline(team);
+  return inline ? `EQUIPE DE PLANTÃO: ${inline}` : "";
 }

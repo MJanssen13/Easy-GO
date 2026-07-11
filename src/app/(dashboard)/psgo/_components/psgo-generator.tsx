@@ -69,7 +69,7 @@ import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
 import { renderImagingExam, examCpr, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
 import { parseDecimal } from "@/lib/num";
-import { readShiftTeam, formatShiftTeamBlock, formatShiftTeamLines, EMPTY_TEAM } from "@/lib/shift-team";
+import { readShiftTeam, formatShiftTeamBlock, formatShiftTeamInline, EMPTY_TEAM } from "@/lib/shift-team";
 import type { TeamInput } from "@/core/prontuario/preparto-evolution";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -576,7 +576,7 @@ export function PsgoGenerator({
         conclusion: c.conclusion,
         notes: c.notes,
         cd: form.cd,
-        equipe: formatShiftTeamLines(shiftTeam).join(" | "),
+        equipe: formatShiftTeamInline(shiftTeam),
       },
       letterheadFor(origin),
     );
