@@ -43,7 +43,7 @@ import {
   TEST_OPTIONS,
   type GyField,
 } from "@/core/psgo/gyneco-exam";
-import { psgoCtgScore, psgoCtgConclusion, type PsgoCtg } from "@/core/psgo/ctg";
+import { psgoCtgScore, psgoCtgConclusion, emptyPsgoCtg, type PsgoCtg } from "@/core/psgo/ctg";
 import {
   HPMA_TEMPLATES,
   REVISION_QUESTIONS,
@@ -524,8 +524,14 @@ export function PsgoGenerator({
       return { ...f, gyneco: { ...f.gyneco, values: next } };
     });
   }
-  function setCtg(patch: Partial<PsgoCtg>) {
-    update({ ctgLaudo: { ...form.ctgLaudo, ...patch } });
+  function addCtg() {
+    update({ ctgLaudos: [...form.ctgLaudos, { ...emptyPsgoCtg(), id: uid() }] });
+  }
+  function updateCtgAt(id: string, patch: Partial<PsgoCtg>) {
+    update({ ctgLaudos: form.ctgLaudos.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+  }
+  function removeCtg(id: string) {
+    update({ ctgLaudos: form.ctgLaudos.filter((c) => c.id !== id) });
   }
   // Montador de HPMA
   function toggleHpmaQp(id: string) {
@@ -768,6 +774,151 @@ export function PsgoGenerator({
           );
         })}
       </span>
+    );
+  };
+
+  // Formulário de uma CTG (a admissão pode ter várias).
+  const renderCtgCard = (c: PsgoCtg, idx: number) => {
+    const set = (patch: Partial<PsgoCtg>) => updateCtgAt(c.id, patch);
+    return (
+      <div key={c.id} className="space-y-3 rounded-md border p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold">CTG {idx + 1}</p>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Horário</Label>
+            <Input type="time" className="h-8 w-28" value={c.time} onChange={(e) => set({ time: e.target.value })} />
+            <Button type="button" variant="ghost" size="icon" onClick={() => removeCtg(c.id)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Field label="Linha de base (bpm)">
+            <Input inputMode="numeric" value={c.baseline} onChange={(e) => set({ baseline: e.target.value })} />
+          </Field>
+          <Field label="Variabilidade">
+            <select
+              className={selectClass}
+              value={c.variability}
+              onChange={(e) => set({ variability: e.target.value as PsgoCtg["variability"] })}
+            >
+              <option value="absent">Ausente (0)</option>
+              <option value="lt5">&lt; 5 (0)</option>
+              <option value="6-25">6-25 (1)</option>
+              <option value="gt25">&gt; 25 (0)</option>
+              <option value="sinusoidal">Sinusoidal (0)</option>
+            </select>
+          </Field>
+          <Field label="Acelerações (AT)">
+            <select
+              className={selectClass}
+              value={c.accelerations}
+              onChange={(e) => set({ accelerations: e.target.value as PsgoCtg["accelerations"] })}
+            >
+              <option value="present">Presentes</option>
+              <option value="absent">Ausentes</option>
+            </select>
+          </Field>
+          <Field label="Relação AT/MF">
+            <select
+              className={selectClass}
+              value={c.atMfRatio}
+              onChange={(e) => set({ atMfRatio: e.target.value as PsgoCtg["atMfRatio"] })}
+            >
+              <option value="lt60">&lt; 60% (0)</option>
+              <option value="gte60">&gt; 60% ou 2 AT/20min (2)</option>
+            </select>
+          </Field>
+          <Field label="Movimentação fetal">
+            <select
+              className={selectClass}
+              value={c.movements}
+              onChange={(e) => set({ movements: e.target.value as PsgoCtg["movements"] })}
+            >
+              <option value="present">Presentes</option>
+              <option value="absent">Ausentes</option>
+            </select>
+          </Field>
+          <Field label="Desacelerações">
+            <select
+              className={selectClass}
+              value={c.decelerations}
+              onChange={(e) => set({ decelerations: e.target.value as PsgoCtg["decelerations"] })}
+            >
+              <option value="absent">Ausentes (1)</option>
+              <option value="present">Presentes (0)</option>
+            </select>
+          </Field>
+        </div>
+        {c.decelerations === "present" && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Tipo de desaceleração">
+              <select
+                className={selectClass}
+                value={c.decelerationType}
+                onChange={(e) => set({ decelerationType: e.target.value as PsgoCtg["decelerationType"] })}
+              >
+                <option value="">—</option>
+                <option value="early">Precoce</option>
+                <option value="late">Tardia</option>
+                <option value="variable">Variável</option>
+              </select>
+            </Field>
+            <Field label="Número">
+              <Input value={c.decelerationCount} onChange={(e) => set({ decelerationCount: e.target.value })} />
+            </Field>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Field label="Contrações">
+            <select
+              className={selectClass}
+              value={c.contractions}
+              onChange={(e) => set({ contractions: e.target.value as PsgoCtg["contractions"] })}
+            >
+              <option value="absent">Ausentes</option>
+              <option value="present">Presentes</option>
+            </select>
+          </Field>
+          <Field label="Estímulo sonoro">
+            <select
+              className={selectClass}
+              value={c.soundStimulus}
+              onChange={(e) => set({ soundStimulus: e.target.value as PsgoCtg["soundStimulus"] })}
+            >
+              <option value="not_done">Não realizado</option>
+              <option value="done">Realizado</option>
+            </select>
+          </Field>
+          {c.soundStimulus === "done" && (
+            <Field label="Nº de estímulos">
+              <Input value={c.stimulusCount} onChange={(e) => set({ stimulusCount: e.target.value })} />
+            </Field>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-2">
+          <span className="text-sm">
+            Pontuação: <strong className="text-primary">{psgoCtgScore(c)}/5</strong>
+          </span>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs">Conclusão</Label>
+            <select
+              className={`${selectClass} h-8 w-44 font-semibold`}
+              value={psgoCtgConclusion(c)}
+              onChange={(e) => set({ conclusion: e.target.value })}
+            >
+              {CTG_CONCLUSIONS.map((cc) => (
+                <option key={cc} value={cc}>
+                  {cc}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <Field label="Observações">
+          <Textarea rows={2} value={c.notes} onChange={(e) => set({ notes: e.target.value })} />
+        </Field>
+      </div>
     );
   };
 
@@ -2214,188 +2365,30 @@ export function PsgoGenerator({
         </Section>
         )}
 
-        {/* CTG / Conduta */}
-        <Section title={form.pregnant ? "CTG e conduta" : "Conduta"} contentClassName="space-y-3">
-            {form.pregnant && (
-              <div className="space-y-3 rounded-md border p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">CTG (laudo)</p>
-                  <div className="w-52">
-                    <Segmented
-                      value={form.ctgLaudo.done ? "sim" : "nao"}
-                      onChange={(v) => setCtg({ done: v === "sim" })}
-                      options={[
-                        { value: "sim", label: "Realizada" },
-                        { value: "nao", label: "Não realizada" },
-                      ]}
-                    />
-                  </div>
-                </div>
-                {form.ctgLaudo.done && (
-                  <>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      <Field label="Linha de base (bpm)">
-                        <Input
-                          inputMode="numeric"
-                          value={form.ctgLaudo.baseline}
-                          onChange={(e) => setCtg({ baseline: e.target.value })}
-                        />
-                      </Field>
-                      <Field label="Variabilidade">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.variability}
-                          onChange={(e) =>
-                            setCtg({ variability: e.target.value as PsgoCtg["variability"] })
-                          }
-                        >
-                          <option value="absent">Ausente (0)</option>
-                          <option value="lt5">&lt; 5 (0)</option>
-                          <option value="6-25">6-25 (1)</option>
-                          <option value="gt25">&gt; 25 (0)</option>
-                          <option value="sinusoidal">Sinusoidal (0)</option>
-                        </select>
-                      </Field>
-                      <Field label="Acelerações (AT)">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.accelerations}
-                          onChange={(e) =>
-                            setCtg({ accelerations: e.target.value as PsgoCtg["accelerations"] })
-                          }
-                        >
-                          <option value="present">Presentes</option>
-                          <option value="absent">Ausentes</option>
-                        </select>
-                      </Field>
-                      <Field label="Relação AT/MF">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.atMfRatio}
-                          onChange={(e) =>
-                            setCtg({ atMfRatio: e.target.value as PsgoCtg["atMfRatio"] })
-                          }
-                        >
-                          <option value="lt60">&lt; 60% (0)</option>
-                          <option value="gte60">&gt; 60% ou 2 AT/20min (2)</option>
-                        </select>
-                      </Field>
-                      <Field label="Movimentação fetal">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.movements}
-                          onChange={(e) =>
-                            setCtg({ movements: e.target.value as PsgoCtg["movements"] })
-                          }
-                        >
-                          <option value="present">Presentes</option>
-                          <option value="absent">Ausentes</option>
-                        </select>
-                      </Field>
-                      <Field label="Desacelerações">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.decelerations}
-                          onChange={(e) =>
-                            setCtg({ decelerations: e.target.value as PsgoCtg["decelerations"] })
-                          }
-                        >
-                          <option value="absent">Ausentes (1)</option>
-                          <option value="present">Presentes (0)</option>
-                        </select>
-                      </Field>
-                    </div>
-                    {form.ctgLaudo.decelerations === "present" && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label="Tipo de desaceleração">
-                          <select
-                            className={selectClass}
-                            value={form.ctgLaudo.decelerationType}
-                            onChange={(e) =>
-                              setCtg({
-                                decelerationType: e.target.value as PsgoCtg["decelerationType"],
-                              })
-                            }
-                          >
-                            <option value="">—</option>
-                            <option value="early">Precoce</option>
-                            <option value="late">Tardia</option>
-                            <option value="variable">Variável</option>
-                          </select>
-                        </Field>
-                        <Field label="Número">
-                          <Input
-                            value={form.ctgLaudo.decelerationCount}
-                            onChange={(e) => setCtg({ decelerationCount: e.target.value })}
-                          />
-                        </Field>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      <Field label="Contrações">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.contractions}
-                          onChange={(e) =>
-                            setCtg({ contractions: e.target.value as PsgoCtg["contractions"] })
-                          }
-                        >
-                          <option value="absent">Ausentes</option>
-                          <option value="present">Presentes</option>
-                        </select>
-                      </Field>
-                      <Field label="Estímulo sonoro">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.soundStimulus}
-                          onChange={(e) =>
-                            setCtg({ soundStimulus: e.target.value as PsgoCtg["soundStimulus"] })
-                          }
-                        >
-                          <option value="not_done">Não realizado</option>
-                          <option value="done">Realizado</option>
-                        </select>
-                      </Field>
-                      {form.ctgLaudo.soundStimulus === "done" && (
-                        <Field label="Nº de estímulos">
-                          <Input
-                            value={form.ctgLaudo.stimulusCount}
-                            onChange={(e) => setCtg({ stimulusCount: e.target.value })}
-                          />
-                        </Field>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-2">
-                      <span className="text-sm">
-                        Pontuação:{" "}
-                        <strong className="text-primary">{psgoCtgScore(form.ctgLaudo)}/5</strong>
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs">Conclusão</Label>
-                        <select
-                          className={`${selectClass} h-8 w-44 font-semibold`}
-                          value={psgoCtgConclusion(form.ctgLaudo)}
-                          onChange={(e) => setCtg({ conclusion: e.target.value })}
-                        >
-                          {CTG_CONCLUSIONS.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <Field label="Observações">
-                      <Textarea
-                        rows={2}
-                        value={form.ctgLaudo.notes}
-                        onChange={(e) => setCtg({ notes: e.target.value })}
-                      />
-                    </Field>
-                  </>
-                )}
-              </div>
+        {/* CTG (só gestantes) — card próprio, com uma ou mais CTGs */}
+        {form.pregnant && (
+          <Section
+            title="CTG"
+            contentClassName="space-y-3"
+            headerExtra={
+              <Button type="button" size="sm" variant="outline" onClick={addCtg}>
+                <Plus className="h-4 w-4" /> CTG
+              </Button>
+            }
+          >
+            {form.ctgLaudos.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Nenhuma CTG realizada. Use &ldquo;+ CTG&rdquo; para adicionar (não aparece no
+                prontuário se nenhuma for feita).
+              </p>
+            ) : (
+              form.ctgLaudos.map(renderCtgCard)
             )}
+          </Section>
+        )}
+
+        {/* Conduta — card próprio */}
+        <Section title="Conduta" contentClassName="space-y-3">
             <Field label="Conduta (CD)">
               <Textarea rows={2} value={form.cd} onChange={(e) => update({ cd: e.target.value })} />
             </Field>
