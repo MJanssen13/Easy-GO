@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info, ChevronDown, FlaskConical, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Siren, Info, ChevronDown, FlaskConical, ExternalLink, Printer } from "lucide-react";
 import {
   emptyPsgoForm,
   HABITS,
@@ -10,7 +10,9 @@ import {
   type PsgoForm,
   type CoombsEntry,
 } from "@/core/psgo/types";
-import { renderPsgo, computePsgo } from "@/core/psgo/render";
+import { renderPsgo, computePsgo, psgoHd } from "@/core/psgo/render";
+import { renderCtgLaudoHtml, letterheadFor } from "@/core/ctg/laudo";
+import { printHtml } from "@/lib/print";
 import { datingDisplay } from "@/core/psgo/dating";
 import {
   abdFieldsFor,
@@ -67,7 +69,7 @@ import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
 import { renderImagingExam, examCpr, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
 import { parseDecimal } from "@/lib/num";
-import { readShiftTeam, formatShiftTeamBlock, EMPTY_TEAM } from "@/lib/shift-team";
+import { readShiftTeam, formatShiftTeamBlock, formatShiftTeamLines, EMPTY_TEAM } from "@/lib/shift-team";
 import type { TeamInput } from "@/core/prontuario/preparto-evolution";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,6 +96,13 @@ function uid(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
+}
+
+/** Data ISO → DD/MM/AAAA (para o cabeçalho do laudo). */
+function formatDateBR(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("pt-BR");
 }
 
 function Field({
@@ -543,6 +552,36 @@ export function PsgoGenerator({
   function removeCtg(id: string) {
     update({ ctgLaudos: form.ctgLaudos.filter((c) => c.id !== id) });
   }
+  // Gera e imprime o laudo da CTG no modelo em papel timbrado do HC-UFTM.
+  function printCtgLaudo(c: PsgoCtg) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const html = renderCtgLaudoHtml(
+      {
+        name: form.socialName.trim() ? `${form.name} (${form.socialName})` : form.name,
+        rg: form.rg,
+        date: formatDateBR(form.date),
+        time: c.time,
+        hd: psgoHd(form),
+        baseline: c.baseline,
+        variability: c.variability,
+        accelerations: c.accelerations,
+        atMfRatio: c.atMfRatio,
+        movements: c.movements,
+        decelerations: c.decelerations,
+        decelerationType: c.decelerationType,
+        decelerationCount: c.decelerationCount,
+        contractions: c.contractions,
+        soundStimulus: c.soundStimulus,
+        stimulusCount: c.stimulusCount,
+        conclusion: c.conclusion,
+        notes: c.notes,
+        cd: form.cd,
+        equipe: formatShiftTeamLines(shiftTeam).join(" | "),
+      },
+      letterheadFor(origin),
+    );
+    printHtml(html);
+  }
   // Montador de HPMA
   function toggleHpmaQp(id: string) {
     setHpmaSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -797,6 +836,15 @@ export function PsgoGenerator({
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground">Horário</Label>
             <Input type="time" className="h-8 w-28" value={c.time} onChange={(e) => set({ time: e.target.value })} />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => printCtgLaudo(c)}
+              title="Imprimir laudo no modelo do HC-UFTM"
+            >
+              <Printer className="h-4 w-4" /> Imprimir laudo
+            </Button>
             <Button type="button" variant="ghost" size="icon" onClick={() => removeCtg(c.id)}>
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
