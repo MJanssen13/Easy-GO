@@ -16,22 +16,34 @@ import {
   abdFieldsFor,
   toqueFieldsFor,
   ESP_FIELDS,
-  OEEA_KEY,
-  OII_KEY,
-  SECRECAO_OPTIONS,
-  SEC_AUSENTE_KEY,
+  ABD_DU_DETALHE_KEY,
+  TOQUE_DOR_OPTIONS,
+  TOQUE_DOR_INDOLOR_KEY,
+  SEC_LOCAL_KEY,
+  SEC_LOCAL_OPTIONS,
+  SEC_ODOR_KEY,
+  SEC_ODOR_OPTIONS,
+  SEC_GRUMOS_KEY,
+  SEC_GRUMOS_OPTIONS,
+  SEC_COR_KEY,
+  SEC_COR_OPTIONS,
+  secHasCharacteristics,
   ESP_SANGRAMENTO_KEY,
   ESP_SANGRAMENTO_QTD_KEY,
   ESP_SANGRAMENTO_OPTIONS,
   ESP_SANGRAMENTO_QTD_OPTIONS,
+  ESP_SANGRAMENTO_OE_KEY,
+  ESP_SANGRAMENTO_OE_OPTIONS,
   ESP_SAIDA_COLO_KEY,
   ESP_SAIDA_COLO_OPTIONS,
+  ESP_SAIDA_COLO_TIPO_KEY,
+  ESP_SAIDA_COLO_TIPO_OPTIONS,
   ESP_AMNIOSURE_KEY,
   ESP_CRISTALIZACAO_KEY,
   TEST_OPTIONS,
   type GyField,
 } from "@/core/psgo/gyneco-exam";
-import { psgoCtgScore, psgoCtgConclusion, type PsgoCtg } from "@/core/psgo/ctg";
+import { psgoCtgScore, psgoCtgConclusion, emptyPsgoCtg, type PsgoCtg } from "@/core/psgo/ctg";
 import {
   HPMA_TEMPLATES,
   REVISION_QUESTIONS,
@@ -54,6 +66,9 @@ import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
 import { renderImagingExam, examCpr, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
+import { parseDecimal } from "@/lib/num";
+import { readShiftTeam, formatShiftTeamBlock, EMPTY_TEAM } from "@/lib/shift-team";
+import type { TeamInput } from "@/core/prontuario/preparto-evolution";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,8 +76,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
 
+// Largura padronizada das listas suspensas (~ tamanho de um campo de data).
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const CTG_CONCLUSIONS = [
   "Feto ativo",
@@ -245,18 +261,18 @@ function scrollToUsg() {
   document.getElementById("psgo-usg")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-/** Botão para abrir o Labflow (laboratório) em nova aba — visual moderno. */
+/** Botão para abrir o LabFlow (laboratório) em nova aba — teal da marca LabFlow. */
 function LabflowButton() {
   return (
     <a
       href="https://labflowai.vercel.app/"
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow-md hover:brightness-110"
+      className="inline-flex items-center gap-2 rounded-xl bg-[#039a8a] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0a7b71] active:scale-[0.98]"
     >
-      <FlaskConical className="h-3.5 w-3.5" />
-      Acessar Labflow
-      <ExternalLink className="h-3 w-3 opacity-80" />
+      <FlaskConical className="h-4 w-4" />
+      Acessar LabFlow
+      <ExternalLink className="h-3.5 w-3.5 opacity-80" />
     </a>
   );
 }
@@ -301,7 +317,15 @@ export function PsgoGenerator({
     });
   }
 
-  const text = useMemo(() => renderPsgo(form), [form]);
+  // Equipe de plantão compartilhada (definida na página inicial) — vai ao final.
+  const [shiftTeam, setShiftTeam] = useState<TeamInput>(EMPTY_TEAM);
+  useEffect(() => setShiftTeam(readShiftTeam()), []);
+
+  const text = useMemo(() => {
+    const base = renderPsgo(form);
+    const team = formatShiftTeamBlock(shiftTeam);
+    return team ? `${base}\n\n${team.toUpperCase()}` : base;
+  }, [form, shiftTeam]);
   const hpmaPreview = useMemo(
     () =>
       assembleHpma({
@@ -360,10 +384,7 @@ export function PsgoGenerator({
       }),
     [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference],
   );
-  const bmi = classifyBmi(
-    form.weight ? Number(form.weight) : null,
-    form.height ? Number(form.height) : null,
-  );
+  const bmi = classifyBmi(parseDecimal(form.weight), parseDecimal(form.height));
 
   function toggleArray(key: "comorbidities" | "habits", value: string) {
     setForm((f) => {
@@ -497,24 +518,30 @@ export function PsgoGenerator({
   function toggleGyneco(key: string) {
     setGynecoValue(key, form.gyneco.values[key] === "1" ? "" : "1");
   }
-  // Secreção (multi): "Ausente" é exclusivo dos demais.
-  function toggleSecrecao(key: string) {
+  // Dor ao toque (multi): "Indolor" é exclusivo dos demais.
+  function toggleDor(key: string) {
     setForm((f) => {
       const cur = f.gyneco.values;
       const on = cur[key] === "1";
       const next = { ...cur };
-      if (key === SEC_AUSENTE_KEY) {
-        for (const op of SECRECAO_OPTIONS) next[op.key] = "";
-        next[SEC_AUSENTE_KEY] = on ? "" : "1";
+      if (key === TOQUE_DOR_INDOLOR_KEY) {
+        for (const op of TOQUE_DOR_OPTIONS) next[op.key] = "";
+        next[TOQUE_DOR_INDOLOR_KEY] = on ? "" : "1";
       } else {
         next[key] = on ? "" : "1";
-        if (!on) next[SEC_AUSENTE_KEY] = "";
+        if (!on) next[TOQUE_DOR_INDOLOR_KEY] = "";
       }
       return { ...f, gyneco: { ...f.gyneco, values: next } };
     });
   }
-  function setCtg(patch: Partial<PsgoCtg>) {
-    update({ ctgLaudo: { ...form.ctgLaudo, ...patch } });
+  function addCtg() {
+    update({ ctgLaudos: [...form.ctgLaudos, { ...emptyPsgoCtg(), id: uid() }] });
+  }
+  function updateCtgAt(id: string, patch: Partial<PsgoCtg>) {
+    update({ ctgLaudos: form.ctgLaudos.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+  }
+  function removeCtg(id: string) {
+    update({ ctgLaudos: form.ctgLaudos.filter((c) => c.id !== id) });
   }
   // Montador de HPMA
   function toggleHpmaQp(id: string) {
@@ -528,7 +555,7 @@ export function PsgoGenerator({
       <Label className="text-xs text-muted-foreground">{field.label}</Label>
       {field.render === "select" ? (
         <select
-          className={`${selectClass} h-8`}
+          className={`${selectClass} h-8 w-40`}
           value={form.gyneco.values[field.id] ?? field.options[0].label}
           onChange={(e) => setGynecoValue(field.id, e.target.value)}
         >
@@ -757,6 +784,151 @@ export function PsgoGenerator({
           );
         })}
       </span>
+    );
+  };
+
+  // Formulário de uma CTG (a admissão pode ter várias).
+  const renderCtgCard = (c: PsgoCtg, idx: number) => {
+    const set = (patch: Partial<PsgoCtg>) => updateCtgAt(c.id, patch);
+    return (
+      <div key={c.id} className="space-y-3 rounded-md border p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold">CTG {idx + 1}</p>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Horário</Label>
+            <Input type="time" className="h-8 w-28" value={c.time} onChange={(e) => set({ time: e.target.value })} />
+            <Button type="button" variant="ghost" size="icon" onClick={() => removeCtg(c.id)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Field label="Linha de base (bpm)">
+            <Input inputMode="numeric" value={c.baseline} onChange={(e) => set({ baseline: e.target.value })} />
+          </Field>
+          <Field label="Variabilidade">
+            <select
+              className={selectClass}
+              value={c.variability}
+              onChange={(e) => set({ variability: e.target.value as PsgoCtg["variability"] })}
+            >
+              <option value="absent">Ausente (0)</option>
+              <option value="lt5">&lt; 5 (0)</option>
+              <option value="6-25">6-25 (1)</option>
+              <option value="gt25">&gt; 25 (0)</option>
+              <option value="sinusoidal">Sinusoidal (0)</option>
+            </select>
+          </Field>
+          <Field label="Acelerações (AT)">
+            <select
+              className={selectClass}
+              value={c.accelerations}
+              onChange={(e) => set({ accelerations: e.target.value as PsgoCtg["accelerations"] })}
+            >
+              <option value="present">Presentes</option>
+              <option value="absent">Ausentes</option>
+            </select>
+          </Field>
+          <Field label="Relação AT/MF">
+            <select
+              className={selectClass}
+              value={c.atMfRatio}
+              onChange={(e) => set({ atMfRatio: e.target.value as PsgoCtg["atMfRatio"] })}
+            >
+              <option value="lt60">&lt; 60% (0)</option>
+              <option value="gte60">&gt; 60% ou 2 AT/20min (2)</option>
+            </select>
+          </Field>
+          <Field label="Movimentação fetal">
+            <select
+              className={selectClass}
+              value={c.movements}
+              onChange={(e) => set({ movements: e.target.value as PsgoCtg["movements"] })}
+            >
+              <option value="present">Presentes</option>
+              <option value="absent">Ausentes</option>
+            </select>
+          </Field>
+          <Field label="Desacelerações">
+            <select
+              className={selectClass}
+              value={c.decelerations}
+              onChange={(e) => set({ decelerations: e.target.value as PsgoCtg["decelerations"] })}
+            >
+              <option value="absent">Ausentes (1)</option>
+              <option value="present">Presentes (0)</option>
+            </select>
+          </Field>
+        </div>
+        {c.decelerations === "present" && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Tipo de desaceleração">
+              <select
+                className={selectClass}
+                value={c.decelerationType}
+                onChange={(e) => set({ decelerationType: e.target.value as PsgoCtg["decelerationType"] })}
+              >
+                <option value="">—</option>
+                <option value="early">Precoce</option>
+                <option value="late">Tardia</option>
+                <option value="variable">Variável</option>
+              </select>
+            </Field>
+            <Field label="Número">
+              <Input value={c.decelerationCount} onChange={(e) => set({ decelerationCount: e.target.value })} />
+            </Field>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Field label="Contrações">
+            <select
+              className={selectClass}
+              value={c.contractions}
+              onChange={(e) => set({ contractions: e.target.value as PsgoCtg["contractions"] })}
+            >
+              <option value="absent">Ausentes</option>
+              <option value="present">Presentes</option>
+            </select>
+          </Field>
+          <Field label="Estímulo sonoro">
+            <select
+              className={selectClass}
+              value={c.soundStimulus}
+              onChange={(e) => set({ soundStimulus: e.target.value as PsgoCtg["soundStimulus"] })}
+            >
+              <option value="not_done">Não realizado</option>
+              <option value="done">Realizado</option>
+            </select>
+          </Field>
+          {c.soundStimulus === "done" && (
+            <Field label="Nº de estímulos">
+              <Input value={c.stimulusCount} onChange={(e) => set({ stimulusCount: e.target.value })} />
+            </Field>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-2">
+          <span className="text-sm">
+            Pontuação: <strong className="text-primary">{psgoCtgScore(c)}/5</strong>
+          </span>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs">Conclusão</Label>
+            <select
+              className={`${selectClass} h-8 w-44 font-semibold`}
+              value={psgoCtgConclusion(c)}
+              onChange={(e) => set({ conclusion: e.target.value })}
+            >
+              {CTG_CONCLUSIONS.map((cc) => (
+                <option key={cc} value={cc}>
+                  {cc}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <Field label="Observações">
+          <Textarea rows={2} value={c.notes} onChange={(e) => set({ notes: e.target.value })} />
+        </Field>
+      </div>
     );
   };
 
@@ -1198,17 +1370,16 @@ export function PsgoGenerator({
               ) : (
                 form.coombsList.map((c) => (
                   <div key={c.id} className="flex flex-wrap items-center gap-2">
-                    <select
-                      className={`${selectClass} h-8 w-36`}
-                      value={c.result}
-                      onChange={(e) =>
-                        updateCoombs(c.id, { result: e.target.value as CoombsEntry["result"] })
-                      }
-                    >
-                      <option value="">—</option>
-                      <option value="neg">Negativo</option>
-                      <option value="pos">Positivo</option>
-                    </select>
+                    <div className="w-56">
+                      <Segmented
+                        value={c.result as "neg" | "pos"}
+                        onChange={(v) => updateCoombs(c.id, { result: v })}
+                        options={[
+                          { value: "neg", label: "Negativo" },
+                          { value: "pos", label: "Positivo" },
+                        ]}
+                      />
+                    </div>
                     <Input
                       type="date"
                       className="h-8 w-40"
@@ -1281,7 +1452,11 @@ export function PsgoGenerator({
             ) : (
               form.medications.map((m) => (
                 <div key={m.id} className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm">
-                  <span className="min-w-[8rem] flex-1 font-medium">{m.label}</span>
+                  <Input
+                    className="min-w-[8rem] flex-1 font-medium"
+                    value={m.label}
+                    onChange={(e) => updateMed(m.id, { label: e.target.value })}
+                  />
                   <div className="w-40">
                     <Segmented
                       value={m.current ? "uso" : "fez"}
@@ -1668,19 +1843,29 @@ export function PsgoGenerator({
                 <div key={s.id} className="rounded-md border p-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{s.label}</span>
-                    <div className="flex gap-1">
-                      <Chip
-                        active={st.mode === "normal"}
-                        onClick={() => update({ exam: { ...form.exam, [s.id]: { ...st, mode: "normal" } } })}
-                      >
-                        Normal
-                      </Chip>
-                      <Chip
-                        active={st.mode === "altered"}
-                        onClick={() => update({ exam: { ...form.exam, [s.id]: { ...st, mode: "altered" } } })}
-                      >
-                        Alterado
-                      </Chip>
+                    <div className="w-44">
+                      <Segmented
+                        value={st.mode}
+                        onChange={(v) =>
+                          update({
+                            exam: {
+                              ...form.exam,
+                              [s.id]: {
+                                ...st,
+                                mode: v,
+                                // Ao alterar, mantém o exame padrão na caixa para edição.
+                                ...(v === "altered" && !st.text.trim()
+                                  ? { text: buildNormalLine(s.id, form.vitals) }
+                                  : {}),
+                              },
+                            },
+                          })
+                        }
+                        options={[
+                          { value: "normal", label: "Normal" },
+                          { value: "altered", label: "Alterado" },
+                        ]}
+                      />
                     </div>
                   </div>
                   {st.mode === "altered" ? (
@@ -1710,6 +1895,15 @@ export function PsgoGenerator({
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {abdFieldsFor(form.pregnant).map(gyField)}
               </div>
+              {form.pregnant && form.gyneco.values["abdDu"] === "Presente" && (
+                <Field label="Dinâmica uterina (descrição)" className="max-w-md">
+                  <Input
+                    value={form.gyneco.values[ABD_DU_DETALHE_KEY] ?? ""}
+                    onChange={(e) => setGynecoValue(ABD_DU_DETALHE_KEY, e.target.value)}
+                    placeholder="ex.: 2 em 10 minutos"
+                  />
+                </Field>
+              )}
               {form.pregnant && (
                 <p className="text-xs text-muted-foreground">
                   AU e BCF vêm dos sinais vitais do exame físico.
@@ -1734,35 +1928,27 @@ export function PsgoGenerator({
               </div>
               {form.gyneco.toqueRealizado && (
                 <>
-                  <label className="flex items-center gap-2 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={form.gyneco.toqueAutorizado}
-                      onChange={(e) => setGyneco({ toqueAutorizado: e.target.checked })}
-                      className="h-4 w-4 rounded border-input"
-                    />
-                    Autorizado pela paciente
-                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Toque realizado é sempre autorizado pela paciente.
+                  </p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {toqueFieldsFor(form.pregnant).map(gyField)}
                   </div>
+                  {/* Dor ao toque (multi; "Indolor" exclusivo) */}
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">
-                      Dilatação alternativa (OEEA/OII — substitui os cm)
+                      Dor ao toque (pode marcar mais de um)
                     </Label>
                     <div className="flex flex-wrap gap-1.5">
-                      <Chip
-                        active={form.gyneco.values[OEEA_KEY] === "1"}
-                        onClick={() => toggleGyneco(OEEA_KEY)}
-                      >
-                        OEEA
-                      </Chip>
-                      <Chip
-                        active={form.gyneco.values[OII_KEY] === "1"}
-                        onClick={() => toggleGyneco(OII_KEY)}
-                      >
-                        OII
-                      </Chip>
+                      {TOQUE_DOR_OPTIONS.map((op) => (
+                        <Chip
+                          key={op.key}
+                          active={form.gyneco.values[op.key] === "1"}
+                          onClick={() => toggleDor(op.key)}
+                        >
+                          {op.label}
+                        </Chip>
+                      ))}
                     </div>
                   </div>
                 </>
@@ -1787,26 +1973,34 @@ export function PsgoGenerator({
               {form.gyneco.espRealizado && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {ESP_FIELDS.map(gyField)}
-                  {/* Secreção (multisseleção) */}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Secreção (pode marcar mais de um)
-                    </Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {SECRECAO_OPTIONS.map((op) => (
-                        <Chip
-                          key={op.key}
-                          active={form.gyneco.values[op.key] === "1"}
-                          onClick={() => toggleSecrecao(op.key)}
-                        >
-                          {op.label}
-                        </Chip>
-                      ))}
-                    </div>
+                  {/* Secreção (local; características se patológica) */}
+                  <div className="space-y-1 sm:col-span-2">
+                    {gyChipRow("Secreção", SEC_LOCAL_KEY, SEC_LOCAL_OPTIONS)}
+                    {secHasCharacteristics(form.gyneco.values[SEC_LOCAL_KEY]) && (
+                      <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
+                        {gyChipRow("Cor", SEC_COR_KEY, SEC_COR_OPTIONS)}
+                        {gyChipRow("Grumos", SEC_GRUMOS_KEY, SEC_GRUMOS_OPTIONS)}
+                        {gyChipRow("Odor", SEC_ODOR_KEY, SEC_ODOR_OPTIONS)}
+                      </div>
+                    )}
                   </div>
-                  {/* Sangramento (+ quantidade se ≠ ausente) */}
-                  <div className="space-y-1">
+                  {/* Sangramento (+ tipo se pelo OE, + quantidade se ≠ ausente) */}
+                  <div className="space-y-1 sm:col-span-2">
                     {gyChipRow("Sangramento", ESP_SANGRAMENTO_KEY, ESP_SANGRAMENTO_OPTIONS)}
+                    {form.gyneco.values[ESP_SANGRAMENTO_KEY] === "Pelo OE" && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-xs text-muted-foreground">Tipo:</span>
+                        {ESP_SANGRAMENTO_OE_OPTIONS.map((op) => (
+                          <Chip
+                            key={op.label}
+                            active={form.gyneco.values[ESP_SANGRAMENTO_OE_KEY] === op.label}
+                            onClick={() => setGynecoValue(ESP_SANGRAMENTO_OE_KEY, op.label)}
+                          >
+                            {op.label}
+                          </Chip>
+                        ))}
+                      </div>
+                    )}
                     {form.gyneco.values[ESP_SANGRAMENTO_KEY] !== "Ausente" && (
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
                         <span className="text-xs text-muted-foreground">Quantidade:</span>
@@ -1822,14 +2016,28 @@ export function PsgoGenerator({
                       </div>
                     )}
                   </div>
-                  {/* Saídas via colo (+ Amniosure/cristalização se ≠ ausente) */}
+                  {/* Perdas líquidas via colo (+ tipo, AmniSure/cristalização se ≠ ausente) */}
                   <div className="space-y-1 sm:col-span-2">
-                    {gyChipRow("Saídas via colo", ESP_SAIDA_COLO_KEY, ESP_SAIDA_COLO_OPTIONS)}
+                    {gyChipRow("Perdas líquidas via colo", ESP_SAIDA_COLO_KEY, ESP_SAIDA_COLO_OPTIONS)}
                     {form.gyneco.values[ESP_SAIDA_COLO_KEY] !== "Ausente" && (
-                      <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
-                        {gyTestToggle("Amniosure", ESP_AMNIOSURE_KEY)}
-                        {gyTestToggle("Cristalização", ESP_CRISTALIZACAO_KEY)}
-                      </div>
+                      <>
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-xs text-muted-foreground">Tipo:</span>
+                          {ESP_SAIDA_COLO_TIPO_OPTIONS.map((op) => (
+                            <Chip
+                              key={op.label}
+                              active={form.gyneco.values[ESP_SAIDA_COLO_TIPO_KEY] === op.label}
+                              onClick={() => setGynecoValue(ESP_SAIDA_COLO_TIPO_KEY, op.label)}
+                            >
+                              {op.label}
+                            </Chip>
+                          ))}
+                        </div>
+                        <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
+                          {gyTestToggle("AmniSure", ESP_AMNIOSURE_KEY)}
+                          {gyTestToggle("Cristalização", ESP_CRISTALIZACAO_KEY)}
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1861,8 +2069,8 @@ export function PsgoGenerator({
         >
             {form.imagingExams.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL pela Hadlock; IP-AUmb, IP-ACM e
-                RCP pela FMF (Ciobanu 2019).
+                Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL/DBP pela Hadlock; IP-AUmb,
+                IP-ACM, RCP, TN (pelo CCN) e IP da a. uterina pela FMF (fetalmedicine.org).
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -1988,6 +2196,71 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
+                      <td className="border-b p-1 font-medium">CCN (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <Input
+                            className="h-7 w-16 text-xs"
+                            inputMode="decimal"
+                            value={e.crl ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">DBP (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.bpd ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { bpd: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.bpd}
+                            </span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">TN (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.nt ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { nt: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.nt}
+                            </span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Osso nasal</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <select
+                            className={`${selectClass} h-7 w-28 text-xs`}
+                            value={e.nasalBone ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { nasalBone: ev.target.value })}
+                          >
+                            <option value="">—</option>
+                            <option value="PRESENTE">Presente</option>
+                            <option value="AUSENTE">Ausente</option>
+                          </select>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
                       <td className="border-b p-1 font-medium">Placenta (inserção)</td>
                       {form.imagingExams.map((e) => (
                         <td key={e.id} className="border-b p-1">
@@ -2092,9 +2365,35 @@ export function PsgoGenerator({
                         );
                       })}
                     </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">IP A. uterina</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.utPi ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.utPi}
+                            </span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {form.imagingExams.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, DBP, TN,
+                osso nasal, biometria, Doppler, IP da a. uterina) aparecem no mesmo US. Percentis
+                de TN e IP da a. uterina seguem os padrões FMF.
+              </p>
             )}
 
             {form.imagingExams.map((e) => (
@@ -2105,188 +2404,30 @@ export function PsgoGenerator({
         </Section>
         )}
 
-        {/* CTG / Conduta */}
-        <Section title={form.pregnant ? "CTG e conduta" : "Conduta"} contentClassName="space-y-3">
-            {form.pregnant && (
-              <div className="space-y-3 rounded-md border p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">CTG (laudo)</p>
-                  <div className="w-52">
-                    <Segmented
-                      value={form.ctgLaudo.done ? "sim" : "nao"}
-                      onChange={(v) => setCtg({ done: v === "sim" })}
-                      options={[
-                        { value: "sim", label: "Realizada" },
-                        { value: "nao", label: "Não realizada" },
-                      ]}
-                    />
-                  </div>
-                </div>
-                {form.ctgLaudo.done && (
-                  <>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      <Field label="Linha de base (bpm)">
-                        <Input
-                          inputMode="numeric"
-                          value={form.ctgLaudo.baseline}
-                          onChange={(e) => setCtg({ baseline: e.target.value })}
-                        />
-                      </Field>
-                      <Field label="Variabilidade">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.variability}
-                          onChange={(e) =>
-                            setCtg({ variability: e.target.value as PsgoCtg["variability"] })
-                          }
-                        >
-                          <option value="absent">Ausente (0)</option>
-                          <option value="lt5">&lt; 5 (0)</option>
-                          <option value="6-25">6-25 (1)</option>
-                          <option value="gt25">&gt; 25 (0)</option>
-                          <option value="sinusoidal">Sinusoidal (0)</option>
-                        </select>
-                      </Field>
-                      <Field label="Acelerações (AT)">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.accelerations}
-                          onChange={(e) =>
-                            setCtg({ accelerations: e.target.value as PsgoCtg["accelerations"] })
-                          }
-                        >
-                          <option value="present">Presentes</option>
-                          <option value="absent">Ausentes</option>
-                        </select>
-                      </Field>
-                      <Field label="Relação AT/MF">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.atMfRatio}
-                          onChange={(e) =>
-                            setCtg({ atMfRatio: e.target.value as PsgoCtg["atMfRatio"] })
-                          }
-                        >
-                          <option value="lt60">&lt; 60% (0)</option>
-                          <option value="gte60">&gt; 60% ou 2 AT/20min (2)</option>
-                        </select>
-                      </Field>
-                      <Field label="Movimentação fetal">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.movements}
-                          onChange={(e) =>
-                            setCtg({ movements: e.target.value as PsgoCtg["movements"] })
-                          }
-                        >
-                          <option value="present">Presentes</option>
-                          <option value="absent">Ausentes</option>
-                        </select>
-                      </Field>
-                      <Field label="Desacelerações">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.decelerations}
-                          onChange={(e) =>
-                            setCtg({ decelerations: e.target.value as PsgoCtg["decelerations"] })
-                          }
-                        >
-                          <option value="absent">Ausentes (1)</option>
-                          <option value="present">Presentes (0)</option>
-                        </select>
-                      </Field>
-                    </div>
-                    {form.ctgLaudo.decelerations === "present" && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label="Tipo de desaceleração">
-                          <select
-                            className={selectClass}
-                            value={form.ctgLaudo.decelerationType}
-                            onChange={(e) =>
-                              setCtg({
-                                decelerationType: e.target.value as PsgoCtg["decelerationType"],
-                              })
-                            }
-                          >
-                            <option value="">—</option>
-                            <option value="early">Precoce</option>
-                            <option value="late">Tardia</option>
-                            <option value="variable">Variável</option>
-                          </select>
-                        </Field>
-                        <Field label="Número">
-                          <Input
-                            value={form.ctgLaudo.decelerationCount}
-                            onChange={(e) => setCtg({ decelerationCount: e.target.value })}
-                          />
-                        </Field>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      <Field label="Contrações">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.contractions}
-                          onChange={(e) =>
-                            setCtg({ contractions: e.target.value as PsgoCtg["contractions"] })
-                          }
-                        >
-                          <option value="absent">Ausentes</option>
-                          <option value="present">Presentes</option>
-                        </select>
-                      </Field>
-                      <Field label="Estímulo sonoro">
-                        <select
-                          className={selectClass}
-                          value={form.ctgLaudo.soundStimulus}
-                          onChange={(e) =>
-                            setCtg({ soundStimulus: e.target.value as PsgoCtg["soundStimulus"] })
-                          }
-                        >
-                          <option value="not_done">Não realizado</option>
-                          <option value="done">Realizado</option>
-                        </select>
-                      </Field>
-                      {form.ctgLaudo.soundStimulus === "done" && (
-                        <Field label="Nº de estímulos">
-                          <Input
-                            value={form.ctgLaudo.stimulusCount}
-                            onChange={(e) => setCtg({ stimulusCount: e.target.value })}
-                          />
-                        </Field>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-2">
-                      <span className="text-sm">
-                        Pontuação:{" "}
-                        <strong className="text-primary">{psgoCtgScore(form.ctgLaudo)}/5</strong>
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs">Conclusão</Label>
-                        <select
-                          className={`${selectClass} h-8 w-44 font-semibold`}
-                          value={psgoCtgConclusion(form.ctgLaudo)}
-                          onChange={(e) => setCtg({ conclusion: e.target.value })}
-                        >
-                          {CTG_CONCLUSIONS.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <Field label="Observações">
-                      <Textarea
-                        rows={2}
-                        value={form.ctgLaudo.notes}
-                        onChange={(e) => setCtg({ notes: e.target.value })}
-                      />
-                    </Field>
-                  </>
-                )}
-              </div>
+        {/* CTG (só gestantes) — card próprio, com uma ou mais CTGs */}
+        {form.pregnant && (
+          <Section
+            title="CTG"
+            contentClassName="space-y-3"
+            headerExtra={
+              <Button type="button" size="sm" variant="outline" onClick={addCtg}>
+                <Plus className="h-4 w-4" /> CTG
+              </Button>
+            }
+          >
+            {form.ctgLaudos.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Nenhuma CTG realizada. Use &ldquo;+ CTG&rdquo; para adicionar (não aparece no
+                prontuário se nenhuma for feita).
+              </p>
+            ) : (
+              form.ctgLaudos.map(renderCtgCard)
             )}
+          </Section>
+        )}
+
+        {/* Conduta — card próprio */}
+        <Section title="Conduta" contentClassName="space-y-3">
             <Field label="Conduta (CD)">
               <Textarea rows={2} value={form.cd} onChange={(e) => update({ cd: e.target.value })} />
             </Field>

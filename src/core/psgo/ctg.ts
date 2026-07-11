@@ -16,8 +16,10 @@ import {
 } from "@/core/ctg/scoring";
 
 export interface PsgoCtg {
-  /** CTG realizada nesta admissão? */
-  done: boolean;
+  /** Identificador da CTG (uma admissão pode ter várias). */
+  id: string;
+  /** Horário de realização (HH:MM). */
+  time: string;
   baseline: string;
   variability: CtgVariability | "";
   accelerations: CtgPresence | "";
@@ -36,7 +38,8 @@ export interface PsgoCtg {
 
 export function emptyPsgoCtg(): PsgoCtg {
   return {
-    done: false,
+    id: "",
+    time: "",
     baseline: "",
     variability: "6-25",
     accelerations: "present",
@@ -95,4 +98,20 @@ export function renderPsgoCtg(c: PsgoCtg): string {
   parts.push(`PONTUAÇÃO ${psgoCtgScore(c)}/5 - ${psgoCtgConclusion(c).toUpperCase()}`);
   if (c.notes.trim()) parts.push(`OBS: ${c.notes.trim().toUpperCase()}`);
   return parts.join(" | ");
+}
+
+/** Laudo com o horário na frente (quando informado). */
+export function ctgLineWithTime(c: PsgoCtg): string {
+  const t = c.time?.trim();
+  return t ? `${t} - ${renderPsgoCtg(c)}` : renderPsgoCtg(c);
+}
+
+/**
+ * Bloco de CTG do prontuário para uma ou mais CTGs. Vazio (sem CTGs) → "" para
+ * omitir a seção. Uma CTG → linha única; várias → uma por linha.
+ */
+export function renderPsgoCtgs(list: PsgoCtg[]): string {
+  if (!list.length) return "";
+  if (list.length === 1) return `CTG: ${ctgLineWithTime(list[0])}`;
+  return ["CTG:", ...list.map((c) => `- ${ctgLineWithTime(c)}`)].join("\n");
 }

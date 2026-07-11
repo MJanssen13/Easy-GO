@@ -12,7 +12,8 @@ import { buildExamLine, EXAM_SYSTEMS } from "./exam";
 import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
 import { renderImaging } from "./imaging";
-import { renderPsgoCtg } from "./ctg";
+import { renderPsgoCtgs } from "./ctg";
+import { parseDecimal } from "@/lib/num";
 
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
@@ -76,8 +77,8 @@ export function renderPsgo(form: PsgoForm): string {
     usgExams: form.imagingExams,
     preference: form.datingPreference,
   });
-  const weight = form.weight ? Number(form.weight) : null;
-  const height = form.height ? Number(form.height) : null;
+  const weight = parseDecimal(form.weight);
+  const height = parseDecimal(form.height);
   const bmi = classifyBmi(weight, height);
 
   // Cabeçalho
@@ -210,10 +211,10 @@ export function renderPsgo(form: PsgoForm): string {
     L.push(form.pregnant ? "EXAMES DE IMAGEM (ANOTADOS VIDE CARTÃO DE PRÉ-NATAL):" : "EXAMES DE IMAGEM:");
   }
 
-  // CTG (monitorização fetal — só para gestantes): laudo estruturado ou legado
+  // CTG (monitorização fetal — só gestantes): omitida se nenhuma foi realizada.
   if (form.pregnant) {
-    const ctgLine = form.ctgLaudo?.done ? renderPsgoCtg(form.ctgLaudo) : form.ctg.trim();
-    L.push(`CTG: ${ctgLine}`);
+    const ctgBlock = renderPsgoCtgs(form.ctgLaudos ?? []);
+    if (ctgBlock) L.push(ctgBlock);
   }
 
   // HD — comorbidades + diagnósticos automáticos (adolescente < 18; PRN irregular)

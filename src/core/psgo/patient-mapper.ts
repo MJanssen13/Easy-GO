@@ -12,11 +12,12 @@ import {
   gaFromUltrasound,
 } from "@/core/obstetric/gestational-age";
 import type { PsgoForm } from "./types";
-import { emptyPsgoCtg } from "./ctg";
+import { emptyPsgoCtg, type PsgoCtg } from "./ctg";
 import { formatParity } from "./parity";
 import { autoComorbidities } from "./comorbidities";
 import { resolvePsgoDating } from "./dating";
 import { computePsgo, renderPsgo } from "./render";
+import { parseDecimal } from "@/lib/num";
 
 /** Formato do `clinical_summary` de uma paciente do PSGO. */
 export interface PsgoClinicalSummary {
@@ -53,8 +54,8 @@ function dedup(items: string[]): string[] {
 
 /** Comorbidades (selecionadas + outras + automáticas) → fatores de risco. */
 export function psgoRiskFactors(form: PsgoForm): string[] {
-  const weight = form.weight ? Number(form.weight) : null;
-  const height = form.height ? Number(form.height) : null;
+  const weight = parseDecimal(form.weight);
+  const height = parseDecimal(form.height);
   const parity = formatParity(form.priorPregnancies, form.pregnant);
   return dedup([
     ...form.comorbidities,
@@ -133,6 +134,14 @@ export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
   };
 }
 
+/** CTGs a partir do form salvo, migrando o laudo único legado (`ctgLaudo`). */
+function legacyCtgLaudos(form: PsgoForm): PsgoCtg[] {
+  if (form.ctgLaudos && form.ctgLaudos.length > 0) return form.ctgLaudos;
+  const legacy = (form as { ctgLaudo?: PsgoCtg & { done?: boolean } }).ctgLaudo;
+  if (legacy?.done) return [{ ...emptyPsgoCtg(), ...legacy, id: legacy.id || "ctg-1" }];
+  return [];
+}
+
 /** Recupera o `PsgoForm` salvo de uma paciente (para reabrir/editar a admissão). */
 export function patientToPsgoForm(patient: Patient): PsgoForm | null {
   const cs = patient.clinicalSummary as unknown as PsgoClinicalSummary | null;
@@ -152,7 +161,7 @@ export function patientToPsgoForm(patient: Patient): PsgoForm | null {
     medicationsPast: cs.form.medicationsPast ?? "",
     coombsList,
     udiWhich: cs.form.udiWhich ?? "",
-    // CTG legada (texto livre) migra para as observações do laudo.
-    ctgLaudo: cs.form.ctgLaudo ?? { ...emptyPsgoCtg(), notes: cs.form.ctg ?? "" },
+    // CTG: admissões antigas guardavam um único laudo (`ctgLaudo`, com `done`).
+    ctgLaudos: legacyCtgLaudos(cs.form),
   };
 }

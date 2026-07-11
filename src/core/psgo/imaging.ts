@@ -7,9 +7,12 @@
  *   -(DATA): IG: XX / APRESENTAÇÃO / PESO (P X) / CIRC. ABDOMINAL (P X) /
  *    PLACENTA E SUA INSERÇÃO, GRAU / MBV / IP AUMB (P X) / IP ACM (P X) / RCP (P X)
  */
-import { efwCentile, acCentile } from "@/core/fmf/biometry";
+import { efwCentile, acCentile, bpdCentile } from "@/core/fmf/biometry";
 import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr";
+import { ntCentile } from "@/core/fmf/nt";
+import { utPiCentile } from "@/core/fmf/uterine";
 import { formatCentile } from "@/core/fmf/centile";
+import { parseDecimal } from "@/lib/num";
 
 export interface ImagingExam {
   id: string;
@@ -25,6 +28,11 @@ export interface ImagingExam {
   mbv?: string; // maior bolsão vertical (cm)
   uaPi?: string; // IP AUMB — IP da artéria umbilical
   mcaPi?: string; // IP ACM — IP da artéria cerebral média
+  utPi?: string; // IP A. UTERINA (média) — IP das artérias uterinas
+  crl?: string; // CCN — comprimento cabeça-nádega (mm)
+  bpd?: string; // DBP — diâmetro biparietal (mm)
+  nt?: string; // TN — translucência nucal (mm)
+  nasalBone?: string; // ON — osso nasal (presente/ausente)
   notes?: string;
 }
 
@@ -34,9 +42,7 @@ export function examGaDays(e: Pick<ImagingExam, "gaWeeks" | "gaDays">): number |
 }
 
 function num(s?: string): number | null {
-  if (s == null || s.trim() === "") return null;
-  const n = Number(s.replace(",", "."));
-  return Number.isFinite(n) ? n : null;
+  return parseDecimal(s);
 }
 
 function pctSuffix(c: number | null): string {
@@ -66,6 +72,9 @@ export interface ImagingCentiles {
   uaPi: string;
   mcaPi: string;
   cpr: string;
+  nt: string; // percentil da TN (pela FMF, a partir do CCN)
+  utPi: string; // percentil do IP da artéria uterina (pela FMF)
+  bpd: string; // percentil do DBP (Hadlock 1984)
 }
 
 /** Rótulos de percentil ("P X") de cada medida do exame, para exibição no quadro. */
@@ -80,12 +89,19 @@ export function examCentiles(e: ImagingExam): ImagingCentiles {
   const uaPi = num(e.uaPi);
   const mcaPi = num(e.mcaPi);
   const cpr = examCpr(e);
+  const nt = num(e.nt);
+  const crl = num(e.crl);
+  const utPi = num(e.utPi);
+  const bpd = num(e.bpd);
   return {
     efw: gaDays != null && efw != null ? lab(efwCentile(efw, gaDays)) : "",
     ac: gaDays != null && ac != null ? lab(acCentile(ac, gaDays)) : "",
     uaPi: gaDays != null && uaPi != null ? lab(uaPiCentile(uaPi, gaDays)) : "",
     mcaPi: gaDays != null && mcaPi != null ? lab(mcaPiCentile(mcaPi, gaDays)) : "",
     cpr: gaDays != null && cpr != null ? lab(cprCentile(cpr, gaDays)) : "",
+    nt: nt != null && crl != null ? lab(ntCentile(nt, crl)) : "",
+    utPi: gaDays != null && utPi != null ? lab(utPiCentile(utPi, gaDays)) : "",
+    bpd: gaDays != null && bpd != null ? lab(bpdCentile(bpd, gaDays)) : "",
   };
 }
 
@@ -97,6 +113,11 @@ export function hasImagingData(e: ImagingExam): boolean {
       e.uaPi ||
       e.mcaPi ||
       e.mbv ||
+      e.utPi ||
+      e.crl ||
+      e.bpd ||
+      e.nt ||
+      e.nasalBone ||
       e.placentaSite ||
       e.placentaGrade ||
       e.presentation ||
@@ -112,6 +133,21 @@ export function renderImagingExam(e: ImagingExam): string {
   const ig = igLabel(e);
   if (ig) fields.push(ig);
   if (e.presentation) fields.push(e.presentation);
+
+  // Marcadores/biometria (nem todos presentes no mesmo US).
+  const crl = num(e.crl);
+  if (crl != null) fields.push(`CCN ${e.crl}mm`);
+  const bpd = num(e.bpd);
+  if (bpd != null) {
+    const c = gaDays != null ? bpdCentile(bpd, gaDays) : null;
+    fields.push(`DBP ${e.bpd}mm${pctSuffix(c)}`);
+  }
+  const nt = num(e.nt);
+  if (nt != null) {
+    const c = crl != null ? ntCentile(nt, crl) : null;
+    fields.push(`TN ${e.nt}mm${pctSuffix(c)}`);
+  }
+  if (e.nasalBone) fields.push(`OSSO NASAL ${e.nasalBone.toUpperCase()}`);
 
   const efw = num(e.efw);
   if (efw != null) {
@@ -149,6 +185,12 @@ export function renderImagingExam(e: ImagingExam): string {
   if (cpr != null) {
     const c = gaDays != null ? cprCentile(cpr, gaDays) : null;
     fields.push(`RCP ${cpr.toFixed(2)}${pctSuffix(c)}`);
+  }
+
+  const utPi = num(e.utPi);
+  if (utPi != null) {
+    const c = gaDays != null ? utPiCentile(utPi, gaDays) : null;
+    fields.push(`IP A. UTERINA ${e.utPi}${pctSuffix(c)}`);
   }
 
   if (e.notes) fields.push(e.notes);
