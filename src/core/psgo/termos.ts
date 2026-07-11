@@ -99,8 +99,8 @@ function consentFooter(date: string): string {
         <div class="center small">Quando o paciente for menor de idade, ou que tenha responsável legal, ou não possa assinar este documento.</div>
       </td>
     </tr></tbody></table>
-    <p class="mt-lg">Eu, Dr(a).:<span class="ln ln-lg"></span>, CRM<span class="ln"></span>, declaro que coletei este consentimento, informando previamente os riscos e esclarecendo eventuais dúvidas ao paciente/responsável.</p>
-    <div class="center mt-lg">
+    <p class="sign-gap">Eu, Dr(a).:<span class="ln ln-lg"></span>, CRM<span class="ln"></span>, declaro que coletei este consentimento, informando previamente os riscos e esclarecendo eventuais dúvidas ao paciente/responsável.</p>
+    <div class="center sign-gap">
       <div class="sign-line sign-center"></div>
       <div class="b">Médico(a) &ndash; Assinatura</div>
     </div>`;
@@ -198,11 +198,18 @@ function termoInducao(d: TermosData, lh: LaudoLetterhead): string {
   );
 }
 
-/** Monta o HTML autocontido com os 4 termos (uma folha por termo). */
+export interface TermosOptions {
+  /** Inclui o termo de indução do trabalho de parto (padrão: true). */
+  includeInducao?: boolean;
+}
+
+/** Monta o HTML autocontido com os termos (uma folha por termo). */
 export function renderTermosHtml(
   d: TermosData,
   lh: LaudoLetterhead = DEFAULT_LETTERHEAD,
+  options: TermosOptions = {},
 ): string {
+  const includeInducao = options.includeInducao !== false;
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -236,6 +243,8 @@ export function renderTermosHtml(
   .small { font-size: 8.5pt; font-weight: normal; }
   .b { font-weight: bold; }
   .mt-lg { margin-top: 22px; }
+  /* Espaço maior para as assinaturas (caber a firma acima da linha). */
+  .sign-gap { margin-top: 58px; }
   ol.items { margin: 6px 0; padding-left: 22px; }
   ol.items > li { margin: 5px 0; text-align: justify; }
   .ln { display: inline-block; min-width: 130px; border-bottom: 1px solid #000; }
@@ -251,7 +260,7 @@ export function renderTermosHtml(
   .medico-box { border: 1px solid #000; padding: 7px 9px; margin-top: 8px; }
   .medico-box p { margin: 4px 0; }
   .carimbo { text-align: right; font-size: 8pt; }
-  table.two-sign { width: 100%; margin-top: 30px; border-collapse: collapse; }
+  table.two-sign { width: 100%; margin-top: 72px; border-collapse: collapse; }
   table.two-sign td { width: 50%; padding: 0 14px; vertical-align: top; }
   .sign-line { border-top: 1px solid #000; margin: 0 auto 4px; }
   .sign-center { width: 60%; }
@@ -261,7 +270,7 @@ export function renderTermosHtml(
   ${termoAnestesia(d, lh)}
   ${termoProcedimentos(d, lh)}
   ${termoParto(d, lh)}
-  ${termoInducao(d, lh)}
+  ${includeInducao ? termoInducao(d, lh) : ""}
 </body>
 </html>`;
 }

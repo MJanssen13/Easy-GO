@@ -14,6 +14,9 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - Só **NOME, RG e DATA** são preenchidos com os dados da paciente; o restante é
   o texto fixo do termo, com os campos de assinatura em branco. Novo módulo puro
   `@/core/psgo/termos`; timbre repetido em toda página (via `thead`).
+- O botão virou um menu com **"Imprimir tudo"** e **"Tudo exceto indução"**, e
+  passou a aparecer também na **página da paciente** (não só na edição da
+  admissão). Mais espaço para as assinaturas nos termos de parto e indução.
 
 ### PSGO — Alta e exclusão de admissão
 
