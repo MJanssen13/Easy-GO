@@ -67,6 +67,44 @@ export function computePsgo(form: PsgoForm): PsgoComputed {
   return { robsonGroup: robson.group, robsonMissing: robson.missing };
 }
 
+/**
+ * Monta a HD (hipótese diagnóstica) do PSGO, sem o prefixo "HD:". Para
+ * gestantes: "GESTAÇÃO DE {IG} ({método})" + comorbidades e diagnósticos
+ * automáticos (adolescente < 18; PRN irregular). Caso contrário, apenas a lista
+ * de diagnósticos. Reaproveitado pelo laudo impresso da CTG.
+ */
+export function psgoHd(form: PsgoForm): string {
+  const parity = formatParity(form.priorPregnancies, form.pregnant);
+  const dating = resolvePsgoDating({
+    lmp: form.lmp,
+    lmpUncertain: form.lmpUncertain,
+    usgExams: form.imagingExams,
+    preference: form.datingPreference,
+  });
+  const cmb = dedup([
+    ...form.comorbidities,
+    ...splitOther(form.comorbiditiesOther),
+    ...autoComorbidities({
+      weightKg: parseDecimal(form.weight),
+      heightM: parseDecimal(form.height),
+      cesareanCount: parity.cesareanCount,
+    }),
+  ]);
+  const ageNum = form.age ? Number(form.age) : NaN;
+  const hdFlags: string[] = [];
+  if (!Number.isNaN(ageNum) && ageNum < 18) hdFlags.push("ADOLESCENTE");
+  if (form.pregnant && form.prenatalIrregular) hdFlags.push("PRN IRREGULAR");
+  const hdDiagnoses = dedup([...cmb, ...hdFlags]);
+
+  if (form.pregnant) {
+    const gaPart = dating.gaPhrase ? `GESTAÇÃO DE ${dating.gaPhrase}` : "GESTAÇÃO DE";
+    const method = dating.methodTag ? ` (${dating.methodTag})` : "";
+    const hdExtra = hdDiagnoses.length > 0 ? ` + ${hdDiagnoses.join(" + ")}` : "";
+    return `${gaPart}${method}${hdExtra}`;
+  }
+  return hdDiagnoses.join(" + ");
+}
+
 export function renderPsgo(form: PsgoForm): string {
   const L: string[] = [];
 
@@ -217,21 +255,8 @@ export function renderPsgo(form: PsgoForm): string {
     if (ctgBlock) L.push(ctgBlock);
   }
 
-  // HD — comorbidades + diagnósticos automáticos (adolescente < 18; PRN irregular)
-  const ageNum = form.age ? Number(form.age) : NaN;
-  const hdFlags: string[] = [];
-  if (!Number.isNaN(ageNum) && ageNum < 18) hdFlags.push("ADOLESCENTE");
-  if (form.pregnant && form.prenatalIrregular) hdFlags.push("PRN IRREGULAR");
-  const hdDiagnoses = dedup([...cmb, ...hdFlags]);
-
-  if (form.pregnant) {
-    const gaPart = dating.gaPhrase ? `GESTAÇÃO DE ${dating.gaPhrase}` : "GESTAÇÃO DE";
-    const method = dating.methodTag ? ` (${dating.methodTag})` : "";
-    const hdExtra = hdDiagnoses.length > 0 ? ` + ${hdDiagnoses.join(" + ")}` : "";
-    L.push(`HD: ${gaPart}${method}${hdExtra}`);
-  } else {
-    L.push(`HD: ${hdDiagnoses.join(" + ")}`);
-  }
+  // HD — gestação (IG) + comorbidades + diagnósticos automáticos
+  L.push(`HD: ${psgoHd(form)}`);
 
   // Conduta
   L.push(`CD: ${form.cd ? `${form.cd} ` : ""}DISCUTIDO COM PLANTÃO QUE ORIENTA:`);

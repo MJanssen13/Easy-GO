@@ -5,6 +5,20 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Imprimir laudo da CTG
+
+- Cada CTG do PSGO ganha o botão **"Imprimir laudo"**, que gera o laudo no
+  **modelo em papel timbrado do HC-UFTM** (UFTM · SUS · HUBRASIL) e abre o
+  diálogo de impressão. O impresso traz o cabeçalho (nome, RG, data, hora e
+  **HD** — reaproveitada do prontuário), o quadro de pontuação com as caixas
+  marcadas e os pontos por parâmetro (escore `@/core/ctg/scoring`), estímulos,
+  conclusão (feto ativo/hipoativo/inativo pelo escore + reativo/etc.),
+  observações, conduta e equipe de plantão.
+- Novo `@/core/ctg/laudo` (montagem do HTML autocontido, pura/testável) e
+  `@/lib/print` (impressão via `<iframe>` isolado, sem pop-up). A HD virou o
+  helper reaproveitável `psgoHd` em `@/core/psgo/render`. Logotipos em
+  `public/laudo`.
+
 ### Biometria — Percentil do DBP (Hadlock)
 
 - **DBP (BPD)** ganha percentil por IG (Hadlock 1984: média cm = −3,08 + 0,41·IG
