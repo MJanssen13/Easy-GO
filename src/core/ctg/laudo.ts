@@ -66,6 +66,8 @@ export interface CtgLaudoData {
   contractions: CtgPresence | "" | null;
   soundStimulus: CtgSoundStimulus | "" | null;
   stimulusCount: string;
+  mechanicalStimulus: CtgSoundStimulus | "" | null;
+  mechanicalStimulusCount: string;
   /** Conclusão escolhida (um dos 7 rótulos) ou "" para usar a do escore. */
   conclusion: string;
   notes: string;
@@ -127,6 +129,8 @@ export function renderCtgLaudoHtml(
   const decelPresent = d.decelerations === "present";
   const soundDone = d.soundStimulus === "done";
   const soundNot = d.soundStimulus === "not_done";
+  const mechDone = d.mechanicalStimulus === "done";
+  const mechNot = d.mechanicalStimulus === "not_done";
 
   const rows = `
     <tr>
@@ -223,8 +227,8 @@ export function renderCtgLaudoHtml(
           <div>Nº DE ESTIMULOS: ${soundDone ? esc(d.stimulusCount) : ""}</div>
         </td>
         <td>
-          <div class="rin"><span>${box(false, "REALIZADO")}</span><span>${box(false, "NÃO REALIZADO")}</span></div>
-          <div>Nº DE ESTIMULOS: </div>
+          <div class="rin"><span>${box(mechDone, "REALIZADO")}</span><span>${box(mechNot, "NÃO REALIZADO")}</span></div>
+          <div>Nº DE ESTIMULOS: ${mechDone ? esc(d.mechanicalStimulusCount) : ""}</div>
         </td>
       </tr>
       </tbody>
@@ -256,7 +260,7 @@ export function renderCtgLaudoHtml(
 <style>
   @page { size: A4; margin: 12mm 14mm; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
+  html, body { margin: 0; padding: 0; height: 100%; }
   body {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 10pt;
@@ -264,7 +268,8 @@ export function renderCtgLaudoHtml(
     color: #000;
     text-transform: uppercase;
   }
-  .sheet { width: 100%; }
+  /* Coluna que ocupa a página inteira, para fixar a equipe na última linha. */
+  .sheet { width: 100%; min-height: 100%; display: flex; flex-direction: column; }
   .letterhead {
     display: flex;
     align-items: center;
@@ -323,6 +328,9 @@ export function renderCtgLaudoHtml(
   .foot { margin-top: 14px; }
   .foot > div { margin: 10px 0; }
   .foot .lbl { font-weight: bold; }
+  /* Equipe de plantão fixada na última linha da folha (espaço acima). */
+  .equipe-foot { margin-top: auto; padding-top: 12mm; }
+  .equipe-foot .lbl { font-weight: bold; }
 </style>
 </head>
 <body>
@@ -364,8 +372,9 @@ export function renderCtgLaudoHtml(
 
     <div class="foot">
       <div><span class="lbl">CD:</span> DISCUTIDA COM EQUIPE, QUE ORIENTA: ${esc(d.cd)}</div>
-      <div><span class="lbl">EQUIPE:</span> ${esc(d.equipe)}</div>
     </div>
+
+    <div class="equipe-foot"><span class="lbl">EQUIPE:</span> ${esc(d.equipe)}</div>
   </div>
 </body>
 </html>`;

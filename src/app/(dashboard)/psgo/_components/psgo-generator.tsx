@@ -573,6 +573,8 @@ export function PsgoGenerator({
         contractions: c.contractions,
         soundStimulus: c.soundStimulus,
         stimulusCount: c.stimulusCount,
+        mechanicalStimulus: c.mechanicalStimulus,
+        mechanicalStimulusCount: c.mechanicalStimulusCount,
         conclusion: c.conclusion,
         notes: c.notes,
         cd: form.cd,
@@ -951,6 +953,24 @@ export function PsgoGenerator({
           {c.soundStimulus === "done" && (
             <Field label="Nº de estímulos">
               <Input value={c.stimulusCount} onChange={(e) => set({ stimulusCount: e.target.value })} />
+            </Field>
+          )}
+          <Field label="Estímulo mecânico">
+            <select
+              className={selectClass}
+              value={c.mechanicalStimulus}
+              onChange={(e) => set({ mechanicalStimulus: e.target.value as PsgoCtg["mechanicalStimulus"] })}
+            >
+              <option value="not_done">Não realizado</option>
+              <option value="done">Realizado</option>
+            </select>
+          </Field>
+          {c.mechanicalStimulus === "done" && (
+            <Field label="Nº de estímulos">
+              <Input
+                value={c.mechanicalStimulusCount}
+                onChange={(e) => set({ mechanicalStimulusCount: e.target.value })}
+              />
             </Field>
           )}
         </div>

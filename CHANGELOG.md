@@ -17,7 +17,9 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - Novo `@/core/ctg/laudo` (montagem do HTML autocontido, pura/testável) e
   `@/lib/print` (impressão via `<iframe>` isolado, sem pop-up). A HD virou o
   helper reaproveitável `psgoHd` em `@/core/psgo/render`. Logotipos em
-  `public/laudo`.
+  `public/laudo`. A **equipe de plantão** sai na última linha da folha.
+- A CTG ganhou o campo **estímulo mecânico** (realizado/não + nº), espelhando
+  o estímulo sonoro — no card, no prontuário e no laudo.
 
 ### Biometria — Percentil do DBP (Hadlock)
 
