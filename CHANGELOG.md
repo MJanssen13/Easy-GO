@@ -5,6 +5,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Plataforma — Equipe de plantão na página inicial
+
+- A **Equipe de plantão** saiu do Pré-Parto e passou para a **página inicial**,
+  pois vale para toda a plataforma. O armazenamento (localStorage) virou um
+  módulo compartilhado (`@/lib/shift-team`) e o card, um componente
+  compartilhado (`@/components/shift-team-card`).
+
 ### PSGO — Chegada, revisão dirigida e ajustes de UI da HPMA
 
 - **Chegada** com 3 modos: **Demanda espontânea**, **Ambulância** e

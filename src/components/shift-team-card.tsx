@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Users } from "lucide-react";
 import type { TeamInput } from "@/core/prontuario/preparto-evolution";
-import { readShiftTeam, writeShiftTeam, EMPTY_TEAM } from "./shift-team-store";
+import { readShiftTeam, writeShiftTeam, EMPTY_TEAM } from "@/lib/shift-team";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,8 +54,8 @@ export function ShiftTeamCard() {
           ))}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Salva neste dispositivo e usada automaticamente em todas as evoluções de plantão do
-          Pré-Parto. Cargos vazios não entram na evolução.
+          Salva neste dispositivo e usada automaticamente em toda a plataforma (evoluções de
+          plantão do Pré-Parto e prontuário do PSGO). Cargos vazios não entram no texto.
         </p>
       </CardContent>
     </Card>

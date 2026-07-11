@@ -7,7 +7,6 @@ import { get24hStats, type Stats24h } from "@/core/patients/stats";
 import type { Patient, Observation } from "@/core/patients/types";
 import { buttonVariants } from "@/components/ui/button";
 import { PatientCard } from "./_components/patient-card";
-import { ShiftTeamCard } from "./_components/shift-team-card";
 
 export const metadata: Metadata = { title: "Pré-Parto" };
 
@@ -61,8 +60,6 @@ export default async function PrePartoBoard() {
           </Link>
         </div>
       </div>
-
-      <ShiftTeamCard />
 
       {loadError && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
