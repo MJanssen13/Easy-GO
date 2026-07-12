@@ -11,7 +11,7 @@ import type { GynecoState } from "./gyneco-exam";
 import { emptyGynecoState } from "./gyneco-exam";
 import type { PsgoCtg } from "./ctg";
 
-export const HABITS = ["NEGA", "UDI", "TBG", "ALCOOLISMO", "ERRO ALIMENTAR", "SEDENTARISMO"];
+export const HABITS = ["NEGA", "UDI", "TBG", "ALCOOLISMO"];
 
 /** Um resultado de Coombs indireto (CI) com sua data. */
 export interface CoombsEntry {
@@ -22,12 +22,16 @@ export interface CoombsEntry {
 
 export const COMPANION_RELATIONS = [
   "ESPOSO",
-  "COMPANHEIRO(A)",
+  "COMPANHEIRO",
+  "COMPANHEIRA",
   "MÃE",
   "PAI",
-  "IRMÃ(O)",
-  "FILHO(A)",
-  "AMIGO(A)",
+  "IRMÃ",
+  "IRMÃO",
+  "FILHO",
+  "FILHA",
+  "AMIGO",
+  "AMIGA",
   "OUTRO",
 ];
 
@@ -88,7 +92,11 @@ export interface PsgoForm {
 
   // cirurgias / alergias / hábitos
   surgeries: string;
+  /** "Nega" cirurgias prévias (oculta o campo; cola NEGA). */
+  surgeriesDenied: boolean;
   allergies: string;
+  /** "Nega" alergias (oculta o campo; cola NEGA). */
+  allergiesDenied: boolean;
   habits: string[];
   habitsOther: string;
   /** Droga(s) informada(s) quando UDI está marcado. */
@@ -170,7 +178,9 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     medicationsOther: "",
     medicationsPast: "",
     surgeries: "",
+    surgeriesDenied: false,
     allergies: "",
+    allergiesDenied: false,
     habits: [],
     habitsOther: "",
     udiWhich: "",

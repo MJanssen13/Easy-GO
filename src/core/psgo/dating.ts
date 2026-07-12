@@ -56,14 +56,12 @@ function parseDate(s?: string | null): Date | null {
 }
 
 /**
- * O USG que ancora a datação: o marcado (`useForDating`) ou, na falta dele, o
- * primeiro com data e IG. É esse exame cuja IG digitada é o insumo da datação.
+ * O USG que ancora a datação: sempre a PRIMEIRA coluna do quadro de exames de
+ * imagem. É esse exame cuja IG digitada é o insumo da datação (a IG dos demais é
+ * automática, pela data de realização).
  */
 export function findDatingUsg(usgExams: UsgExam[]): UsgExam | undefined {
-  return (
-    usgExams.find((u) => u.useForDating) ??
-    usgExams.find((u) => u.date != null && u.gaWeeks != null)
-  );
+  return usgExams[0];
 }
 
 export interface DatingContext {

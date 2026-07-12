@@ -3,11 +3,11 @@
  * Saída em MAIÚSCULAS, mantendo os rótulos mesmo quando vazios (como o modelo).
  */
 import type { PsgoForm } from "./types";
-import { formatParity } from "./parity";
+import { formatParity, formatCesareans } from "./parity";
 import { classifyRobson } from "./robson";
 import { resolvePsgoDating, resolveDatingContext, withAutoGa, refFromISO } from "./dating";
 import { autoComorbidities, classifyBmi } from "./comorbidities";
-import { formatPastMedication } from "./medications";
+import { formatCurrentMedication, formatPastMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
 import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
@@ -199,23 +199,36 @@ export function renderPsgo(form: PsgoForm): string {
     ...autoComorbidities({ weightKg: weight, heightM: height, cesareanCount: parity.cesareanCount }),
   ]);
   const meu = dedup([
-    ...form.medications.filter((m) => m.current).map((m) => m.label),
+    ...form.medications.filter((m) => m.current).map(formatCurrentMedication),
     ...splitOther(form.medicationsOther),
   ]);
   const fezUso = dedup([
     ...form.medications.filter((m) => !m.current).map(formatPastMedication),
     ...splitOther(form.medicationsPast),
   ]);
+  // Cirurgias: as cesáreas prévias (da paridade) entram automaticamente. "Nega"
+  // cola NEGA (mas as cesáreas, se houver, ainda constam).
+  const cesareanText = formatCesareans(form.priorPregnancies);
+  const surgeriesText = form.surgeriesDenied
+    ? cesareanText || "NEGA"
+    : [cesareanText, form.surgeries.trim()].filter(Boolean).join(", ");
+  const allergiesText = form.allergiesDenied ? "NEGA" : form.allergies;
   const habitsList = form.habits.map((h) =>
     h === "UDI" && (form.udiWhich ?? "").trim() ? `UDI (${form.udiWhich.trim()})` : h,
   );
-  const hcv = dedup([...habitsList, ...splitOther(form.habitsOther)]);
-  const medsBlock = [`CMB: ${cmb.join(" + ")}`, "MEU:", ...meu];
-  if (fezUso.length > 0) medsBlock.push("", "FEZ USO:", ...fezUso);
+  // HCV: "NEGA" cola a negação padronizada dos hábitos (mantém eventuais outros).
+  const hcvText = form.habits.includes("NEGA")
+    ? ["NEGA TBG, ALCOOLISMO E UDI", ...splitOther(form.habitsOther)].join(", ")
+    : dedup([...habitsList, ...splitOther(form.habitsOther)]).join(", ");
+  // Medicamentos deslocados (10 espaços) sob os rótulos MEU / FEZ USO.
+  const MED_INDENT = " ".repeat(10);
+  const medsBlock = [`CMB: ${cmb.join(" + ")}`, "MEU:", ...meu.map((m) => `${MED_INDENT}${m}`)];
+  if (fezUso.length > 0)
+    medsBlock.push("", "FEZ USO:", ...fezUso.map((m) => `${MED_INDENT}${m}`));
   medsBlock.push(
-    `CIRURGIAS: ${form.surgeries}`,
-    `ALERGIAS: ${form.allergies}`,
-    `HCV: ${hcv.join(", ")}`,
+    `CIRURGIAS: ${surgeriesText}`,
+    `ALERGIAS: ${allergiesText}`,
+    `HCV: ${hcvText}`,
   );
   push(1, ...medsBlock);
 

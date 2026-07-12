@@ -52,6 +52,29 @@ export function requiredNotePrompt(type: PriorPregnancyType): string | null {
   return null;
 }
 
+/**
+ * Resumo automático das cesáreas prévias para a linha de CIRURGIAS, a partir da
+ * paridade. Ex.: 2 cesáreas em 2005 e 2015 → "2 CESÁREAS (2005 E 2015)"; 1 em
+ * 2010 → "1 CESÁREA (2010)". Sem cesáreas → "".
+ */
+export function formatCesareans(prior: PriorPregnancy[]): string {
+  const cesareans = prior.filter((p) => p.type === "C");
+  const n = cesareans.length;
+  if (n === 0) return "";
+  const years = cesareans
+    .map((p) => (p.year ?? "").trim())
+    .filter(Boolean)
+    .sort();
+  const noun = n === 1 ? "CESÁREA" : "CESÁREAS";
+  let yearsText = "";
+  if (years.length === 1) {
+    yearsText = ` (${years[0]})`;
+  } else if (years.length > 1) {
+    yearsText = ` (${years.slice(0, -1).join(", ")} E ${years[years.length - 1]})`;
+  }
+  return `${n} ${noun}${yearsText}`;
+}
+
 /** Ordem das categorias no detalhamento (ex.: G3C1N1). */
 const SUMMARY_ORDER = ["C", "N", "A"] as const;
 type SummaryCat = (typeof SUMMARY_ORDER)[number];

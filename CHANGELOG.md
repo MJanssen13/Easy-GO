@@ -5,6 +5,36 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Ajustes do formulário de admissão (UI e colagem)
+
+- **Parentesco do acompanhante**: os parentescos com terminação dupla passam a
+  ser opções separadas — `IRMÃ(O)` → **IRMÃ** e **IRMÃO** (idem
+  COMPANHEIRO/COMPANHEIRA, FILHO/FILHA, AMIGO/AMIGA).
+- **Recolher seção**: cada seção ganha um pequeno botão **^** ao final do
+  conteúdo para colapsá-la.
+- **Comorbidades**: `INSULINORREQUERENTE` vira **INSULINO-REQUERENTE**; incluídas
+  **HAG** e **HIPOTIREOIDISMO SUBCLÍNICO**.
+- **Medicamentos**: as sugestões são **editáveis** (aviso na seção) e passam a
+  vir **sem dose**; incluídos ONDANSETRONA, ESCOPOLAMINA, DIPIRONA, METFORMINA,
+  PARACETAMOL, NITROFURANTOÍNA, AMOXICILINA, CEFALEXINA. Na colagem os
+  medicamentos são **deslocados (10 espaços)** sob MEU/FEZ USO. **Em uso** abre
+  campo de início (`… (DESDE XXX)`); **Fez uso** abre **um único** campo de
+  período (`… (PERÍODO)`).
+- **Cirurgias**: as **cesáreas prévias** entram automaticamente a partir da
+  paridade (ex.: `CIRURGIAS: 2 CESÁREAS (2005 E 2015), …`).
+- **Cirurgias e Alergias**: botão **Nega** oculta o campo e cola **NEGA**.
+- **HCV**: removidos **ERRO ALIMENTAR** e **SEDENTARISMO**; ao marcar **NEGA**, a
+  colagem escreve **NEGA TBG, ALCOOLISMO E UDI**.
+- **Datação, dados obstétricos e exames de imagem (USG)** movida para logo
+  **abaixo da Paridade**.
+- **USG de datação**: a **1ª coluna** do quadro é **sempre** a de datação —
+  identificada e **destacada** (retângulo); removida a marcação manual "Datar".
+- **Origem do USG**: a linha "Externo" vira **Origem**, com uma **pílula
+  dividida** por coluna (**Externo/Interno**).
+- **IG** exibida com **SEM**/**DIAS** por extenso (não apenas `s`/`d`).
+- **Sorologias e Laboratoriais**: sorologias, exames laboratoriais e tipo
+  sanguíneo/Coombs unificados numa só seção.
+
 ### PSGO — Notação do USG, exame externo, paridade e admissão colapsada
 
 - **USG externo**: cada exame tem a marcação **"exame externo"**; quando marcado,

@@ -154,12 +154,20 @@ export function patientToPsgoForm(patient: Patient): PsgoForm | null {
       : cs.form.coombs
         ? [{ id: "legacy", result: cs.form.coombs, date: cs.form.coombsDate ?? "" }]
         : [];
+  // Medicamentos: migra o intervalo legado (início/fim) para o campo único.
+  const medications = (cs.form.medications ?? []).map((m) => ({
+    ...m,
+    pastPeriod: m.pastPeriod ?? ([m.pastStart, m.pastEnd].filter(Boolean).join(" A ") || undefined),
+  }));
   return {
     ...cs.form,
     pregnant: cs.form.pregnant ?? true,
     companionRelationOther: cs.form.companionRelationOther ?? "",
     prenatalIrregular: cs.form.prenatalIrregular ?? false,
+    medications,
     medicationsPast: cs.form.medicationsPast ?? "",
+    surgeriesDenied: cs.form.surgeriesDenied ?? false,
+    allergiesDenied: cs.form.allergiesDenied ?? false,
     coombsList,
     udiWhich: cs.form.udiWhich ?? "",
     hd: cs.form.hd ?? "",

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info, ChevronDown, FlaskConical, ExternalLink, Printer } from "lucide-react";
+import { Plus, Trash2, Siren, Info, ChevronDown, ChevronUp, FlaskConical, ExternalLink, Printer } from "lucide-react";
 import {
   emptyPsgoForm,
   HABITS,
@@ -59,6 +59,7 @@ import {
   PRIOR_TYPE_LABELS,
   NO_COMPLICATIONS_LABEL,
   formatParity,
+  formatCesareans,
   canMarkNoComplications,
   requiredNotePrompt,
   type PriorPregnancyType,
@@ -269,7 +270,23 @@ function Section({
         </button>
         {headerExtra && <div className="flex items-center gap-2">{headerExtra}</div>}
       </div>
-      {open && <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>{children}</div>}
+      {open && (
+        <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>
+          {children}
+          {/* Botão de recolher a seção (^), ao fim do conteúdo. */}
+          <div className="flex justify-center pt-1">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Recolher seção"
+              title="Recolher"
+              className="inline-flex h-6 w-12 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -425,6 +442,8 @@ export function PsgoGenerator({
     [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference, form.date],
   );
   const bmi = classifyBmi(parseDecimal(form.weight), parseDecimal(form.height));
+  // Cesáreas prévias (da paridade) — entram automaticamente em CIRURGIAS.
+  const cesareanText = formatCesareans(form.priorPregnancies);
   // HD automática (gestação + comorbidades) — usada como sugestão/placeholder.
   const autoHd = useMemo(() => psgoHd(form), [form]);
 
@@ -540,11 +559,6 @@ export function PsgoGenerator({
   }
   function removeImaging(id: string) {
     update({ imagingExams: form.imagingExams.filter((e) => e.id !== id) });
-  }
-  function setDatingImaging(id: string) {
-    update({
-      imagingExams: form.imagingExams.map((e) => ({ ...e, useForDating: e.id === id })),
-    });
   }
   function numOrUndef(v: string): number | undefined {
     return v === "" ? undefined : Number(v);
@@ -1271,70 +1285,701 @@ export function PsgoGenerator({
             )}
         </Section>
 
-        {/* A datação e os dados obstétricos foram unificados com os exames de
-            imagem na seção "psgo-usg" (mais abaixo). */}
-
-        {/* Tipo sanguíneo / Coombs */}
+        {/* Datação, dados obstétricos e exames de imagem (USG) — seção unificada */}
         <Section
+          id="psgo-usg"
+          title={
+            form.pregnant
+              ? "Datação, dados obstétricos e exames de imagem (USG)"
+              : "DUM e MAC"
+          }
           defaultOpen={false}
-          title="Tipo sanguíneo e Coombs"
           contentClassName="space-y-3"
           headerExtra={
-            <Button type="button" size="sm" variant="outline" onClick={addCoombs}>
-              <Plus className="h-4 w-4" /> CI
-            </Button>
+            form.pregnant ? (
+              <Button type="button" size="sm" variant="outline" onClick={addImaging}>
+                <Plus className="h-4 w-4" /> USG
+              </Button>
+            ) : undefined
           }
         >
-            <Field label="Tipo sanguíneo" className="w-40">
-              <select
-                className={selectClass}
-                value={form.bloodType}
-                onChange={(e) => update({ bloodType: e.target.value })}
-              >
-                <option value="">—</option>
-                {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bt) => (
-                  <option key={bt} value={bt}>
-                    {bt}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className="space-y-2">
-              <Label className="text-xs">Coombs indireto (CI)</Label>
-              {form.coombsList.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Nenhum CI registrado. Use &ldquo;+ CI&rdquo; para adicionar.
-                </p>
-              ) : (
-                form.coombsList.map((c) => (
-                  <div key={c.id} className="flex flex-wrap items-center gap-2">
-                    <div className="w-56">
-                      <Segmented
-                        value={c.result as "neg" | "pos"}
-                        onChange={(v) => updateCoombs(c.id, { result: v })}
-                        options={[
-                          { value: "neg", label: "Negativo" },
-                          { value: "pos", label: "Positivo" },
-                        ]}
-                      />
-                    </div>
-                    <DateBRInput
-                      className="h-8 w-32"
-                      value={c.date}
-                      onChange={(iso) => updateCoombs(c.id, { date: iso })}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeCoombs(c.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                ))
+            {/* ---- Datação / dados obstétricos ---- */}
+            {/* DUM · DUM incerta · datação na mesma linha */}
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="DUM" className="w-40">
+                <DateBRInput value={form.lmp} onChange={(iso) => update({ lmp: iso })} />
+              </Field>
+              {!form.pregnant && (
+                <Field label="MAC (métodos anticoncepcionais)" className="min-w-64 flex-1">
+                  <Input value={form.mac ?? ""} onChange={(e) => update({ mac: e.target.value })} />
+                </Field>
+              )}
+              {form.pregnant && (
+                <label className="flex items-center gap-2 whitespace-nowrap pb-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.lmpUncertain}
+                    onChange={(e) => update({ lmpUncertain: e.target.checked })}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  DUM incerta
+                </label>
+              )}
+              {form.pregnant && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs">Datação</Label>
+                  <InfoTip title="Como é feita a datação">
+                    <p>
+                      O USG usado é sempre a <strong>1ª coluna</strong> do quadro de exames de
+                      imagem (destacada).
+                    </p>
+                    <p>
+                      <strong>DUM</strong> — regra de Naegele (DUM + 280 dias).
+                    </p>
+                    <p>
+                      <strong>USG</strong> — pela IG do exame (data + IG do USG).
+                    </p>
+                    <p>
+                      <strong>Auto (ACOG)</strong> — mantém a DUM, mas <em>redata pela USG</em> se a
+                      diferença passar do limite da IG no exame: 5d (≤8s), 7d (até 16s), 10d (até
+                      22s), 14d (até 28s), 21d (≥28s). Committee Opinion 700.
+                    </p>
+                  </InfoTip>
+                </div>
+                <Segmented
+                  value={form.datingPreference}
+                  onChange={(v) => update({ datingPreference: v })}
+                  options={[
+                    { value: "lmp", label: "DUM" },
+                    { value: "us", label: "USG" },
+                    { value: "auto", label: "Auto (ACOG)" },
+                  ]}
+                />
+              </div>
               )}
             </div>
+            {form.pregnant && (
+            <>
+            {/* IG pela DUM × pela USG (o usado para a HD fica destacado) */}
+            <div className="grid grid-cols-2 gap-2">
+              <div
+                className={`rounded-lg border p-2.5 transition-colors ${
+                  datingView.chosen === "DUM" ? "border-primary/60 bg-primary/5" : "bg-background"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    IG pela DUM
+                  </span>
+                  {datingView.chosen === "DUM" && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                      usada
+                    </span>
+                  )}
+                </div>
+                {datingView.dum ? (
+                  <>
+                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
+                      {datingView.dum.ga.weeks}
+                      <span className="text-sm font-medium text-muted-foreground"> sem </span>
+                      {datingView.dum.ga.days}
+                      <span className="text-sm font-medium text-muted-foreground"> dias</span>
+                    </p>
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      DPP {datingView.dum.eddBR}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[11px] text-muted-foreground">Informe a DUM acima.</p>
+                )}
+              </div>
+
+              <div
+                className={`rounded-lg border p-2.5 transition-colors ${
+                  datingView.chosen === "US" ? "border-primary/60 bg-primary/5" : "bg-background"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    IG pela USG
+                  </span>
+                  {datingView.chosen === "US" && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                      usada
+                    </span>
+                  )}
+                </div>
+                {datingView.usg ? (
+                  <>
+                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
+                      {datingView.usg.currentGa.weeks}
+                      <span className="text-sm font-medium text-muted-foreground"> sem </span>
+                      {datingView.usg.currentGa.days}
+                      <span className="text-sm font-medium text-muted-foreground"> dias</span>
+                    </p>
+                    <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                      Exame {datingView.usg.dateBR} · {datingView.usg.gaAtExam.weeks} sem{" "}
+                      {datingView.usg.gaAtExam.days} dias na data
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                    Preencha a data e a IG na 1ª coluna do quadro (usada para datar).
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Nº de fetos · Apresentação · Início do TP na mesma linha */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Nº de fetos</Label>
+                <Segmented
+                  value={form.fetuses}
+                  onChange={(v) => update({ fetuses: v })}
+                  options={[
+                    { value: "single", label: "Único" },
+                    { value: "multiple", label: "Múltiplos" },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Apresentação</Label>
+                <Segmented
+                  value={form.presentation}
+                  onChange={(v) => update({ presentation: v })}
+                  options={[
+                    { value: "cephalic", label: "Cefálica" },
+                    { value: "breech", label: "Pélvica" },
+                    { value: "transverse", label: "Córmica" },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Início do TP (Atual ou predição)</Label>
+                <Segmented
+                  value={form.laborOnset}
+                  onChange={(v) => update({ laborOnset: v })}
+                  options={[
+                    { value: "spontaneous", label: "Espontâneo" },
+                    { value: "induced", label: "Induzido" },
+                    { value: "cesarean_before_labor", label: "Cesárea pré-TP" },
+                  ]}
+                />
+              </div>
+            </div>
+            {robsonMissing.length > 0 && (
+              <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                Robson incompleto — faltam: {robsonMissing.join(", ")}.
+              </p>
+            )}
+            </>
+            )}
+
+            {/* ---- Exames de imagem (USG) — só gestantes ---- */}
+            {form.pregnant && (
+            <>
+            {form.imagingExams.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Adicione um USG. Percentis de CIRC. CEFÁLICA/PESO/CIRC. ABDOMINAL pela Hadlock;
+                IP-AUmb, IP-ACM, RCP e IP da a. uterina pela FMF (fetalmedicine.org).
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  {/* Destaque da 1ª coluna (USG de datação). */}
+                  <colgroup>
+                    <col />
+                    {form.imagingExams.map((e, i) => (
+                      <col
+                        key={e.id}
+                        className={i === 0 ? "border-x-2 border-primary/60 bg-primary/5" : undefined}
+                      />
+                    ))}
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="border-b p-1 text-left font-medium text-muted-foreground">
+                        USG
+                      </th>
+                      {form.imagingExams.map((e, i) => (
+                        <th key={e.id} className="border-b p-1 align-top">
+                          <div className="flex items-center gap-1">
+                            <DateBRInput
+                              className="h-7 w-28 text-xs"
+                              value={e.date ?? ""}
+                              onChange={(iso) => updateImaging(e.id, { date: iso })}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImaging(e.id)}
+                              className="text-destructive"
+                              title="Remover USG"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          {i === 0 && (
+                            <span className="mt-0.5 inline-block rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground">
+                              Datação
+                            </span>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border-b p-1 font-medium">IG (sem / dias)</td>
+                      {form.imagingExams.map((e) => {
+                        // O USG de datação mantém a IG digitada; os demais, com
+                        // data e datação definida, têm a IG automática (pela data).
+                        const isDating = datingCtx.datingExamId === e.id;
+                        const autoIg = !isDating && datingCtx.edd != null && !!e.date;
+                        const r = resolvedById[e.id];
+                        return (
+                          <td key={e.id} className="border-b p-1">
+                            {autoIg ? (
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium tabular-nums">
+                                  {r && r.gaWeeks != null
+                                    ? `${r.gaWeeks} sem${r.gaDays ? ` ${r.gaDays} dias` : ""}`
+                                    : "—"}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">auto</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  className="h-7 w-14 text-xs"
+                                  placeholder="sem"
+                                  value={e.gaWeeks ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { gaWeeks: numOrUndef(ev.target.value) })}
+                                />
+                                <Input
+                                  type="number"
+                                  className="h-7 w-14 text-xs"
+                                  placeholder="d"
+                                  value={e.gaDays ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
+                                />
+                                {isDating && (
+                                  <span className="text-[10px] text-muted-foreground">datação</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Origem</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="inline-flex overflow-hidden rounded-full border text-[10px] font-medium">
+                            <button
+                              type="button"
+                              onClick={() => updateImaging(e.id, { external: true })}
+                              className={`px-2 py-0.5 transition-colors ${
+                                e.external
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-muted"
+                              }`}
+                            >
+                              Externo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateImaging(e.id, { external: false })}
+                              className={`border-l px-2 py-0.5 transition-colors ${
+                                !e.external
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-muted"
+                              }`}
+                            >
+                              Interno
+                            </button>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Apresentação</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <select
+                            className={`${selectClass} h-7 w-28 text-xs`}
+                            value={e.presentation ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
+                          >
+                            <option value="">—</option>
+                            <option value="CEFÁLICA">Cefálica</option>
+                            <option value="PÉLVICA">Pélvica</option>
+                            <option value="CÓRMICA">Córmica</option>
+                          </select>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Peso (g)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="numeric"
+                              value={e.efw ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.efw}
+                            </span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Circ. abd. (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="numeric"
+                              value={e.ac ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.ac}
+                            </span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td
+                        colSpan={form.imagingExams.length + 1}
+                        className="border-b bg-muted/30 p-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setShowEarlyUsg((v) => !v)}
+                          className="flex w-full items-center gap-1 px-1 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
+                          aria-expanded={showEarlyUsg}
+                        >
+                          <ChevronDown
+                            className={`h-3.5 w-3.5 transition-transform ${showEarlyUsg ? "" : "-rotate-90"}`}
+                          />
+                          GESTAÇÕES INICIAIS
+                          <span className="text-[10px] font-normal">(CCN / SG / VV)</span>
+                        </button>
+                      </td>
+                    </tr>
+                    {showEarlyUsg && (
+                      <>
+                        <tr>
+                          <td className="border-b p-1 font-medium">CCN (mm)</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <Input
+                                className="h-7 w-16 text-xs"
+                                inputMode="decimal"
+                                value={e.crl ?? ""}
+                                onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">SG (mm)</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <Input
+                                className="h-7 w-16 text-xs"
+                                inputMode="decimal"
+                                value={e.gsac ?? ""}
+                                onChange={(ev) => updateImaging(e.id, { gsac: ev.target.value })}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">VV (mm)</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <Input
+                                className="h-7 w-16 text-xs"
+                                inputMode="decimal"
+                                value={e.yolkSac ?? ""}
+                                onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      </>
+                    )}
+                    <tr>
+                      <td className="border-b p-1 font-medium">BCF</td>
+                      {form.imagingExams.map((e) => {
+                        const absent = e.fhr === "AUSENTE";
+                        return (
+                          <td key={e.id} className="border-b p-1">
+                            <div className="flex items-center gap-1">
+                              <Input
+                                className="h-7 w-16 text-xs"
+                                inputMode="numeric"
+                                placeholder="bpm"
+                                disabled={absent}
+                                value={absent ? "" : (e.fhr ?? "")}
+                                onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })}
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })
+                                }
+                                className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                  absent
+                                    ? "border-rose-400 bg-rose-50 text-rose-600"
+                                    : "text-muted-foreground hover:bg-muted"
+                                }`}
+                                title="Marcar BCF ausente"
+                              >
+                                ausente
+                              </button>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">CC (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-16 text-xs"
+                              inputMode="decimal"
+                              value={e.hc ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {imagingCentiles[e.id]?.hc}
+                            </span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Placenta / grau</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <select
+                              className={`${selectClass} h-7 !w-24 px-2 text-xs`}
+                              value={e.placentaSite ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
+                            >
+                              <option value="">—</option>
+                              <option value="ANTERIOR">Anterior</option>
+                              <option value="POSTERIOR">Posterior</option>
+                              <option value="FÚNDICA">Fúndica</option>
+                              <option value="LATERAL DIREITA">Lateral D</option>
+                              <option value="LATERAL ESQUERDA">Lateral E</option>
+                              <option value="PRÉVIA">Prévia</option>
+                            </select>
+                            <select
+                              className={`${selectClass} h-7 !w-14 px-2 text-xs`}
+                              value={e.placentaGrade ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
+                            >
+                              <option value="">—</option>
+                              <option value="0">0</option>
+                              <option value="I">I</option>
+                              <option value="II">II</option>
+                              <option value="III">III</option>
+                            </select>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">MBV / ILA (cm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-14 text-xs"
+                              inputMode="decimal"
+                              placeholder="MBV"
+                              value={e.mbv ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">/</span>
+                            <Input
+                              className="h-7 w-14 text-xs"
+                              inputMode="decimal"
+                              placeholder="ILA"
+                              value={e.ila ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })}
+                            />
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td
+                        colSpan={form.imagingExams.length + 1}
+                        className="border-b bg-muted/30 p-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setShowDopplerUsg((v) => !v)}
+                          className="flex w-full items-center gap-1 px-1 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
+                          aria-expanded={showDopplerUsg}
+                        >
+                          <ChevronDown
+                            className={`h-3.5 w-3.5 transition-transform ${showDopplerUsg ? "" : "-rotate-90"}`}
+                          />
+                          DOPPLER
+                          <span className="text-[10px] font-normal">
+                            (IP AUmb / IP ACM / RCP / IP a. uterina)
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+                    {showDopplerUsg && (
+                      <>
+                        <tr>
+                          <td className="border-b p-1 font-medium">IP AUmb</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  className="h-7 w-16 text-xs"
+                                  inputMode="decimal"
+                                  value={e.uaPi ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
+                                />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {imagingCentiles[e.id]?.uaPi}
+                                </span>
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">IP ACM</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  className="h-7 w-16 text-xs"
+                                  inputMode="decimal"
+                                  value={e.mcaPi ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
+                                />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {imagingCentiles[e.id]?.mcaPi}
+                                </span>
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">RCP</td>
+                          {form.imagingExams.map((e) => {
+                            const rcp = examCpr(e);
+                            return (
+                              <td key={e.id} className="border-b p-1">
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium tabular-nums">
+                                    {rcp != null ? rcp.toFixed(3).replace(".", ",") : "—"}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {imagingCentiles[e.id]?.cpr}
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">IP A. uterina</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  className="h-7 w-16 text-xs"
+                                  inputMode="decimal"
+                                  value={e.utPi ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
+                                />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {imagingCentiles[e.id]?.utPi}
+                                </span>
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {form.imagingExams.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, SG, VV, BCF,
+                biometria, Doppler, IP da a. uterina) aparecem no mesmo US. Os percentis de IP da
+                a. uterina e do Doppler seguem os padrões FMF. A IG da 1ª coluna (usada para
+                datar) é digitada; a dos demais é <strong>automática</strong>, definida pela data
+                de realização conforme o método (DUM/USG) — e é ela que determina os percentis.
+              </p>
+            )}
+
+            {form.imagingExams.map((e) => {
+              const edited = e.overrideText != null;
+              const computed = renderImagingExam(resolvedById[e.id] ?? e);
+              const warns = imagingWarnings(resolvedById[e.id] ?? e);
+              return (
+                <div key={e.id} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <span className="text-[10px] font-medium text-muted-foreground">
+                      Prévia editável {edited ? "(editada)" : "(automática)"}
+                    </span>
+                    {edited && (
+                      <button
+                        type="button"
+                        onClick={() => updateImaging(e.id, { overrideText: undefined })}
+                        className="text-[10px] font-medium text-primary hover:underline"
+                        title="Descartar edição e regerar automaticamente"
+                      >
+                        regenerar
+                      </button>
+                    )}
+                  </div>
+                  <AutoGrowTextarea
+                    value={edited ? (e.overrideText ?? "") : computed}
+                    onChange={(v) => updateImaging(e.id, { overrideText: v })}
+                    className="prontuario-text w-full rounded border bg-muted/40 px-2 py-1 text-[11px] uppercase"
+                  />
+                  {warns.map((w, i) => (
+                    <p
+                      key={i}
+                      className="flex items-start gap-1 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800"
+                    >
+                      <Siren className="mt-0.5 h-3 w-3 shrink-0" /> {w}
+                    </p>
+                  ))}
+                </div>
+              );
+            })}
+            </>
+            )}
         </Section>
 
         {/* Comorbidades */}
@@ -1365,6 +2010,10 @@ export function PsgoGenerator({
                 </Chip>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground">
+              As sugestões são editáveis: clique num atalho e ajuste o nome (e a dose, se
+              necessário) no campo de cada medicamento abaixo.
+            </p>
             <div className="flex gap-2">
               <Input
                 placeholder="Adicionar medicamento…"
@@ -1404,21 +2053,20 @@ export function PsgoGenerator({
                       ]}
                     />
                   </div>
-                  {!m.current && (
-                    <>
-                      <Input
-                        className="w-24"
-                        placeholder="Início"
-                        value={m.pastStart ?? ""}
-                        onChange={(e) => updateMed(m.id, { pastStart: e.target.value })}
-                      />
-                      <Input
-                        className="w-24"
-                        placeholder="Fim"
-                        value={m.pastEnd ?? ""}
-                        onChange={(e) => updateMed(m.id, { pastEnd: e.target.value })}
-                      />
-                    </>
+                  {m.current ? (
+                    <Input
+                      className="w-32"
+                      placeholder="Desde (opcional)"
+                      value={m.currentStart ?? ""}
+                      onChange={(e) => updateMed(m.id, { currentStart: e.target.value })}
+                    />
+                  ) : (
+                    <Input
+                      className="w-40"
+                      placeholder="Período de uso"
+                      value={m.pastPeriod ?? ""}
+                      onChange={(e) => updateMed(m.id, { pastPeriod: e.target.value })}
+                    />
                   )}
                   <Button type="button" variant="ghost" size="icon" onClick={() => removeMed(m.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -1430,12 +2078,48 @@ export function PsgoGenerator({
 
         {/* Cirurgias / alergias / hábitos */}
         <Section defaultOpen={false} title="Cirurgias, alergias e hábitos" contentClassName="space-y-3">
-            <Field label="Cirurgias prévias">
-              <Input value={form.surgeries} onChange={(e) => update({ surgeries: e.target.value })} />
-            </Field>
-            <Field label="Alergias">
-              <Input value={form.allergies} onChange={(e) => update({ allergies: e.target.value })} />
-            </Field>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Cirurgias prévias</Label>
+                <Chip
+                  active={form.surgeriesDenied}
+                  onClick={() => update({ surgeriesDenied: !form.surgeriesDenied })}
+                >
+                  Nega
+                </Chip>
+              </div>
+              {form.surgeriesDenied ? (
+                <p className="text-xs text-muted-foreground">
+                  Nega cirurgias prévias
+                  {cesareanText ? ` (exceto ${cesareanText.toLowerCase()}, da paridade)` : ""}.
+                </p>
+              ) : (
+                <>
+                  <Input value={form.surgeries} onChange={(e) => update({ surgeries: e.target.value })} />
+                  {cesareanText && (
+                    <p className="text-xs text-muted-foreground">
+                      Automático da paridade: {cesareanText}.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Alergias</Label>
+                <Chip
+                  active={form.allergiesDenied}
+                  onClick={() => update({ allergiesDenied: !form.allergiesDenied })}
+                >
+                  Nega
+                </Chip>
+              </div>
+              {form.allergiesDenied ? (
+                <p className="text-xs text-muted-foreground">Nega alergias.</p>
+              ) : (
+                <Input value={form.allergies} onChange={(e) => update({ allergies: e.target.value })} />
+              )}
+            </div>
             <Field label="Hábitos de vida (HCV)">
               <div className="flex flex-wrap gap-1.5">
                 {HABITS.map((h) => (
@@ -1459,110 +2143,188 @@ export function PsgoGenerator({
             />
         </Section>
 
-        {/* Sorologias */}
+        {/* Sorologias e Laboratoriais (tipo sanguíneo/Coombs + sorologias + laboratoriais) */}
         <Section
           defaultOpen={false}
-          title="Sorologias"
-          contentClassName="space-y-3"
-          headerExtra={
-            <Button type="button" size="sm" variant="outline" onClick={addSerologyColumn}>
-              <Plus className="h-4 w-4" /> Coleta externa
-            </Button>
-          }
+          title="Sorologias e Laboratoriais"
+          contentClassName="space-y-4"
         >
-            <div className="space-y-1">
+            {/* Tipo sanguíneo e Coombs */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">Colar sorologias do hospital</Label>
+                <p className="text-sm font-semibold">Tipo sanguíneo e Coombs</p>
+                <Button type="button" size="sm" variant="outline" onClick={addCoombs}>
+                  <Plus className="h-4 w-4" /> CI
+                </Button>
+              </div>
+              <Field label="Tipo sanguíneo" className="w-40">
+                <select
+                  className={selectClass}
+                  value={form.bloodType}
+                  onChange={(e) => update({ bloodType: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bt) => (
+                    <option key={bt} value={bt}>
+                      {bt}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="space-y-2">
+                <Label className="text-xs">Coombs indireto (CI)</Label>
+                {form.coombsList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum CI registrado. Use &ldquo;+ CI&rdquo; para adicionar.
+                  </p>
+                ) : (
+                  form.coombsList.map((c) => (
+                    <div key={c.id} className="flex flex-wrap items-center gap-2">
+                      <div className="w-56">
+                        <Segmented
+                          value={c.result as "neg" | "pos"}
+                          onChange={(v) => updateCoombs(c.id, { result: v })}
+                          options={[
+                            { value: "neg", label: "Negativo" },
+                            { value: "pos", label: "Positivo" },
+                          ]}
+                        />
+                      </div>
+                      <DateBRInput
+                        className="h-8 w-32"
+                        value={c.date}
+                        onChange={(iso) => updateCoombs(c.id, { date: iso })}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeCoombs(c.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Sorologias */}
+            <div className="space-y-3 border-t pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Sorologias</p>
+                <Button type="button" size="sm" variant="outline" onClick={addSerologyColumn}>
+                  <Plus className="h-4 w-4" /> Coleta externa
+                </Button>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Colar sorologias do hospital</Label>
+                  <LabflowButton />
+                </div>
+                <Textarea
+                  rows={3}
+                  placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
+                  value={form.serologyPasted}
+                  onChange={(e) => update({ serologyPasted: e.target.value })}
+                />
+              </div>
+
+              {form.serologyGrid.columns.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs">
+                    <thead>
+                      <tr>
+                        <th className="border-b p-1 text-left font-medium text-muted-foreground">
+                          Externas (EXT)
+                        </th>
+                        {form.serologyGrid.columns.map((c) => (
+                          <th key={c.id} className="border-b p-1">
+                            <div className="flex items-center gap-1">
+                              <DateBRInput
+                                className="h-7 w-28 text-xs"
+                                value={c.date}
+                                onChange={(iso) => updateSerologyColumn(c.id, iso)}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeSerologyColumn(c.id)}
+                                className="text-destructive"
+                                title="Remover coleta"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {SEROLOGY_ANALYTES.map((a) => (
+                        <tr key={a}>
+                          <td className="border-b p-1 font-medium">{a}</td>
+                          {form.serologyGrid.columns.map((c) => {
+                            const key = `${a}:${c.id}`;
+                            const val = form.serologyGrid.values[key] ?? "";
+                            if (a === "VDRL") {
+                              return (
+                                <td key={c.id} className="border-b p-1">
+                                  <select
+                                    className={`${selectClass} h-7 w-32 px-2 text-xs`}
+                                    value={val}
+                                    onChange={(e) => setSerologyValue(a, c.id, e.target.value)}
+                                  >
+                                    <option value="">—</option>
+                                    {VDRL_TITERS.map((t) => (
+                                      <option key={t} value={t}>
+                                        {t}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={c.id} className="border-b p-1">
+                                <div className="flex gap-1">
+                                  {[
+                                    { v: "", label: "—" },
+                                    { v: "NR", label: "NR" },
+                                    { v: "REAG", label: "REAG" },
+                                  ].map((o) => (
+                                    <Chip
+                                      key={o.v || "nd"}
+                                      active={val === o.v}
+                                      onClick={() => setSerologyValue(a, c.id, o.v)}
+                                    >
+                                      {o.label}
+                                    </Chip>
+                                  ))}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Exames laboratoriais */}
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Exames laboratoriais</p>
                 <LabflowButton />
               </div>
               <Textarea
                 rows={3}
-                placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
-                value={form.serologyPasted}
-                onChange={(e) => update({ serologyPasted: e.target.value })}
+                placeholder="Cole os exames laboratoriais..."
+                value={form.labs}
+                onChange={(e) => update({ labs: e.target.value })}
               />
             </div>
-
-            {form.serologyGrid.columns.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-xs">
-                  <thead>
-                    <tr>
-                      <th className="border-b p-1 text-left font-medium text-muted-foreground">
-                        Externas (EXT)
-                      </th>
-                      {form.serologyGrid.columns.map((c) => (
-                        <th key={c.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <DateBRInput
-                              className="h-7 w-28 text-xs"
-                              value={c.date}
-                              onChange={(iso) => updateSerologyColumn(c.id, iso)}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeSerologyColumn(c.id)}
-                              className="text-destructive"
-                              title="Remover coleta"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {SEROLOGY_ANALYTES.map((a) => (
-                      <tr key={a}>
-                        <td className="border-b p-1 font-medium">{a}</td>
-                        {form.serologyGrid.columns.map((c) => {
-                          const key = `${a}:${c.id}`;
-                          const val = form.serologyGrid.values[key] ?? "";
-                          if (a === "VDRL") {
-                            return (
-                              <td key={c.id} className="border-b p-1">
-                                <select
-                                  className={`${selectClass} h-7 w-32 px-2 text-xs`}
-                                  value={val}
-                                  onChange={(e) => setSerologyValue(a, c.id, e.target.value)}
-                                >
-                                  <option value="">—</option>
-                                  {VDRL_TITERS.map((t) => (
-                                    <option key={t} value={t}>
-                                      {t}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-                          return (
-                            <td key={c.id} className="border-b p-1">
-                              <div className="flex gap-1">
-                                {[
-                                  { v: "", label: "—" },
-                                  { v: "NR", label: "NR" },
-                                  { v: "REAG", label: "REAG" },
-                                ].map((o) => (
-                                  <Chip
-                                    key={o.v || "nd"}
-                                    active={val === o.v}
-                                    onClick={() => setSerologyValue(a, c.id, o.v)}
-                                  >
-                                    {o.label}
-                                  </Chip>
-                                ))}
-                              </div>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
         </Section>
 
         {/* QP / HPMA */}
@@ -1981,698 +2743,6 @@ export function PsgoGenerator({
                 </div>
               )}
             </div>
-        </Section>
-
-        {/* Exames laboratoriais */}
-        <Section defaultOpen={false} title="Exames laboratoriais" headerExtra={<LabflowButton />}>
-            <Textarea
-              rows={3}
-              placeholder="Cole os exames laboratoriais..."
-              value={form.labs}
-              onChange={(e) => update({ labs: e.target.value })}
-            />
-        </Section>
-
-        {/* Datação, dados obstétricos e exames de imagem (USG) — seção unificada */}
-        <Section
-          id="psgo-usg"
-          title={
-            form.pregnant
-              ? "Datação, dados obstétricos e exames de imagem (USG)"
-              : "DUM e MAC"
-          }
-          defaultOpen={false}
-          contentClassName="space-y-3"
-          headerExtra={
-            form.pregnant ? (
-              <Button type="button" size="sm" variant="outline" onClick={addImaging}>
-                <Plus className="h-4 w-4" /> USG
-              </Button>
-            ) : undefined
-          }
-        >
-            {/* ---- Datação / dados obstétricos ---- */}
-            {/* DUM · DUM incerta · datação na mesma linha */}
-            <div className="flex flex-wrap items-end gap-3">
-              <Field label="DUM" className="w-40">
-                <DateBRInput value={form.lmp} onChange={(iso) => update({ lmp: iso })} />
-              </Field>
-              {!form.pregnant && (
-                <Field label="MAC (métodos anticoncepcionais)" className="min-w-64 flex-1">
-                  <Input value={form.mac ?? ""} onChange={(e) => update({ mac: e.target.value })} />
-                </Field>
-              )}
-              {form.pregnant && (
-                <label className="flex items-center gap-2 whitespace-nowrap pb-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.lmpUncertain}
-                    onChange={(e) => update({ lmpUncertain: e.target.checked })}
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  DUM incerta
-                </label>
-              )}
-              {form.pregnant && (
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-xs">Datação</Label>
-                  <InfoTip title="Como é feita a datação">
-                    <p>
-                      O USG usado é o marcado em <strong>&ldquo;Datar&rdquo;</strong> no quadro de
-                      exames de imagem.
-                    </p>
-                    <p>
-                      <strong>DUM</strong> — regra de Naegele (DUM + 280 dias).
-                    </p>
-                    <p>
-                      <strong>USG</strong> — pela IG do exame (data + IG do USG).
-                    </p>
-                    <p>
-                      <strong>Auto (ACOG)</strong> — mantém a DUM, mas <em>redata pela USG</em> se a
-                      diferença passar do limite da IG no exame: 5d (≤8s), 7d (até 16s), 10d (até
-                      22s), 14d (até 28s), 21d (≥28s). Committee Opinion 700.
-                    </p>
-                  </InfoTip>
-                </div>
-                <Segmented
-                  value={form.datingPreference}
-                  onChange={(v) => update({ datingPreference: v })}
-                  options={[
-                    { value: "lmp", label: "DUM" },
-                    { value: "us", label: "USG" },
-                    { value: "auto", label: "Auto (ACOG)" },
-                  ]}
-                />
-              </div>
-              )}
-            </div>
-            {form.pregnant && (
-            <>
-            {/* IG pela DUM × pela USG (o usado para a HD fica destacado) */}
-            <div className="grid grid-cols-2 gap-2">
-              <div
-                className={`rounded-lg border p-2.5 transition-colors ${
-                  datingView.chosen === "DUM" ? "border-primary/60 bg-primary/5" : "bg-background"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    IG pela DUM
-                  </span>
-                  {datingView.chosen === "DUM" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                      usada
-                    </span>
-                  )}
-                </div>
-                {datingView.dum ? (
-                  <>
-                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
-                      {datingView.dum.ga.weeks}
-                      <span className="text-sm font-medium text-muted-foreground">s </span>
-                      {datingView.dum.ga.days}
-                      <span className="text-sm font-medium text-muted-foreground">d</span>
-                    </p>
-                    <p className="mt-1.5 text-[11px] text-muted-foreground">
-                      DPP {datingView.dum.eddBR}
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-2 text-[11px] text-muted-foreground">Informe a DUM acima.</p>
-                )}
-              </div>
-
-              <div
-                className={`rounded-lg border p-2.5 transition-colors ${
-                  datingView.chosen === "US" ? "border-primary/60 bg-primary/5" : "bg-background"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    IG pela USG
-                  </span>
-                  {datingView.chosen === "US" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                      usada
-                    </span>
-                  )}
-                </div>
-                {datingView.usg ? (
-                  <>
-                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
-                      {datingView.usg.currentGa.weeks}
-                      <span className="text-sm font-medium text-muted-foreground">s </span>
-                      {datingView.usg.currentGa.days}
-                      <span className="text-sm font-medium text-muted-foreground">d</span>
-                    </p>
-                    <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
-                      Exame {datingView.usg.dateBR} · {datingView.usg.gaAtExam.weeks}s
-                      {datingView.usg.gaAtExam.days}d na data
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                    Marque um USG em &ldquo;Datar&rdquo; no quadro abaixo.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Nº de fetos · Apresentação · Início do TP na mesma linha */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Nº de fetos</Label>
-                <Segmented
-                  value={form.fetuses}
-                  onChange={(v) => update({ fetuses: v })}
-                  options={[
-                    { value: "single", label: "Único" },
-                    { value: "multiple", label: "Múltiplos" },
-                  ]}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Apresentação</Label>
-                <Segmented
-                  value={form.presentation}
-                  onChange={(v) => update({ presentation: v })}
-                  options={[
-                    { value: "cephalic", label: "Cefálica" },
-                    { value: "breech", label: "Pélvica" },
-                    { value: "transverse", label: "Córmica" },
-                  ]}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Início do TP (Atual ou predição)</Label>
-                <Segmented
-                  value={form.laborOnset}
-                  onChange={(v) => update({ laborOnset: v })}
-                  options={[
-                    { value: "spontaneous", label: "Espontâneo" },
-                    { value: "induced", label: "Induzido" },
-                    { value: "cesarean_before_labor", label: "Cesárea pré-TP" },
-                  ]}
-                />
-              </div>
-            </div>
-            {robsonMissing.length > 0 && (
-              <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                Robson incompleto — faltam: {robsonMissing.join(", ")}.
-              </p>
-            )}
-            </>
-            )}
-
-            {/* ---- Exames de imagem (USG) — só gestantes ---- */}
-            {form.pregnant && (
-            <>
-            {form.imagingExams.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Adicione um USG. Percentis de CIRC. CEFÁLICA/PESO/CIRC. ABDOMINAL pela Hadlock;
-                IP-AUmb, IP-ACM, RCP e IP da a. uterina pela FMF (fetalmedicine.org).
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-xs">
-                  <thead>
-                    <tr>
-                      <th className="border-b p-1 text-left font-medium text-muted-foreground">
-                        USG
-                      </th>
-                      {form.imagingExams.map((e) => (
-                        <th key={e.id} className="border-b p-1 align-top">
-                          <div className="flex items-center gap-1">
-                            <DateBRInput
-                              className="h-7 w-28 text-xs"
-                              value={e.date ?? ""}
-                              onChange={(iso) => updateImaging(e.id, { date: iso })}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImaging(e.id)}
-                              className="text-destructive"
-                              title="Remover USG"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="border-b p-1 font-medium">IG (sem / d)</td>
-                      {form.imagingExams.map((e) => {
-                        // O USG de datação mantém a IG digitada; os demais, com
-                        // data e datação definida, têm a IG automática (pela data).
-                        const isDating = datingCtx.datingExamId === e.id;
-                        const autoIg = !isDating && datingCtx.edd != null && !!e.date;
-                        const r = resolvedById[e.id];
-                        return (
-                          <td key={e.id} className="border-b p-1">
-                            {autoIg ? (
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium tabular-nums">
-                                  {r && r.gaWeeks != null
-                                    ? `${r.gaWeeks}s${r.gaDays ? ` ${r.gaDays}d` : ""}`
-                                    : "—"}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground">auto</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  type="number"
-                                  className="h-7 w-14 text-xs"
-                                  placeholder="sem"
-                                  value={e.gaWeeks ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { gaWeeks: numOrUndef(ev.target.value) })}
-                                />
-                                <Input
-                                  type="number"
-                                  className="h-7 w-14 text-xs"
-                                  placeholder="d"
-                                  value={e.gaDays ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
-                                />
-                                {isDating && (
-                                  <span className="text-[10px] text-muted-foreground">datação</span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">Datar</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <input
-                              type="radio"
-                              name="imgDating"
-                              checked={!!e.useForDating}
-                              onChange={() => setDatingImaging(e.id)}
-                            />
-                            usar p/ datação
-                          </label>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">Externo</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <input
-                              type="checkbox"
-                              checked={!!e.external}
-                              onChange={(ev) => updateImaging(e.id, { external: ev.target.checked })}
-                            />
-                            exame externo (EXT)
-                          </label>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">Apresentação</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <select
-                            className={`${selectClass} h-7 w-28 text-xs`}
-                            value={e.presentation ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
-                          >
-                            <option value="">—</option>
-                            <option value="CEFÁLICA">Cefálica</option>
-                            <option value="PÉLVICA">Pélvica</option>
-                            <option value="CÓRMICA">Córmica</option>
-                          </select>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">Peso (g)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-7 w-16 text-xs"
-                              inputMode="numeric"
-                              value={e.efw ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.efw}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">Circ. abd. (mm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-7 w-16 text-xs"
-                              inputMode="numeric"
-                              value={e.ac ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.ac}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td
-                        colSpan={form.imagingExams.length + 1}
-                        className="border-b bg-muted/30 p-0"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setShowEarlyUsg((v) => !v)}
-                          className="flex w-full items-center gap-1 px-1 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
-                          aria-expanded={showEarlyUsg}
-                        >
-                          <ChevronDown
-                            className={`h-3.5 w-3.5 transition-transform ${showEarlyUsg ? "" : "-rotate-90"}`}
-                          />
-                          GESTAÇÕES INICIAIS
-                          <span className="text-[10px] font-normal">(CCN / SG / VV)</span>
-                        </button>
-                      </td>
-                    </tr>
-                    {showEarlyUsg && (
-                      <>
-                        <tr>
-                          <td className="border-b p-1 font-medium">CCN (mm)</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
-                              <Input
-                                className="h-7 w-16 text-xs"
-                                inputMode="decimal"
-                                value={e.crl ?? ""}
-                                onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-1 font-medium">SG (mm)</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
-                              <Input
-                                className="h-7 w-16 text-xs"
-                                inputMode="decimal"
-                                value={e.gsac ?? ""}
-                                onChange={(ev) => updateImaging(e.id, { gsac: ev.target.value })}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-1 font-medium">VV (mm)</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
-                              <Input
-                                className="h-7 w-16 text-xs"
-                                inputMode="decimal"
-                                value={e.yolkSac ?? ""}
-                                onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                      </>
-                    )}
-                    <tr>
-                      <td className="border-b p-1 font-medium">BCF</td>
-                      {form.imagingExams.map((e) => {
-                        const absent = e.fhr === "AUSENTE";
-                        return (
-                          <td key={e.id} className="border-b p-1">
-                            <div className="flex items-center gap-1">
-                              <Input
-                                className="h-7 w-16 text-xs"
-                                inputMode="numeric"
-                                placeholder="bpm"
-                                disabled={absent}
-                                value={absent ? "" : (e.fhr ?? "")}
-                                onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })}
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })
-                                }
-                                className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                                  absent
-                                    ? "border-rose-400 bg-rose-50 text-rose-600"
-                                    : "text-muted-foreground hover:bg-muted"
-                                }`}
-                                title="Marcar BCF ausente"
-                              >
-                                ausente
-                              </button>
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">CC (mm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-7 w-16 text-xs"
-                              inputMode="decimal"
-                              value={e.hc ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.hc}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">Placenta / grau</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <select
-                              className={`${selectClass} h-7 !w-24 px-2 text-xs`}
-                              value={e.placentaSite ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
-                            >
-                              <option value="">—</option>
-                              <option value="ANTERIOR">Anterior</option>
-                              <option value="POSTERIOR">Posterior</option>
-                              <option value="FÚNDICA">Fúndica</option>
-                              <option value="LATERAL DIREITA">Lateral D</option>
-                              <option value="LATERAL ESQUERDA">Lateral E</option>
-                              <option value="PRÉVIA">Prévia</option>
-                            </select>
-                            <select
-                              className={`${selectClass} h-7 !w-14 px-2 text-xs`}
-                              value={e.placentaGrade ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
-                            >
-                              <option value="">—</option>
-                              <option value="0">0</option>
-                              <option value="I">I</option>
-                              <option value="II">II</option>
-                              <option value="III">III</option>
-                            </select>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">MBV / ILA (cm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-7 w-14 text-xs"
-                              inputMode="decimal"
-                              placeholder="MBV"
-                              value={e.mbv ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">/</span>
-                            <Input
-                              className="h-7 w-14 text-xs"
-                              inputMode="decimal"
-                              placeholder="ILA"
-                              value={e.ila ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })}
-                            />
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td
-                        colSpan={form.imagingExams.length + 1}
-                        className="border-b bg-muted/30 p-0"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setShowDopplerUsg((v) => !v)}
-                          className="flex w-full items-center gap-1 px-1 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
-                          aria-expanded={showDopplerUsg}
-                        >
-                          <ChevronDown
-                            className={`h-3.5 w-3.5 transition-transform ${showDopplerUsg ? "" : "-rotate-90"}`}
-                          />
-                          DOPPLER
-                          <span className="text-[10px] font-normal">
-                            (IP AUmb / IP ACM / RCP / IP a. uterina)
-                          </span>
-                        </button>
-                      </td>
-                    </tr>
-                    {showDopplerUsg && (
-                      <>
-                        <tr>
-                          <td className="border-b p-1 font-medium">IP AUmb</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  className="h-7 w-16 text-xs"
-                                  inputMode="decimal"
-                                  value={e.uaPi ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
-                                />
-                                <span className="text-[10px] text-muted-foreground">
-                                  {imagingCentiles[e.id]?.uaPi}
-                                </span>
-                              </div>
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-1 font-medium">IP ACM</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  className="h-7 w-16 text-xs"
-                                  inputMode="decimal"
-                                  value={e.mcaPi ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
-                                />
-                                <span className="text-[10px] text-muted-foreground">
-                                  {imagingCentiles[e.id]?.mcaPi}
-                                </span>
-                              </div>
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-1 font-medium">RCP</td>
-                          {form.imagingExams.map((e) => {
-                            const rcp = examCpr(e);
-                            return (
-                              <td key={e.id} className="border-b p-1">
-                                <div className="flex items-center gap-1">
-                                  <span className="font-medium tabular-nums">
-                                    {rcp != null ? rcp.toFixed(3).replace(".", ",") : "—"}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {imagingCentiles[e.id]?.cpr}
-                                  </span>
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-1 font-medium">IP A. uterina</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  className="h-7 w-16 text-xs"
-                                  inputMode="decimal"
-                                  value={e.utPi ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
-                                />
-                                <span className="text-[10px] text-muted-foreground">
-                                  {imagingCentiles[e.id]?.utPi}
-                                </span>
-                              </div>
-                            </td>
-                          ))}
-                        </tr>
-                      </>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {form.imagingExams.length > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, SG, VV, BCF,
-                biometria, Doppler, IP da a. uterina) aparecem no mesmo US. Os percentis de IP da
-                a. uterina e do Doppler seguem os padrões FMF. A IG do USG marcado para datação é
-                digitada; a dos demais é <strong>automática</strong>, definida pela data de
-                realização conforme o método (DUM/USG) — e é ela que determina os percentis.
-              </p>
-            )}
-
-            {form.imagingExams.map((e) => {
-              const edited = e.overrideText != null;
-              const computed = renderImagingExam(resolvedById[e.id] ?? e);
-              const warns = imagingWarnings(resolvedById[e.id] ?? e);
-              return (
-                <div key={e.id} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2 px-1">
-                    <span className="text-[10px] font-medium text-muted-foreground">
-                      Prévia editável {edited ? "(editada)" : "(automática)"}
-                    </span>
-                    {edited && (
-                      <button
-                        type="button"
-                        onClick={() => updateImaging(e.id, { overrideText: undefined })}
-                        className="text-[10px] font-medium text-primary hover:underline"
-                        title="Descartar edição e regerar automaticamente"
-                      >
-                        regenerar
-                      </button>
-                    )}
-                  </div>
-                  <AutoGrowTextarea
-                    value={edited ? (e.overrideText ?? "") : computed}
-                    onChange={(v) => updateImaging(e.id, { overrideText: v })}
-                    className="prontuario-text w-full rounded border bg-muted/40 px-2 py-1 text-[11px] uppercase"
-                  />
-                  {warns.map((w, i) => (
-                    <p
-                      key={i}
-                      className="flex items-start gap-1 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800"
-                    >
-                      <Siren className="mt-0.5 h-3 w-3 shrink-0" /> {w}
-                    </p>
-                  ))}
-                </div>
-              );
-            })}
-            </>
-            )}
         </Section>
 
         {/* CTG (só gestantes) — card próprio, com uma ou mais CTGs */}
