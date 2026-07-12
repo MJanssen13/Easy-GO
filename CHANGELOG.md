@@ -5,6 +5,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Data e nova notação da CTG
+
+- Cada CTG passa a registrar a **data** (além da hora); a data pré-preenche com
+  a da consulta e é editável (CTG feita em outro dia).
+- A notação da CTG no prontuário virou o formato compacto:
+  `(DD/MM/AA HH:MM) LB 125 BPM / VARIAB 6-25 / AT + (≥2 AT EM 20 MIN) / ES - /
+  EM 1 / MF + / DESC - / CONTR - / FETO ATIVO (5 PTS) / OBS: ... / CD: ...`.
+  O laudo impresso usa a data da própria CTG.
+
 ### PSGO — Imprimir termos de consentimento
 
 - Botão **"Termos"** na admissão do PSGO gera, em um documento (papel timbrado

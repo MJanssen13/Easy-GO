@@ -547,7 +547,8 @@ export function PsgoGenerator({
     });
   }
   function addCtg() {
-    update({ ctgLaudos: [...form.ctgLaudos, { ...emptyPsgoCtg(), id: uid() }] });
+    // Data pré-preenchida com a da consulta (editável se a CTG foi em outro dia).
+    update({ ctgLaudos: [...form.ctgLaudos, { ...emptyPsgoCtg(), id: uid(), date: form.date }] });
   }
   function updateCtgAt(id: string, patch: Partial<PsgoCtg>) {
     update({ ctgLaudos: form.ctgLaudos.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
@@ -562,7 +563,7 @@ export function PsgoGenerator({
       {
         name: form.socialName.trim() ? `${form.name} (${form.socialName})` : form.name,
         rg: form.rg,
-        date: formatDateBR(form.date),
+        date: formatDateBR(c.date || form.date),
         time: c.time,
         hd: form.hd.trim() ? form.hd.trim() : psgoHd(form),
         baseline: c.baseline,
@@ -839,6 +840,8 @@ export function PsgoGenerator({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-semibold">CTG {idx + 1}</p>
           <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Data</Label>
+            <Input type="date" className="h-8 w-36" value={c.date} onChange={(e) => set({ date: e.target.value })} />
             <Label className="text-xs text-muted-foreground">Horário</Label>
             <Input type="time" className="h-8 w-28" value={c.time} onChange={(e) => set({ time: e.target.value })} />
             <Button
