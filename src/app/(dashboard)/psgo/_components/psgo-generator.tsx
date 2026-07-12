@@ -67,7 +67,13 @@ import { COMMON_COMORBIDITIES, classifyBmi } from "@/core/psgo/comorbidities";
 import { COMMON_MEDICATIONS } from "@/core/psgo/medications";
 import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
-import { renderImagingExam, examCpr, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
+import {
+  renderImagingExam,
+  examCpr,
+  examCentiles,
+  imagingWarnings,
+  type ImagingExam,
+} from "@/core/psgo/imaging";
 import { parseDecimal } from "@/lib/num";
 import { readShiftTeam, formatShiftTeamBlock, formatShiftTeamInline, EMPTY_TEAM } from "@/lib/shift-team";
 import type { TeamInput } from "@/core/prontuario/preparto-evolution";
@@ -266,11 +272,6 @@ function Section({
       {open && <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>{children}</div>}
     </Card>
   );
-}
-
-/** Rola a página até o quadro de exames de imagem (USG). */
-function scrollToUsg() {
-  document.getElementById("psgo-usg")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /** Botão para abrir o LabFlow (laboratório) em nova aba — teal da marca LabFlow. */
@@ -1156,18 +1157,18 @@ export function PsgoGenerator({
 
         {/* Paridade */}
         <Section
+          defaultOpen={false}
           title="Paridade"
           contentClassName="space-y-3"
           headerExtra={
             <>
               <InfoTip title="Como codificar a paridade">
                   <p>
-                    <strong>G</strong> = gestações (soma a atual se gestante).{" "}
-                    <strong>P</strong> = partos: <strong>N</strong> normal, <strong>C</strong> cesárea,{" "}
-                    <strong>F</strong> fórceps. <strong>A</strong> = abortos (ectópicas contam como
-                    aborto, aninhadas: <strong>A2(E1)</strong>).
+                    <strong>G</strong> = gestações (soma a atual se gestante). Detalhamento sem
+                    &ldquo;P&rdquo;, na ordem <strong>C</strong> cesárea, <strong>N</strong>{" "}
+                    normal, <strong>A</strong> abortos.
                   </p>
-                  <p>Abortos não entram em P. Ex.: <strong>G5P3(N1C2A1)</strong>.</p>
+                  <p>Ex.: 1 cesárea + 1 normal, gestante → <strong>G3C1N1</strong>.</p>
                   <p>Modelo em calibração — validar com a equipe.</p>
               </InfoTip>
               {parityView.summary && (
@@ -1179,7 +1180,7 @@ export function PsgoGenerator({
           }
         >
             <div className="flex flex-wrap gap-1.5">
-              {(["N", "C", "F", "A", "E"] as PriorPregnancyType[]).map((t) => (
+              {(["C", "N", "A"] as PriorPregnancyType[]).map((t) => (
                 <Button
                   key={t}
                   type="button"
@@ -1195,8 +1196,8 @@ export function PsgoGenerator({
             {form.priorPregnancies.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 {form.pregnant
-                  ? "Primigesta (G1P0). Use os botões acima para registrar gestações prévias."
-                  : "Sem gestações prévias (G0P0). Use os botões acima para registrá-las."}
+                  ? "Primigesta (G1). Use os botões acima para registrar gestações prévias."
+                  : "Sem gestações prévias (G0). Use os botões acima para registrá-las."}
               </p>
             ) : (
               form.priorPregnancies.map((p, idx) => (
@@ -1270,189 +1271,12 @@ export function PsgoGenerator({
             )}
         </Section>
 
-        {/* Datação + dados do Robson (não gestante: apenas a DUM) */}
-        <Section
-          title={form.pregnant ? "Datação e dados obstétricos" : "DUM"}
-          contentClassName="space-y-3"
-        >
-            {/* DUM · DUM incerta · datação na mesma linha */}
-            <div className="flex flex-wrap items-end gap-3">
-              <Field label="DUM" className="w-40">
-                <DateBRInput value={form.lmp} onChange={(iso) => update({ lmp: iso })} />
-              </Field>
-              {form.pregnant && (
-                <label className="flex items-center gap-2 whitespace-nowrap pb-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.lmpUncertain}
-                    onChange={(e) => update({ lmpUncertain: e.target.checked })}
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  DUM incerta
-                </label>
-              )}
-              {form.pregnant && (
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-xs">Datação</Label>
-                  <InfoTip title="Como é feita a datação">
-                    <p>
-                      O USG usado é o marcado em <strong>&ldquo;Datar&rdquo;</strong> no quadro de
-                      exames de imagem.
-                    </p>
-                    <p>
-                      <strong>DUM</strong> — regra de Naegele (DUM + 280 dias).
-                    </p>
-                    <p>
-                      <strong>USG</strong> — pela IG do exame (data + IG do USG).
-                    </p>
-                    <p>
-                      <strong>Auto (ACOG)</strong> — mantém a DUM, mas <em>redata pela USG</em> se a
-                      diferença passar do limite da IG no exame: 5d (≤8s), 7d (até 16s), 10d (até
-                      22s), 14d (até 28s), 21d (≥28s). Committee Opinion 700.
-                    </p>
-                  </InfoTip>
-                </div>
-                <Segmented
-                  value={form.datingPreference}
-                  onChange={(v) => update({ datingPreference: v })}
-                  options={[
-                    { value: "lmp", label: "DUM" },
-                    { value: "us", label: "USG" },
-                    { value: "auto", label: "Auto (ACOG)" },
-                  ]}
-                />
-              </div>
-              )}
-            </div>
-            {form.pregnant && (
-            <>
-            {/* IG pela DUM × pela USG (o usado para a HD fica destacado) */}
-            <div className="grid grid-cols-2 gap-2">
-              <div
-                className={`rounded-lg border p-2.5 transition-colors ${
-                  datingView.chosen === "DUM" ? "border-primary/60 bg-primary/5" : "bg-background"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    IG pela DUM
-                  </span>
-                  {datingView.chosen === "DUM" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                      usada
-                    </span>
-                  )}
-                </div>
-                {datingView.dum ? (
-                  <>
-                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
-                      {datingView.dum.ga.weeks}
-                      <span className="text-sm font-medium text-muted-foreground">s </span>
-                      {datingView.dum.ga.days}
-                      <span className="text-sm font-medium text-muted-foreground">d</span>
-                    </p>
-                    <p className="mt-1.5 text-[11px] text-muted-foreground">
-                      DPP {datingView.dum.eddBR}
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-2 text-[11px] text-muted-foreground">Informe a DUM acima.</p>
-                )}
-              </div>
-
-              <div
-                className={`rounded-lg border p-2.5 transition-colors ${
-                  datingView.chosen === "US" ? "border-primary/60 bg-primary/5" : "bg-background"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    IG pela USG
-                  </span>
-                  {datingView.chosen === "US" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                      usada
-                    </span>
-                  )}
-                </div>
-                {datingView.usg ? (
-                  <>
-                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
-                      {datingView.usg.currentGa.weeks}
-                      <span className="text-sm font-medium text-muted-foreground">s </span>
-                      {datingView.usg.currentGa.days}
-                      <span className="text-sm font-medium text-muted-foreground">d</span>
-                    </p>
-                    <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
-                      Exame {datingView.usg.dateBR} · {datingView.usg.gaAtExam.weeks}s
-                      {datingView.usg.gaAtExam.days}d na data
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                    Marque um USG em &ldquo;Datar&rdquo; no quadro de imagem.
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={scrollToUsg}
-                  className="mt-2 text-[11px] font-medium text-primary hover:underline"
-                >
-                  ir aos USGs ↓
-                </button>
-              </div>
-            </div>
-
-            {/* Nº de fetos · Apresentação · Início do TP na mesma linha */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Nº de fetos</Label>
-                <Segmented
-                  value={form.fetuses}
-                  onChange={(v) => update({ fetuses: v })}
-                  options={[
-                    { value: "single", label: "Único" },
-                    { value: "multiple", label: "Múltiplos" },
-                  ]}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Apresentação</Label>
-                <Segmented
-                  value={form.presentation}
-                  onChange={(v) => update({ presentation: v })}
-                  options={[
-                    { value: "cephalic", label: "Cefálica" },
-                    { value: "breech", label: "Pélvica" },
-                    { value: "transverse", label: "Córmica" },
-                  ]}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Início do TP (Atual ou predição)</Label>
-                <Segmented
-                  value={form.laborOnset}
-                  onChange={(v) => update({ laborOnset: v })}
-                  options={[
-                    { value: "spontaneous", label: "Espontâneo" },
-                    { value: "induced", label: "Induzido" },
-                    { value: "cesarean_before_labor", label: "Cesárea pré-TP" },
-                  ]}
-                />
-              </div>
-            </div>
-            {robsonMissing.length > 0 && (
-              <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                Robson incompleto — faltam: {robsonMissing.join(", ")}.
-              </p>
-            )}
-            </>
-            )}
-        </Section>
+        {/* A datação e os dados obstétricos foram unificados com os exames de
+            imagem na seção "psgo-usg" (mais abaixo). */}
 
         {/* Tipo sanguíneo / Coombs */}
         <Section
+          defaultOpen={false}
           title="Tipo sanguíneo e Coombs"
           contentClassName="space-y-3"
           headerExtra={
@@ -1514,7 +1338,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Comorbidades */}
-        <Section title="Comorbidades (CMB)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Comorbidades (CMB)" contentClassName="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {COMMON_COMORBIDITIES.map((c) => (
                 <Chip key={c} active={form.comorbidities.includes(c)} onClick={() => toggleArray("comorbidities", c)}>
@@ -1533,7 +1357,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Medicamentos */}
-        <Section title="Medicamentos (MEU / fez uso)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" contentClassName="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {COMMON_MEDICATIONS.map((m) => (
                 <Chip key={m} active={form.medications.some((x) => x.label === m)} onClick={() => addMed(m)}>
@@ -1605,7 +1429,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Cirurgias / alergias / hábitos */}
-        <Section title="Cirurgias, alergias e hábitos" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Cirurgias, alergias e hábitos" contentClassName="space-y-3">
             <Field label="Cirurgias prévias">
               <Input value={form.surgeries} onChange={(e) => update({ surgeries: e.target.value })} />
             </Field>
@@ -1637,6 +1461,7 @@ export function PsgoGenerator({
 
         {/* Sorologias */}
         <Section
+          defaultOpen={false}
           title="Sorologias"
           contentClassName="space-y-3"
           headerExtra={
@@ -1741,7 +1566,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* QP / HPMA */}
-        <Section title="Queixa e história" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Queixa e história" contentClassName="space-y-3">
             <Field label="Queixa principal (QP)">
               <Input value={form.qp} onChange={(e) => update({ qp: e.target.value })} />
             </Field>
@@ -1887,7 +1712,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Exame físico */}
-        <Section title="Exame físico" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Exame físico" contentClassName="space-y-3">
             <div className="grid grid-cols-4 gap-2">
               <Field label="Peso (kg)">
                 <Input value={form.weight} onChange={(e) => update({ weight: e.target.value })} inputMode="decimal" />
@@ -1998,6 +1823,7 @@ export function PsgoGenerator({
 
         {/* Exame ginecológico e obstétrico */}
         <Section
+          defaultOpen={false}
           title={form.pregnant ? "Exame ginecológico e obstétrico" : "Exame ginecológico"}
           contentClassName="space-y-4"
         >
@@ -2158,7 +1984,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Exames laboratoriais */}
-        <Section title="Exames laboratoriais" headerExtra={<LabflowButton />}>
+        <Section defaultOpen={false} title="Exames laboratoriais" headerExtra={<LabflowButton />}>
             <Textarea
               rows={3}
               placeholder="Cole os exames laboratoriais..."
@@ -2167,18 +1993,201 @@ export function PsgoGenerator({
             />
         </Section>
 
-        {/* Exames de imagem (USG obstétrico) — seção própria, em quadro */}
-        {form.pregnant && (
+        {/* Datação, dados obstétricos e exames de imagem (USG) — seção unificada */}
         <Section
           id="psgo-usg"
-          title="Exames de imagem (USG)"
+          title={
+            form.pregnant
+              ? "Datação, dados obstétricos e exames de imagem (USG)"
+              : "DUM e MAC"
+          }
+          defaultOpen={false}
           contentClassName="space-y-3"
           headerExtra={
-            <Button type="button" size="sm" variant="outline" onClick={addImaging}>
-              <Plus className="h-4 w-4" /> USG
-            </Button>
+            form.pregnant ? (
+              <Button type="button" size="sm" variant="outline" onClick={addImaging}>
+                <Plus className="h-4 w-4" /> USG
+              </Button>
+            ) : undefined
           }
         >
+            {/* ---- Datação / dados obstétricos ---- */}
+            {/* DUM · DUM incerta · datação na mesma linha */}
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="DUM" className="w-40">
+                <DateBRInput value={form.lmp} onChange={(iso) => update({ lmp: iso })} />
+              </Field>
+              {!form.pregnant && (
+                <Field label="MAC (métodos anticoncepcionais)" className="min-w-64 flex-1">
+                  <Input value={form.mac ?? ""} onChange={(e) => update({ mac: e.target.value })} />
+                </Field>
+              )}
+              {form.pregnant && (
+                <label className="flex items-center gap-2 whitespace-nowrap pb-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.lmpUncertain}
+                    onChange={(e) => update({ lmpUncertain: e.target.checked })}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  DUM incerta
+                </label>
+              )}
+              {form.pregnant && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs">Datação</Label>
+                  <InfoTip title="Como é feita a datação">
+                    <p>
+                      O USG usado é o marcado em <strong>&ldquo;Datar&rdquo;</strong> no quadro de
+                      exames de imagem.
+                    </p>
+                    <p>
+                      <strong>DUM</strong> — regra de Naegele (DUM + 280 dias).
+                    </p>
+                    <p>
+                      <strong>USG</strong> — pela IG do exame (data + IG do USG).
+                    </p>
+                    <p>
+                      <strong>Auto (ACOG)</strong> — mantém a DUM, mas <em>redata pela USG</em> se a
+                      diferença passar do limite da IG no exame: 5d (≤8s), 7d (até 16s), 10d (até
+                      22s), 14d (até 28s), 21d (≥28s). Committee Opinion 700.
+                    </p>
+                  </InfoTip>
+                </div>
+                <Segmented
+                  value={form.datingPreference}
+                  onChange={(v) => update({ datingPreference: v })}
+                  options={[
+                    { value: "lmp", label: "DUM" },
+                    { value: "us", label: "USG" },
+                    { value: "auto", label: "Auto (ACOG)" },
+                  ]}
+                />
+              </div>
+              )}
+            </div>
+            {form.pregnant && (
+            <>
+            {/* IG pela DUM × pela USG (o usado para a HD fica destacado) */}
+            <div className="grid grid-cols-2 gap-2">
+              <div
+                className={`rounded-lg border p-2.5 transition-colors ${
+                  datingView.chosen === "DUM" ? "border-primary/60 bg-primary/5" : "bg-background"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    IG pela DUM
+                  </span>
+                  {datingView.chosen === "DUM" && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                      usada
+                    </span>
+                  )}
+                </div>
+                {datingView.dum ? (
+                  <>
+                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
+                      {datingView.dum.ga.weeks}
+                      <span className="text-sm font-medium text-muted-foreground">s </span>
+                      {datingView.dum.ga.days}
+                      <span className="text-sm font-medium text-muted-foreground">d</span>
+                    </p>
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      DPP {datingView.dum.eddBR}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[11px] text-muted-foreground">Informe a DUM acima.</p>
+                )}
+              </div>
+
+              <div
+                className={`rounded-lg border p-2.5 transition-colors ${
+                  datingView.chosen === "US" ? "border-primary/60 bg-primary/5" : "bg-background"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    IG pela USG
+                  </span>
+                  {datingView.chosen === "US" && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                      usada
+                    </span>
+                  )}
+                </div>
+                {datingView.usg ? (
+                  <>
+                    <p className="mt-1 text-xl font-bold leading-none tabular-nums">
+                      {datingView.usg.currentGa.weeks}
+                      <span className="text-sm font-medium text-muted-foreground">s </span>
+                      {datingView.usg.currentGa.days}
+                      <span className="text-sm font-medium text-muted-foreground">d</span>
+                    </p>
+                    <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                      Exame {datingView.usg.dateBR} · {datingView.usg.gaAtExam.weeks}s
+                      {datingView.usg.gaAtExam.days}d na data
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                    Marque um USG em &ldquo;Datar&rdquo; no quadro abaixo.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Nº de fetos · Apresentação · Início do TP na mesma linha */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Nº de fetos</Label>
+                <Segmented
+                  value={form.fetuses}
+                  onChange={(v) => update({ fetuses: v })}
+                  options={[
+                    { value: "single", label: "Único" },
+                    { value: "multiple", label: "Múltiplos" },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Apresentação</Label>
+                <Segmented
+                  value={form.presentation}
+                  onChange={(v) => update({ presentation: v })}
+                  options={[
+                    { value: "cephalic", label: "Cefálica" },
+                    { value: "breech", label: "Pélvica" },
+                    { value: "transverse", label: "Córmica" },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Início do TP (Atual ou predição)</Label>
+                <Segmented
+                  value={form.laborOnset}
+                  onChange={(v) => update({ laborOnset: v })}
+                  options={[
+                    { value: "spontaneous", label: "Espontâneo" },
+                    { value: "induced", label: "Induzido" },
+                    { value: "cesarean_before_labor", label: "Cesárea pré-TP" },
+                  ]}
+                />
+              </div>
+            </div>
+            {robsonMissing.length > 0 && (
+              <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                Robson incompleto — faltam: {robsonMissing.join(", ")}.
+              </p>
+            )}
+            </>
+            )}
+
+            {/* ---- Exames de imagem (USG) — só gestantes ---- */}
+            {form.pregnant && (
+            <>
             {form.imagingExams.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Adicione um USG. Percentis de CIRC. CEFÁLICA/PESO/CIRC. ABDOMINAL pela Hadlock;
@@ -2270,6 +2279,21 @@ export function PsgoGenerator({
                               onChange={() => setDatingImaging(e.id)}
                             />
                             usar p/ datação
+                          </label>
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">Externo</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              checked={!!e.external}
+                              onChange={(ev) => updateImaging(e.id, { external: ev.target.checked })}
+                            />
+                            exame externo (EXT)
                           </label>
                         </td>
                       ))}
@@ -2565,7 +2589,7 @@ export function PsgoGenerator({
                               <td key={e.id} className="border-b p-1">
                                 <div className="flex items-center gap-1">
                                   <span className="font-medium tabular-nums">
-                                    {rcp != null ? rcp.toFixed(2) : "—"}
+                                    {rcp != null ? rcp.toFixed(3).replace(".", ",") : "—"}
                                   </span>
                                   <span className="text-[10px] text-muted-foreground">
                                     {imagingCentiles[e.id]?.cpr}
@@ -2613,6 +2637,7 @@ export function PsgoGenerator({
             {form.imagingExams.map((e) => {
               const edited = e.overrideText != null;
               const computed = renderImagingExam(resolvedById[e.id] ?? e);
+              const warns = imagingWarnings(resolvedById[e.id] ?? e);
               return (
                 <div key={e.id} className="space-y-1">
                   <div className="flex items-center justify-between gap-2 px-1">
@@ -2635,15 +2660,25 @@ export function PsgoGenerator({
                     onChange={(v) => updateImaging(e.id, { overrideText: v })}
                     className="prontuario-text w-full rounded border bg-muted/40 px-2 py-1 text-[11px] uppercase"
                   />
+                  {warns.map((w, i) => (
+                    <p
+                      key={i}
+                      className="flex items-start gap-1 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800"
+                    >
+                      <Siren className="mt-0.5 h-3 w-3 shrink-0" /> {w}
+                    </p>
+                  ))}
                 </div>
               );
             })}
+            </>
+            )}
         </Section>
-        )}
 
         {/* CTG (só gestantes) — card próprio, com uma ou mais CTGs */}
         {form.pregnant && (
           <Section
+            defaultOpen={false}
             title="CTG"
             contentClassName="space-y-3"
             headerExtra={
@@ -2665,6 +2700,7 @@ export function PsgoGenerator({
 
         {/* HD — hipótese diagnóstica (editável; em branco usa a automática) */}
         <Section
+          defaultOpen={false}
           title="HD (hipótese diagnóstica)"
           contentClassName="space-y-2"
           headerExtra={
@@ -2694,7 +2730,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Conduta — card próprio */}
-        <Section title="Conduta" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Conduta" contentClassName="space-y-3">
             <Field label="Conduta (CD)">
               <Textarea rows={2} value={form.cd} onChange={(e) => update({ cd: e.target.value })} />
             </Field>

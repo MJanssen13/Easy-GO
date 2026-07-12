@@ -145,9 +145,11 @@ export function renderPsgo(form: PsgoForm): string {
   push(
     1,
     `${form.name}${form.socialName ? ` (NOME SOCIAL: ${form.socialName})` : ""}, RG ${form.rg}`,
-    `IDADE ${form.age}`,
+    `IDADE ${form.age}${form.age.trim() ? " ANOS" : ""}`,
     `PROCEDENTE DE ${form.origin}`,
-    `ACOMPANHANTE: ${form.companion}${relation ? ` (${relation})` : ""}`,
+    form.companion.trim()
+      ? `ACOMPANHANTE: ${form.companion}${relation ? ` (${relation})` : ""}`
+      : "DESACOMPANHADA",
   );
 
   if (form.pregnant) {
@@ -176,11 +178,11 @@ export function renderPsgo(form: PsgoForm): string {
   // Paridade
   push(1, `PARIDADE: ${parity.summary}`, ...parity.lines);
 
-  // Datação (para não gestantes registra-se apenas a DUM, sem IG)
+  // Datação (para não gestantes registra-se apenas a DUM + MAC, sem IG)
   if (form.pregnant) {
     push(1, dating.dumLine ?? "DUM:", dating.igUsLine ?? "IG US :");
   } else {
-    push(1, `DUM: ${dateBR(form.lmp)}`);
+    push(1, `DUM: ${dateBR(form.lmp)}`, `MAC: ${form.mac ?? ""}`);
   }
 
   // Tipo sanguíneo / Coombs (um ou mais CI, com datas)

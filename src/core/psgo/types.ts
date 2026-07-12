@@ -60,6 +60,8 @@ export interface PsgoForm {
   lmp: string;
   lmpUncertain: boolean;
   datingPreference: DatingPreference;
+  /** Método(s) anticoncepcional(is) — só para não gestantes (aparece após a DUM). */
+  mac: string;
 
   // dados clínicos para Robson
   presentation: RobsonPresentation | "";
@@ -156,6 +158,7 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     lmp: "",
     lmpUncertain: false,
     datingPreference: "auto",
+    mac: "",
     presentation: "",
     fetuses: "",
     laborOnset: "",

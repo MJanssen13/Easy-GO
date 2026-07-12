@@ -1,17 +1,16 @@
 /**
- * Paridade obstétrica (modelo simples, notação padrão): G (gestações),
- * P (partos: N normal, C cesárea, F fórceps) e A (abortos; ectópicas contam
- * como aborto e aparecem aninhadas, ex.: A2(E1)).
+ * Paridade obstétrica (modelo simples): G (gestações), com o detalhamento dos
+ * desfechos concatenado sem o "P" — C (cesárea), N (parto normal) e A (abortos).
  *
  * Regras:
  * - G conta todas as gestações; soma a atual quando a pessoa está gestante.
- * - P soma apenas os partos (N + C + F). Abortos NÃO entram em P.
- * - Ex.: 2 cesáreas + 1 aborto + 1 normal, gestante → G5P3(N1C2A1).
+ * - O detalhamento lista apenas as categorias com contagem > 0, na ordem C, N, A.
+ * - Ex.: 1 cesárea + 1 normal, gestante → G3C1N1. 2 abortos → G3A2.
  *
  * (A paridade ainda será calibrada; por ora sem gemelaridade.)
  */
 
-export type PriorPregnancyType = "N" | "F" | "C" | "A" | "E";
+export type PriorPregnancyType = "N" | "C" | "A";
 
 export interface PriorPregnancy {
   id: string;
@@ -27,14 +26,12 @@ export interface PriorPregnancy {
 
 export const PRIOR_TYPE_LABELS: Record<PriorPregnancyType, string> = {
   N: "Parto normal",
-  F: "Fórceps",
   C: "Cesárea",
   A: "Aborto",
-  E: "Ectópica",
 };
 
 export function isBirthType(t: PriorPregnancyType): boolean {
-  return t === "N" || t === "F" || t === "C";
+  return t === "N" || t === "C";
 }
 
 /** Texto do marcador de desfecho sem observações. */
@@ -47,26 +44,26 @@ export function canMarkNoComplications(type: PriorPregnancyType): boolean {
 
 /**
  * Informação obrigatória na nota, conforme o tipo (mostrada em vermelho na
- * caixa de texto): cesárea/fórceps exigem o motivo; aborto e ectópica exigem a IG.
+ * caixa de texto): cesárea exige o motivo; aborto exige a IG.
  */
 export function requiredNotePrompt(type: PriorPregnancyType): string | null {
-  if (type === "C" || type === "F") return "INDICAR MOTIVO";
-  if (type === "A" || type === "E") return "INFORMAR IG";
+  if (type === "C") return "INDICAR MOTIVO";
+  if (type === "A") return "INFORMAR IG";
   return null;
 }
 
-/** Ordem das categorias no detalhamento (ex.: G5P3(N1C2A1)). */
-const SUMMARY_ORDER = ["N", "C", "F", "A"] as const;
+/** Ordem das categorias no detalhamento (ex.: G3C1N1). */
+const SUMMARY_ORDER = ["C", "N", "A"] as const;
 type SummaryCat = (typeof SUMMARY_ORDER)[number];
 
 export interface ParityResult {
-  /** Ex.: "G5P3(N1C2A1)", "G4P2(N2A2(E1))". */
+  /** Ex.: "G3C1N1", "G3A2", "G1". */
   summary: string;
   /** Linhas por gestação prévia, ordenadas por ano. */
   lines: string[];
   /** Nº de cesáreas. */
   cesareanCount: number;
-  /** true se multípara (≥1 parto: N, F ou C). */
+  /** true se multípara (≥1 parto: N ou C). */
   multipara: boolean;
 }
 
@@ -75,28 +72,22 @@ export interface ParityResult {
  * atual ao total de G (true quando a pessoa está gestante no momento).
  */
 export function formatParity(prior: PriorPregnancy[], includesCurrent = true): ParityResult {
-  const counts: Record<SummaryCat, number> = { N: 0, C: 0, F: 0, A: 0 };
-  let ectopics = 0;
+  const counts: Record<SummaryCat, number> = { C: 0, N: 0, A: 0 };
 
+  // Guarda contra tipos legados (F/E, removidos): só conta C/N/A.
   for (const p of prior) {
-    if (p.type === "A" || p.type === "E") {
-      counts.A += 1;
-      if (p.type === "E") ectopics += 1;
-    } else {
-      counts[p.type] += 1;
-    }
+    if (p.type === "C" || p.type === "N" || p.type === "A") counts[p.type] += 1;
   }
 
-  const births = counts.N + counts.C + counts.F;
+  const births = counts.N + counts.C;
   const g = prior.length + (includesCurrent ? 1 : 0);
 
   let detail = "";
   for (const cat of SUMMARY_ORDER) {
     if (counts[cat] === 0) continue;
     detail += `${cat}${counts[cat]}`;
-    if (cat === "A" && ectopics > 0) detail += `(E${ectopics})`;
   }
-  const summary = `G${g}P${births}${detail ? `(${detail})` : ""}`;
+  const summary = `G${g}${detail}`;
 
   // Linhas por gestação, ordenadas por ano; numeração por tipo.
   const sorted = [...prior].sort((a, b) => {
@@ -110,7 +101,7 @@ export function formatParity(prior: PriorPregnancy[], includesCurrent = true): P
     const tag = `${p.type}${perTypeIndex[p.type]}`;
     const when = p.year ? ` EM ${p.year}` : "";
     // Cesárea/normal marcados exibem "SEM INTERCORRÊNCIAS"; a nota (motivo/IG)
-    // continua na cesárea, fórceps e aborto. No parto normal marcado a nota é
+    // continua na cesárea e no aborto. No parto normal marcado a nota é
     // omitida (a caixa fica oculta na UI).
     const marked = !!p.noComplications && canMarkNoComplications(p.type);
     const noteHidden = marked && !requiredNotePrompt(p.type);

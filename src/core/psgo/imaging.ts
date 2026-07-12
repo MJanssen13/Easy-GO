@@ -3,11 +3,18 @@
  * exame tem IG própria e a plataforma calcula os percentis de CC/PESO/CA
  * (Hadlock) e da tríade Doppler do CIUR (IP-AUmb, IP-ACM, RCP — FMF/Ciobanu).
  *
- * Linha do prontuário (MODELO PS):
- *   -(DATA): IG: XX / APRESENTAÇÃO / PESO (P X) / CIRC. ABDOMINAL (P X) /
- *    PLACENTA E SUA INSERÇÃO, GRAU / MBV / IP AUMB (P X) / IP ACM (P X) / RCP (P X)
+ * Linha do prontuário (MODELO PS); exames externos levam "EXT" após a data:
+ *   - (DATA [EXT]): GESTAÇÃO DE XX SEM E Y DIAS / APRESENTAÇÃO / CC: (P X) /
+ *    CA: (P X) / PFE (P X) / MBV CM / ILA CM / BCF BPM / PLAC INSERÇÃO GRAU /
+ *    IP AUMB (P X) / IP ACM (P X) / RCP (P X) / IP A. UTERINA (P X)
  */
-import { efwCentile, acCentile, hcCentile } from "@/core/fmf/biometry";
+import {
+  efwCentile,
+  acCentile,
+  hcCentile,
+  expectedAc,
+  expectedHc,
+} from "@/core/fmf/biometry";
 import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr";
 import { utPiCentile } from "@/core/fmf/uterine";
 import { formatCentile, formatCentileCeil } from "@/core/fmf/centile";
@@ -19,6 +26,7 @@ export interface ImagingExam {
   gaWeeks?: number;
   gaDays?: number;
   useForDating?: boolean; // USG escolhido para datação
+  external?: boolean; // exame externo (feito fora do serviço) — sai "EXT" na data
   presentation?: string; // APRESENTAÇÃO (cefálica/pélvica/córmica)
   gsac?: string; // SG — saco gestacional (mm)
   yolkSac?: string; // VV — vesícula vitelínica (mm)
@@ -70,9 +78,34 @@ function dateBR(iso?: string): string {
     : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
-function igLabel(e: ImagingExam): string {
+/** IG do exame por extenso, ex.: "GESTAÇÃO DE 32 SEM E 1 DIA". */
+function igPhrase(e: ImagingExam): string {
   if (e.gaWeeks == null) return "";
-  return `IG: ${e.gaWeeks}s${e.gaDays ? `${e.gaDays}d` : ""}`;
+  const d = e.gaDays ?? 0;
+  return `GESTAÇÃO DE ${e.gaWeeks} SEM E ${d} ${d === 1 ? "DIA" : "DIAS"}`;
+}
+
+const PRESENTATION_ABBR: Record<string, string> = {
+  CEFÁLICA: "CEF",
+  PÉLVICA: "PELV",
+  CÓRMICA: "CORM",
+};
+/** Abreviação da apresentação (CEF/PELV/CORM); desconhecidas ficam como estão. */
+function presentationAbbr(p: string): string {
+  return PRESENTATION_ABBR[p.trim().toUpperCase()] ?? p;
+}
+
+const PLACENTA_ABBR: Record<string, string> = {
+  ANTERIOR: "ANT",
+  POSTERIOR: "POST",
+  FÚNDICA: "FÚND",
+  "LATERAL DIREITA": "LAT DIR",
+  "LATERAL ESQUERDA": "LAT ESQ",
+  PRÉVIA: "PRÉVIA",
+};
+/** Abreviação da inserção placentária (ANT/POST/FÚND/…). */
+function placentaAbbr(s: string): string {
+  return PLACENTA_ABBR[s.trim().toUpperCase()] ?? s;
 }
 
 /** RCP (valor) calculado a partir de IP-ACM / IP-AUmb. */
@@ -153,51 +186,56 @@ export function renderImagingExam(e: ImagingExam): string {
   const gaDays = examGaDays(e);
   const fields: string[] = [];
 
-  const ig = igLabel(e);
+  const ig = igPhrase(e);
   if (ig) fields.push(ig);
-  if (e.presentation) fields.push(e.presentation);
+  if (e.presentation) fields.push(presentationAbbr(e.presentation));
 
-  // Marcadores/biometria (nem todos presentes no mesmo US).
+  // Gestações iniciais (nem todos presentes no mesmo US).
   const crl = num(e.crl);
-  if (crl != null) fields.push(`CCN ${e.crl}mm`);
+  if (crl != null) fields.push(`CCN ${e.crl} mm`);
 
   const gsac = num(e.gsac);
-  if (gsac != null) fields.push(`SG ${e.gsac}mm`);
+  if (gsac != null) fields.push(`SG ${e.gsac} mm`);
 
   const yolkSac = num(e.yolkSac);
-  if (yolkSac != null) fields.push(`VV ${e.yolkSac}mm`);
+  if (yolkSac != null) fields.push(`VV ${e.yolkSac} mm`);
 
-  if (e.fhr) {
-    fields.push(num(e.fhr) != null ? `BCF ${e.fhr}bpm` : `BCF ${e.fhr.toUpperCase()}`);
-  }
-
+  // Biometria (CC / CA / PFE).
   const hc = num(e.hc);
   if (hc != null) {
     const c = gaDays != null ? hcCentile(hc, gaDays) : null;
-    fields.push(`CIRC. CEFÁLICA ${e.hc}mm${pctSuffix(c)}`);
-  }
-
-  const efw = num(e.efw);
-  if (efw != null) {
-    const c = gaDays != null ? efwCentile(efw, gaDays) : null;
-    fields.push(`PESO ${e.efw}g${pctSuffix(c)}`);
+    fields.push(`CC: ${e.hc} mm${pctSuffix(c)}`);
   }
 
   const ac = num(e.ac);
   if (ac != null) {
     const c = gaDays != null ? acCentile(ac, gaDays) : null;
-    fields.push(`CIRC. ABDOMINAL ${e.ac}mm${pctSuffix(c)}`);
+    fields.push(`CA: ${e.ac} mm${pctSuffix(c)}`);
   }
 
+  const efw = num(e.efw);
+  if (efw != null) {
+    const c = gaDays != null ? efwCentile(efw, gaDays) : null;
+    fields.push(`PFE ${e.efw} g${pctSuffix(c)}`);
+  }
+
+  // Líquido amniótico.
+  if (e.mbv) fields.push(`MBV ${e.mbv}CM`);
+  if (e.ila) fields.push(`ILA ${e.ila}CM`);
+
+  // BCF.
+  if (e.fhr) {
+    fields.push(num(e.fhr) != null ? `BCF ${e.fhr} BPM` : `BCF ${e.fhr.toUpperCase()}`);
+  }
+
+  // Placenta.
   if (e.placentaSite || e.placentaGrade) {
-    const site = e.placentaSite ? ` ${e.placentaSite}` : "";
-    const grade = e.placentaGrade ? `, GRAU ${e.placentaGrade}` : "";
-    fields.push(`PLACENTA${site}${grade}`);
+    const site = e.placentaSite ? ` ${placentaAbbr(e.placentaSite)}` : "";
+    const grade = e.placentaGrade ? ` GRAU ${e.placentaGrade}` : "";
+    fields.push(`PLAC${site}${grade}`);
   }
 
-  if (e.mbv) fields.push(`MBV ${e.mbv}`);
-  if (e.ila) fields.push(`ILA ${e.ila}`);
-
+  // Doppler.
   const uaPi = num(e.uaPi);
   if (uaPi != null) {
     const c = gaDays != null ? uaPiCentile(uaPi, gaDays) : null;
@@ -213,7 +251,7 @@ export function renderImagingExam(e: ImagingExam): string {
   const cpr = examCpr(e);
   if (cpr != null) {
     const c = gaDays != null ? cprCentile(cpr, gaDays) : null;
-    fields.push(`RCP ${cpr.toFixed(2)}${pctSuffixFmf(c)}`);
+    fields.push(`RCP ${cpr.toFixed(3).replace(".", ",")}${pctSuffixFmf(c)}`);
   }
 
   const utPi = num(e.utPi);
@@ -224,7 +262,28 @@ export function renderImagingExam(e: ImagingExam): string {
 
   if (e.notes) fields.push(e.notes);
 
-  return `-(${dateBR(e.date)}): ${fields.join(" / ")}`;
+  const ext = e.external ? " EXT" : "";
+  return `- (${dateBR(e.date)}${ext}): ${fields.join(" / ")}`;
+}
+
+/**
+ * Avisos de possível confusão cm/mm ao anotar biometria (valor ~10× menor que
+ * o esperado em mm para a IG). Cobre CC e CA (têm valor esperado por IG).
+ */
+export function imagingWarnings(e: ImagingExam): string[] {
+  const gaDays = examGaDays(e);
+  if (gaDays == null) return [];
+  const out: string[] = [];
+  const suspectCm = (valueMm: number | null, expectedMm: number | null): boolean => {
+    if (valueMm == null || valueMm <= 0 || expectedMm == null || expectedMm <= 0) return false;
+    const x10 = valueMm * 10;
+    return x10 >= expectedMm * 0.55 && x10 <= expectedMm * 1.6;
+  };
+  if (suspectCm(num(e.ac), expectedAc(gaDays)))
+    out.push("CA parece estar em cm — confira (valor em mm, ex.: 261, não 26,1).");
+  if (suspectCm(num(e.hc), expectedHc(gaDays)))
+    out.push("CC parece estar em cm — confira (valor em mm, ex.: 290, não 29,0).");
+  return out;
 }
 
 export function renderImaging(exams: ImagingExam[]): string {

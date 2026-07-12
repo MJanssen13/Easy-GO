@@ -5,6 +5,28 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Notação do USG, exame externo, paridade e admissão colapsada
+
+- **USG externo**: cada exame tem a marcação **"exame externo"**; quando marcado,
+  a data no laudo sai com **EXT** (ex.: `- (14/06/26 EXT): …`).
+- **Nova notação do USG** (segue o modelo do serviço): a IG sai por extenso
+  (`GESTAÇÃO DE 32 SEM E 1 DIA`), apresentação abreviada (CEF/PELV/CORM), e as
+  medidas como `CA: 261 MM (P 7)`, `PFE 1689 G (P 13)`, `MBV 5,7CM`,
+  `BCF 144 BPM`, `PLAC ANT GRAU I`, Doppler ao final. O **RCP** passa a exibir
+  **3 casas** (ex.: `RCP 2,284`).
+- **Aviso cm/mm**: quando a CC ou a CA parece ter sido anotada em cm (valor ~10×
+  menor que o esperado para a IG), aparece um alerta no exame.
+- **Datação + dados obstétricos** foram **unificados** com **Exames de imagem
+  (USG)** numa só seção (a organização do prontuário/colagem não muda).
+- As seções da admissão **iniciam colapsadas** por padrão, exceto a
+  **Identificação**.
+- **MAC** (métodos anticoncepcionais): novo campo, exibido **após a DUM** quando
+  a pessoa **não é gestante** (entra na colagem como `MAC: …`).
+- **Acompanhante**: em branco, a colagem escreve **DESACOMPANHADA**.
+- **Idade**: passa a sair com **ANOS** na colagem (ex.: `IDADE 27 ANOS`).
+- **Paridade** sem o **P**: `G3P2(C1N1)` vira `G3C1N1` (ordem C, N, A, sem
+  parênteses). Removidas as opções **Fórceps** e **Ectópica**.
+
 ### PSGO — Percentis FMF arredondados como no site oficial (teto)
 
 - Os percentis das medidas de **padrão FMF** (Doppler: IP-AUmb, IP-ACM, RCP; e
