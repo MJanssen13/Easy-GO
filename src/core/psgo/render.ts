@@ -18,7 +18,9 @@ import { parseDecimal } from "@/lib/num";
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR");
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
 function splitOther(s?: string): string[] {

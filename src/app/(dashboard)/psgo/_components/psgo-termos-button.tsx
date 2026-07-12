@@ -30,7 +30,15 @@ export function PsgoTermosButton({
     setOpen(false);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const html = renderTermosHtml(
-      { name, rg, date: new Date().toLocaleDateString("pt-BR") },
+      {
+        name,
+        rg,
+        date: new Date().toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit",
+        }),
+      },
       letterheadFor(origin),
       { includeInducao },
     );

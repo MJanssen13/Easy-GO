@@ -13,6 +13,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   `(DD/MM/AA HH:MM) LB 125 BPM / VARIAB 6-25 / AT + (≥2 AT EM 20 MIN) / ES - /
   EM 1 / MF + / DESC - / CONTR - / FETO ATIVO (5 PTS) / OBS: ... / CD: ...`.
   O laudo impresso usa a data da própria CTG.
+- Cada CTG sai numa **linha própria** (com "- "), inclusive quando há só uma.
+- Todas as datas das notações do PSGO passam a **DD/MM/AA** (ano com 2 dígitos):
+  prontuário (cabeçalho, DUM/IG US, DPP, exames, CI), laudo e termos. O Pré-Parto
+  não muda (usa o formatador compartilhado de `gestational-age`).
 
 ### PSGO — Imprimir termos de consentimento
 

@@ -8,9 +8,13 @@ import {
   resolveDating,
   eddFromLMP,
   eddFromUltrasound,
-  formatDateBR,
   type GestationalAge,
 } from "@/core/obstetric/gestational-age";
+
+/** Data → DD/MM/AA (ano com 2 dígitos), para as notações do prontuário. */
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
 
 export interface UsgExam {
   id: string;
@@ -83,7 +87,7 @@ export function resolvePsgoDating(
     dumLine = "DUM: INCERTA";
   } else if (lmpDate) {
     const ga = gaFromLMP(lmpDate, ref);
-    dumLine = `DUM: ${formatDateBR(lmpDate)} (IG: ${ga.weeks} sem e ${ga.days} dias)`;
+    dumLine = `DUM: ${fmtDate(lmpDate)} (IG: ${ga.weeks} sem e ${ga.days} dias)`;
     if (chosen?.tag === "US") dumLine += " - DISCORDANTE";
   }
 
@@ -91,7 +95,7 @@ export function resolvePsgoDating(
   let igUsLine: string | null = null;
   if (scanDate && scanGa) {
     const now = gaFromUltrasound(scanDate, scanGa, ref);
-    igUsLine = `IG US: ${scanGa.weeks} sem e ${scanGa.days} d em ${formatDateBR(scanDate)} (IG: ${now.weeks} sem e ${now.days} dias)`;
+    igUsLine = `IG US: ${scanGa.weeks} sem e ${scanGa.days} d em ${fmtDate(scanDate)} (IG: ${now.weeks} sem e ${now.days} dias)`;
   }
 
   return {
@@ -139,16 +143,16 @@ export function datingDisplay(
       : null;
 
   const dum = lmpDate
-    ? { ga: gaFromLMP(lmpDate, ref), eddBR: formatDateBR(eddFromLMP(lmpDate)) }
+    ? { ga: gaFromLMP(lmpDate, ref), eddBR: fmtDate(eddFromLMP(lmpDate)) }
     : null;
 
   const usg =
     scanDate && scanGa
       ? {
-          dateBR: formatDateBR(scanDate),
+          dateBR: fmtDate(scanDate),
           gaAtExam: scanGa,
           currentGa: gaFromUltrasound(scanDate, scanGa, ref),
-          eddBR: formatDateBR(eddFromUltrasound(scanDate, scanGa)),
+          eddBR: fmtDate(eddFromUltrasound(scanDate, scanGa)),
         }
       : null;
 

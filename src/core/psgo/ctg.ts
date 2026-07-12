@@ -146,10 +146,9 @@ export function ctgLineWithTime(c: PsgoCtg): string {
 
 /**
  * Bloco de CTG do prontuário para uma ou mais CTGs. Vazio (sem CTGs) → "" para
- * omitir a seção. Uma CTG → linha única; várias → uma por linha.
+ * omitir a seção. Cada CTG sai numa linha própria, com "- " na frente.
  */
 export function renderPsgoCtgs(list: PsgoCtg[]): string {
   if (!list.length) return "";
-  if (list.length === 1) return `CTG: ${ctgLineWithTime(list[0])}`;
   return ["CTG:", ...list.map((c) => `- ${ctgLineWithTime(c)}`)].join("\n");
 }
