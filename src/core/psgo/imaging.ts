@@ -35,6 +35,11 @@ export interface ImagingExam {
   utPi?: string; // IP A. UTERINA (média) — IP das artérias uterinas
   crl?: string; // CCN — comprimento cabeça-nádega (mm)
   notes?: string;
+  /**
+   * Texto do laudo do exame editado manualmente. Quando presente (não vazio),
+   * substitui a linha gerada automaticamente — permite observações/correções.
+   */
+  overrideText?: string;
 }
 
 export function examGaDays(e: Pick<ImagingExam, "gaWeeks" | "gaDays">): number | null {
@@ -106,7 +111,8 @@ export function examCentiles(e: ImagingExam): ImagingCentiles {
 
 export function hasImagingData(e: ImagingExam): boolean {
   return Boolean(
-    e.date ||
+    e.overrideText?.trim() ||
+      e.date ||
       e.gsac ||
       e.yolkSac ||
       e.fhr ||
@@ -128,6 +134,9 @@ export function hasImagingData(e: ImagingExam): boolean {
 
 /** Linha de prontuário de um exame, no formato do MODELO PS, com percentis. */
 export function renderImagingExam(e: ImagingExam): string {
+  // Laudo editado manualmente tem prioridade sobre a geração automática.
+  if (e.overrideText?.trim()) return e.overrideText;
+
   const gaDays = examGaDays(e);
   const fields: string[] = [];
 

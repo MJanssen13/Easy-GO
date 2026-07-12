@@ -304,8 +304,9 @@ export function PsgoGenerator({
   const [saving, startSaving] = useTransition();
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [medInput, setMedInput] = useState("");
-  // Grupo "Gestações iniciais" (CCN/SG/VV) recolhível no quadro de USG.
-  const [showEarlyUsg, setShowEarlyUsg] = useState(false);
+  // Grupos recolhíveis do quadro de USG (recolhidos por padrão).
+  const [showEarlyUsg, setShowEarlyUsg] = useState(false); // Gestações iniciais (CCN/SG/VV)
+  const [showDopplerUsg, setShowDopplerUsg] = useState(false); // Doppler (IPs e RCP)
   // Montador de HPMA (estado transitório; só o texto final vai para form.hpma)
   const [hpmaSel, setHpmaSel] = useState<string[]>([]);
   const [hpmaVals, setHpmaVals] = useState<Record<string, string>>({});
@@ -2498,77 +2499,102 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">IP AUmb</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-7 w-16 text-xs"
-                              inputMode="decimal"
-                              value={e.uaPi ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.uaPi}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
+                      <td
+                        colSpan={form.imagingExams.length + 1}
+                        className="border-b bg-muted/30 p-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setShowDopplerUsg((v) => !v)}
+                          className="flex w-full items-center gap-1 px-1 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
+                          aria-expanded={showDopplerUsg}
+                        >
+                          <ChevronDown
+                            className={`h-3.5 w-3.5 transition-transform ${showDopplerUsg ? "" : "-rotate-90"}`}
+                          />
+                          DOPPLER
+                          <span className="text-[10px] font-normal">
+                            (IP AUmb / IP ACM / RCP / IP a. uterina)
+                          </span>
+                        </button>
+                      </td>
                     </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">IP ACM</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-7 w-16 text-xs"
-                              inputMode="decimal"
-                              value={e.mcaPi ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.mcaPi}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">RCP</td>
-                      {form.imagingExams.map((e) => {
-                        const rcp = examCpr(e);
-                        return (
-                          <td key={e.id} className="border-b p-1">
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium tabular-nums">
-                                {rcp != null ? rcp.toFixed(2) : "—"}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {imagingCentiles[e.id]?.cpr}
-                              </span>
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">IP A. uterina</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-7 w-16 text-xs"
-                              inputMode="decimal"
-                              value={e.utPi ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.utPi}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
+                    {showDopplerUsg && (
+                      <>
+                        <tr>
+                          <td className="border-b p-1 font-medium">IP AUmb</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  className="h-7 w-16 text-xs"
+                                  inputMode="decimal"
+                                  value={e.uaPi ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
+                                />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {imagingCentiles[e.id]?.uaPi}
+                                </span>
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">IP ACM</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  className="h-7 w-16 text-xs"
+                                  inputMode="decimal"
+                                  value={e.mcaPi ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
+                                />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {imagingCentiles[e.id]?.mcaPi}
+                                </span>
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">RCP</td>
+                          {form.imagingExams.map((e) => {
+                            const rcp = examCpr(e);
+                            return (
+                              <td key={e.id} className="border-b p-1">
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium tabular-nums">
+                                    {rcp != null ? rcp.toFixed(2) : "—"}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {imagingCentiles[e.id]?.cpr}
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">IP A. uterina</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  className="h-7 w-16 text-xs"
+                                  inputMode="decimal"
+                                  value={e.utPi ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
+                                />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {imagingCentiles[e.id]?.utPi}
+                                </span>
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      </>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -2584,14 +2610,34 @@ export function PsgoGenerator({
               </p>
             )}
 
-            {form.imagingExams.map((e) => (
-              <p
-                key={e.id}
-                className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px] uppercase"
-              >
-                {renderImagingExam(resolvedById[e.id] ?? e).toUpperCase()}
-              </p>
-            ))}
+            {form.imagingExams.map((e) => {
+              const edited = e.overrideText != null;
+              const computed = renderImagingExam(resolvedById[e.id] ?? e);
+              return (
+                <div key={e.id} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <span className="text-[10px] font-medium text-muted-foreground">
+                      Prévia editável {edited ? "(editada)" : "(automática)"}
+                    </span>
+                    {edited && (
+                      <button
+                        type="button"
+                        onClick={() => updateImaging(e.id, { overrideText: undefined })}
+                        className="text-[10px] font-medium text-primary hover:underline"
+                        title="Descartar edição e regerar automaticamente"
+                      >
+                        regenerar
+                      </button>
+                    )}
+                  </div>
+                  <AutoGrowTextarea
+                    value={edited ? (e.overrideText ?? "") : computed}
+                    onChange={(v) => updateImaging(e.id, { overrideText: v })}
+                    className="prontuario-text w-full rounded border bg-muted/40 px-2 py-1 text-[11px] uppercase"
+                  />
+                </div>
+              );
+            })}
         </Section>
         )}
 

@@ -22,8 +22,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - Novo campo **ILA** (índice de líquido amniótico), exibido junto do **MBV** na
   mesma linha (`MBV / ILA`).
 - Reorganização do quadro: **CCN/SG/VV** ficam num grupo recolhível
-  **"Gestações iniciais"**; **Placenta** e **grau** dividem a mesma linha (listas
-  lado a lado, mais estreitas). A **prévia** de cada USG sai toda em MAIÚSCULAS.
+  **"Gestações iniciais"** e **IP AUmb/IP ACM/RCP/IP a. uterina** num grupo
+  recolhível **"Doppler"** (ambos recolhidos por padrão); **Placenta** e **grau**
+  dividem a mesma linha (listas lado a lado, mais estreitas).
+- A **prévia** de cada USG passa a ser **editável** (para inserir observações ou
+  correções) e sai toda em MAIÚSCULAS. O texto editado substitui a linha gerada
+  automaticamente no laudo; o botão **"regenerar"** descarta a edição e volta ao
+  automático (novo campo `overrideText`).
 
 ### PSGO — IG automática dos USGs pela datação (percentis coerentes)
 
