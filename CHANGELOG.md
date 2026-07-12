@@ -19,6 +19,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   - **CC** — Hadlock 1984 `−11,48 + 1,56·IG − 0,0002548·IG³`, DP 1,0 cm
     (antes: referência FMF).
   - **CA** — inalterada (já era Hadlock 1984).
+  - **CC/CA**: a mediana (cm) é arredondada a **0,1 cm** antes do z, como no
+    Fetal Biometry 3.1, para **percentil idêntico ao da calculadora** (validado
+    contra o JS real da Perinatology e da FMF: biometria e Doppler batem dígito
+    a dígito).
 - Novo campo **ILA** (índice de líquido amniótico), exibido junto do **MBV** na
   mesma linha (`MBV / ILA`).
 - Reorganização do quadro: **CCN/SG/VV** ficam num grupo recolhível

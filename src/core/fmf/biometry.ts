@@ -15,6 +15,8 @@
  *   (IG limitada a 12–42 sem), DP = 1,34 cm (13,4 mm); z normal.
  * - CIRC. CEFÁLICA: mesmo Hadlock 1984. Média (cm) = −11,48 + 1,56·IG −
  *   0,0002548·IG³, DP = 1,0 cm (10 mm); z normal.
+ *   (CA e CC: a mediana em cm é arredondada a 0,1 cm antes do z, como no
+ *   Fetal Biometry 3.1, para paridade exata de percentil.)
  * - CF: referência FMF (fetalmedicine.org).
  *
  * IG em DIAS; biometria em mm. Percentil pela CDF normal padrão. Apoio à decisão.
@@ -54,14 +56,19 @@ export function efwCentile(weightG: number, gaDays: number): number | null {
   return zToCentile(efwZ(weightG, gaDays));
 }
 
-// --- CIRC. ABDOMINAL: Hadlock 1984, como no Fetal Biometry 5.0 ---
+// --- CIRC. ABDOMINAL: Hadlock 1984, como no Fetal Biometry 3.1 ---
 const AC_SD_MM = 13.4; // DP = 1,34 cm
 
-/** CA esperada (mediana, mm) para a IG — Hadlock 1984 (IG limitada a 12–42 sem). */
+/**
+ * CA esperada (mediana, mm) para a IG — Hadlock 1984 (IG limitada a 12–42 sem).
+ * A mediana (cm) é arredondada a 0,1 cm antes do z, como no Fetal Biometry 3.1,
+ * para paridade exata de percentil com a calculadora.
+ */
 export function expectedAc(gaDays: number): number | null {
   if (!Number.isFinite(gaDays)) return null;
   const g = Math.max(12, Math.min(42, gaDays / 7));
-  return (-13.3 + 1.61 * g - 0.00998 * g * g) * 10;
+  const cm = Math.round((-13.3 + 1.61 * g - 0.00998 * g * g) * 10) / 10;
+  return cm * 10;
 }
 
 /** Z-score da circunferência abdominal (mm) para a IG (dias) — normal, DP 13,4 mm. */
@@ -79,11 +86,16 @@ export function acCentile(acMm: number, gaDays: number): number | null {
 // --- CIRC. CEFÁLICA (CC): Hadlock 1984, como no Fetal Biometry 3.1 ---
 const HC_SD_MM = 10; // DP = 1,0 cm
 
-/** CC esperada (mediana, mm) para a IG — Hadlock 1984 (Fetal Biometry 3.1). */
+/**
+ * CC esperada (mediana, mm) para a IG — Hadlock 1984 (Fetal Biometry 3.1).
+ * A mediana (cm) é arredondada a 0,1 cm antes do z, como no Fetal Biometry 3.1,
+ * para paridade exata de percentil com a calculadora.
+ */
 export function expectedHc(gaDays: number): number | null {
   if (!Number.isFinite(gaDays)) return null;
   const w = gaDays / 7;
-  return (-11.48 + 1.56 * w - 0.0002548 * w * w * w) * 10;
+  const cm = Math.round((-11.48 + 1.56 * w - 0.0002548 * w * w * w) * 10) / 10;
+  return cm * 10;
 }
 
 /** Z-score da circunferência cefálica (mm) para a IG (dias) — normal, DP 1,0 cm. */
