@@ -28,7 +28,8 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Datação, dados obstétricos e exames de imagem (USG)** movida para logo
   **abaixo da Paridade**.
 - **USG de datação**: a **1ª coluna** do quadro é **sempre** a de datação —
-  identificada e **destacada** (retângulo); removida a marcação manual "Datar".
+  identificada e **destacada** com um painel **cinza-claro arredondado** (contido
+  à própria coluna); removida a marcação manual "Datar".
 - **Origem do USG**: a linha "Externo" vira **Origem**, com uma **pílula
   dividida** por coluna (**Externo/Interno**).
 - **IG** exibida com **SEM**/**DIAS** por extenso (não apenas `s`/`d`).

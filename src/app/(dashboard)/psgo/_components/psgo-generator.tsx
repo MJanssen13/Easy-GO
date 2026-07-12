@@ -1487,17 +1487,18 @@ export function PsgoGenerator({
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-xs">
-                  {/* Destaque da 1ª coluna (USG de datação). */}
-                  <colgroup>
-                    <col />
-                    {form.imagingExams.map((e, i) => (
-                      <col
-                        key={e.id}
-                        className={i === 0 ? "border-x-2 border-primary/60 bg-primary/5" : undefined}
-                      />
-                    ))}
-                  </colgroup>
+                {/* border-separate p/ permitir cantos arredondados; a 1ª coluna de
+                    exame (nth-child(2)) recebe um destaque cinza-claro e arredondado
+                    (é a coluna de datação). As linhas de seção (colSpan) não são
+                    atingidas por nth-child(2). O canto inferior arredonda na última
+                    célula visível da coluna (varia com o Doppler recolhido/aberto). */}
+                <table
+                  className={`w-full border-separate border-spacing-0 text-xs [&_th:nth-child(2)]:bg-muted/50 [&_td:nth-child(2)]:bg-muted/50 [&_thead_th:nth-child(2)]:rounded-t-lg ${
+                    showDopplerUsg
+                      ? "[&_tbody_tr:last-child_td:nth-child(2)]:rounded-b-lg"
+                      : "[&_tbody_tr:nth-last-child(2)_td:nth-child(2)]:rounded-b-lg"
+                  }`}
+                >
                   <thead>
                     <tr>
                       <th className="border-b p-1 text-left font-medium text-muted-foreground">
