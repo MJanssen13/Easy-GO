@@ -5,6 +5,44 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Entrada de datas em DD/MM/AA e IG pela data da consulta
+
+- Os campos de data do PSGO passam a ser digitados em **DD/MM/AA** (novo
+  `DateBRInput`, com máscara e validação) — o `<input type="date">` nativo não
+  permite ano com 2 dígitos. Guarda o valor como ISO internamente.
+- A **data da CTG** vem pré-preenchida com **hoje** (editável).
+- A **data da consulta** segue pré-preenchida com hoje; ao alterá-la, os itens
+  que dependem dela (**IG** pela DUM/USG, DPP, termo do Robson) passam a ser
+  calculados **naquela data** (`refFromISO`), e não mais sempre em "hoje".
+
+### PSGO — Data e nova notação da CTG
+
+- Cada CTG passa a registrar a **data** (além da hora); a data pré-preenche com
+  a da consulta e é editável (CTG feita em outro dia).
+- A notação da CTG no prontuário virou o formato compacto:
+  `(DD/MM/AA HH:MM) LB 125 BPM / VARIAB 6-25 / AT + (≥2 AT EM 20 MIN) / ES - /
+  EM 1 / MF + / DESC - / CONTR - / FETO ATIVO (5 PTS) / OBS: ... / CD: ...`.
+  O laudo impresso usa a data da própria CTG.
+- Cada CTG sai numa **linha própria** (com "- "), inclusive quando há só uma.
+- As datas das notações do **prontuário** do PSGO passam a **DD/MM/AA** (ano com
+  2 dígitos): cabeçalho, DUM/IG US, DPP, exames de imagem e CI. O **laudo** e os
+  **termos** mantêm o ano com 4 dígitos (DD/MM/AAAA), como nos modelos. O
+  Pré-Parto não muda (usa o formatador compartilhado de `gestational-age`).
+
+### PSGO — Imprimir termos de consentimento
+
+- Botão **"Termos"** na admissão do PSGO gera, em um documento (papel timbrado
+  UFTM · SUS · HUBRASIL, uma folha por termo), os 4 termos do modelo do HC-UFTM:
+  **Apêndice B** (anestesia e sedação), **Apêndice C** (procedimentos invasivos
+  e cirurgias), **parto normal/cesariana** e **indução do trabalho de parto**.
+- Só o **NOME e o RG** (da paciente) e a **DATA** (do momento da impressão) são
+  preenchidos; o restante é o texto fixo do termo, com os campos de assinatura em
+  branco. Novo módulo puro `@/core/psgo/termos`; timbre repetido em toda página
+  (via `thead`).
+- O botão virou um menu com **"Imprimir tudo"** e **"Tudo exceto indução"**, e
+  passou a aparecer também na **página da paciente** (não só na edição da
+  admissão). Mais espaço para as assinaturas nos termos de parto e indução.
+
 ### PSGO — Alta e exclusão de admissão
 
 - Nova ação **Dar alta** (desfecho "alta"): o prontuário **fica salvo por 24h**

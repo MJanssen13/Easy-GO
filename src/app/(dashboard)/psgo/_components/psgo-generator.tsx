@@ -13,7 +13,7 @@ import {
 import { renderPsgo, computePsgo, psgoHd } from "@/core/psgo/render";
 import { renderCtgLaudoHtml, letterheadFor } from "@/core/ctg/laudo";
 import { printHtml } from "@/lib/print";
-import { datingDisplay } from "@/core/psgo/dating";
+import { datingDisplay, refFromISO } from "@/core/psgo/dating";
 import {
   abdFieldsFor,
   toqueFieldsFor,
@@ -77,6 +77,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
+import { DateBRInput } from "@/components/date-br-input";
+import { PsgoTermosButton } from "./psgo-termos-button";
 
 // Largura padronizada das listas suspensas (~ tamanho de um campo de data).
 const selectClass =
@@ -99,6 +101,7 @@ function uid(): string {
 }
 
 /** Data ISO → DD/MM/AAAA (para o cabeçalho do laudo). */
+// Laudo/termos mantêm o ano com 4 dígitos (DD/MM/AAAA), como nos modelos.
 function formatDateBR(iso: string): string {
   if (!iso) return "";
   const d = new Date(`${iso}T00:00:00`);
@@ -385,13 +388,16 @@ export function PsgoGenerator({
   );
   const datingView = useMemo(
     () =>
-      datingDisplay({
-        lmp: form.lmp,
-        lmpUncertain: form.lmpUncertain,
-        usgExams: form.imagingExams,
-        preference: form.datingPreference,
-      }),
-    [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference],
+      datingDisplay(
+        {
+          lmp: form.lmp,
+          lmpUncertain: form.lmpUncertain,
+          usgExams: form.imagingExams,
+          preference: form.datingPreference,
+        },
+        refFromISO(form.date),
+      ),
+    [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference, form.date],
   );
   const bmi = classifyBmi(parseDecimal(form.weight), parseDecimal(form.height));
   // HD automática (gestação + comorbidades) — usada como sugestão/placeholder.
@@ -546,7 +552,11 @@ export function PsgoGenerator({
     });
   }
   function addCtg() {
-    update({ ctgLaudos: [...form.ctgLaudos, { ...emptyPsgoCtg(), id: uid() }] });
+    // Data pré-preenchida com hoje (editável se a CTG foi em outro dia).
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const todayIso = now.toISOString().slice(0, 10);
+    update({ ctgLaudos: [...form.ctgLaudos, { ...emptyPsgoCtg(), id: uid(), date: todayIso }] });
   }
   function updateCtgAt(id: string, patch: Partial<PsgoCtg>) {
     update({ ctgLaudos: form.ctgLaudos.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
@@ -561,7 +571,7 @@ export function PsgoGenerator({
       {
         name: form.socialName.trim() ? `${form.name} (${form.socialName})` : form.name,
         rg: form.rg,
-        date: formatDateBR(form.date),
+        date: formatDateBR(c.date || form.date),
         time: c.time,
         hd: form.hd.trim() ? form.hd.trim() : psgoHd(form),
         baseline: c.baseline,
@@ -838,6 +848,8 @@ export function PsgoGenerator({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-semibold">CTG {idx + 1}</p>
           <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Data</Label>
+            <DateBRInput className="h-8 w-28" value={c.date} onChange={(iso) => set({ date: iso })} />
             <Label className="text-xs text-muted-foreground">Horário</Label>
             <Input type="time" className="h-8 w-28" value={c.time} onChange={(e) => set({ time: e.target.value })} />
             <Button
@@ -1034,7 +1046,7 @@ export function PsgoGenerator({
             {/* Data · Idade · RG */}
             <div className="flex flex-wrap gap-3">
               <Field label="Data da consulta" className="w-44">
-                <Input type="date" value={form.date} onChange={(e) => update({ date: e.target.value })} />
+                <DateBRInput value={form.date} onChange={(iso) => update({ date: iso })} />
               </Field>
               <Field label="Idade" className="w-24">
                 <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
@@ -1242,7 +1254,7 @@ export function PsgoGenerator({
             {/* DUM · DUM incerta · datação na mesma linha */}
             <div className="flex flex-wrap items-end gap-3">
               <Field label="DUM" className="w-40">
-                <Input type="date" value={form.lmp} onChange={(e) => update({ lmp: e.target.value })} />
+                <DateBRInput value={form.lmp} onChange={(iso) => update({ lmp: iso })} />
               </Field>
               {form.pregnant && (
                 <label className="flex items-center gap-2 whitespace-nowrap pb-2 text-sm">
@@ -1458,11 +1470,10 @@ export function PsgoGenerator({
                         ]}
                       />
                     </div>
-                    <Input
-                      type="date"
-                      className="h-8 w-40"
+                    <DateBRInput
+                      className="h-8 w-32"
                       value={c.date}
-                      onChange={(e) => updateCoombs(c.id, { date: e.target.value })}
+                      onChange={(iso) => updateCoombs(c.id, { date: iso })}
                     />
                     <Button
                       type="button"
@@ -1634,11 +1645,10 @@ export function PsgoGenerator({
                       {form.serologyGrid.columns.map((c) => (
                         <th key={c.id} className="border-b p-1">
                           <div className="flex items-center gap-1">
-                            <Input
-                              type="date"
-                              className="h-7 w-32 text-xs"
+                            <DateBRInput
+                              className="h-7 w-28 text-xs"
                               value={c.date}
-                              onChange={(e) => updateSerologyColumn(c.id, e.target.value)}
+                              onChange={(iso) => updateSerologyColumn(c.id, iso)}
                             />
                             <button
                               type="button"
@@ -2161,11 +2171,10 @@ export function PsgoGenerator({
                       {form.imagingExams.map((e) => (
                         <th key={e.id} className="border-b p-1 align-top">
                           <div className="flex items-center gap-1">
-                            <Input
-                              type="date"
-                              className="h-7 w-32 text-xs"
+                            <DateBRInput
+                              className="h-7 w-28 text-xs"
                               value={e.date ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { date: ev.target.value })}
+                              onChange={(iso) => updateImaging(e.id, { date: iso })}
                             />
                             <button
                               type="button"
@@ -2560,6 +2569,7 @@ export function PsgoGenerator({
                 >
                   {saving ? "Salvando…" : patientId ? "Salvar alterações" : "Salvar admissão"}
                 </Button>
+                <PsgoTermosButton name={form.name} rg={form.rg} />
                 <CopyButton text={text} />
               </div>
             </CardTitle>
