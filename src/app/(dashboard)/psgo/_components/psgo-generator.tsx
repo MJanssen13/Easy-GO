@@ -235,12 +235,17 @@ function AutoGrowTextarea({
   );
 }
 
-/** Card de seção colapsável. `headerExtra` recebe ações/badges (fora do toggle). */
+/**
+ * Card de seção colapsável. `headerExtra` recebe ações/badges (fora do toggle).
+ * Pode ser controlada por `open`/`onOpenChange` (ex.: abrir ao adicionar item).
+ */
 function Section({
   title,
   children,
   headerExtra,
   defaultOpen = true,
+  open: openProp,
+  onOpenChange,
   id,
   contentClassName,
 }: {
@@ -248,10 +253,19 @@ function Section({
   children: React.ReactNode;
   headerExtra?: React.ReactNode;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   id?: string;
   contentClassName?: string;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [openState, setOpenState] = useState(defaultOpen);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : openState;
+  const setOpen = (updater: boolean | ((o: boolean) => boolean)) => {
+    const next = typeof updater === "function" ? updater(open) : updater;
+    if (isControlled) onOpenChange?.(next);
+    else setOpenState(next);
+  };
   return (
     <Card id={id}>
       <div className="flex items-center justify-between gap-2 p-6">
@@ -322,6 +336,8 @@ export function PsgoGenerator({
   const [saving, startSaving] = useTransition();
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [medInput, setMedInput] = useState("");
+  // Seção de datação/USG controlada (o botão "+ USG" a abre ao adicionar exame).
+  const [usgOpen, setUsgOpen] = useState(false);
   // Grupos recolhíveis do quadro de USG (recolhidos por padrão).
   const [showEarlyUsg, setShowEarlyUsg] = useState(false); // Gestações iniciais (CCN/SG/VV)
   const [showDopplerUsg, setShowDopplerUsg] = useState(false); // Doppler (IPs e RCP)
@@ -1293,11 +1309,20 @@ export function PsgoGenerator({
               ? "Datação, dados obstétricos e exames de imagem (USG)"
               : "DUM e MAC"
           }
-          defaultOpen={false}
+          open={usgOpen}
+          onOpenChange={setUsgOpen}
           contentClassName="space-y-3"
           headerExtra={
             form.pregnant ? (
-              <Button type="button" size="sm" variant="outline" onClick={addImaging}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setUsgOpen(true);
+                  addImaging();
+                }}
+              >
                 <Plus className="h-4 w-4" /> USG
               </Button>
             ) : undefined
@@ -1489,11 +1514,12 @@ export function PsgoGenerator({
               <div className="overflow-x-auto">
                 {/* border-separate p/ permitir cantos arredondados; a 1ª coluna de
                     exame (nth-child(2)) recebe um destaque cinza-claro e arredondado
-                    (é a coluna de datação). As linhas de seção (colSpan) não são
-                    atingidas por nth-child(2). O canto inferior arredonda na última
-                    célula visível da coluna (varia com o Doppler recolhido/aberto). */}
+                    (é a coluna de datação). w-auto p/ as colunas manterem largura fixa
+                    (não esticam com poucos exames). A 1ª coluna (parâmetros) fica
+                    congelada (sticky) na rolagem horizontal. As linhas de seção
+                    (colSpan) não são atingidas por nth-child(2). */}
                 <table
-                  className={`w-full border-separate border-spacing-0 text-xs [&_th:nth-child(2)]:bg-muted/50 [&_td:nth-child(2)]:bg-muted/50 [&_thead_th:nth-child(2)]:rounded-t-lg ${
+                  className={`w-auto border-separate border-spacing-0 text-xs [&_th:nth-child(2)]:bg-muted/50 [&_td:nth-child(2)]:bg-muted/50 [&_thead_th:nth-child(2)]:rounded-t-lg [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-20 [&_th:first-child]:border-r [&_th:first-child]:bg-background [&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:z-10 [&_td:first-child]:border-r [&_td:first-child]:bg-background ${
                     showDopplerUsg
                       ? "[&_tbody_tr:last-child_td:nth-child(2)]:rounded-b-lg"
                       : "[&_tbody_tr:nth-last-child(2)_td:nth-child(2)]:rounded-b-lg"
@@ -1506,7 +1532,7 @@ export function PsgoGenerator({
                       </th>
                       {form.imagingExams.map((e, i) => (
                         <th key={e.id} className="border-b p-1 align-top">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center justify-center gap-1">
                             <DateBRInput
                               className="h-7 w-28 text-xs"
                               value={e.date ?? ""}
@@ -1522,9 +1548,11 @@ export function PsgoGenerator({
                             </button>
                           </div>
                           {i === 0 && (
-                            <span className="mt-0.5 inline-block rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground">
-                              Datação
-                            </span>
+                            <div className="mt-1 flex justify-center">
+                              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground">
+                                Datação
+                              </span>
+                            </div>
                           )}
                         </th>
                       ))}
@@ -1662,7 +1690,7 @@ export function PsgoGenerator({
                     <tr>
                       <td
                         colSpan={form.imagingExams.length + 1}
-                        className="border-b bg-muted/30 p-0"
+                        className="border-b !bg-muted/30 p-0"
                       >
                         <button
                           type="button"
@@ -1833,7 +1861,7 @@ export function PsgoGenerator({
                     <tr>
                       <td
                         colSpan={form.imagingExams.length + 1}
-                        className="border-b bg-muted/30 p-0"
+                        className="border-b !bg-muted/30 p-0"
                       >
                         <button
                           type="button"

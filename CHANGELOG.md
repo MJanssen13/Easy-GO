@@ -29,7 +29,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   **abaixo da Paridade**.
 - **USG de datação**: a **1ª coluna** do quadro é **sempre** a de datação —
   identificada e **destacada** com um painel **cinza-claro arredondado** (contido
-  à própria coluna); removida a marcação manual "Datar".
+  à própria coluna), com o selo **DATAÇÃO** centralizado; removida a marcação
+  manual "Datar".
+- **Quadro de USG**: as colunas mantêm **largura fixa** (não esticam com poucos
+  exames); o botão **"+ USG"** **abre a seção** e adiciona um exame quando ela
+  está recolhida; e a **coluna de parâmetros** fica **congelada** na rolagem
+  horizontal.
 - **Origem do USG**: a linha "Externo" vira **Origem**, com uma **pílula
   dividida** por coluna (**Externo/Interno**).
 - **IG** exibida com **SEM**/**DIAS** por extenso (não apenas `s`/`d`).
