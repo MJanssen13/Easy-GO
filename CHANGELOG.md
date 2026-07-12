@@ -5,6 +5,21 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — IG automática dos USGs pela datação (percentis coerentes)
+
+- A datação continua sendo definida entre **DUM** e **USG** (o USG marcado para
+  datação). A novidade: a **IG dos demais USGs** deixa de ser digitada e passa a
+  ser **automática**, calculada pela **data de realização** de cada exame sobre a
+  datação resolvida (método DUM/USG + ACOG CO-700). O USG de datação mantém a IG
+  digitada (é a âncora e o insumo do ACOG).
+- Como os percentis (PESO/CA/DBP Hadlock e Doppler/TN/IP uterina FMF) usam a IG,
+  eles passam a refletir a **datação única** — evita "mover o alvo" a cada exame
+  (o que mascararia CIUR) e mantém o crescimento medido contra a mesma linha.
+- No quadro de USG, a IG dos exames automáticos aparece como valor (rótulo
+  `auto`, somente leitura); o exame de datação segue editável (rótulo `datação`).
+- Novo `gaFromEdd` (IG em qualquer data a partir da DPP) e, no PSGO,
+  `resolveDatingContext`/`examEffectiveGa`/`withAutoGa`/`findDatingUsg`.
+
 ### PSGO — Entrada de datas em DD/MM/AA e IG pela data da consulta
 
 - Os campos de data do PSGO passam a ser digitados em **DD/MM/AA** (novo

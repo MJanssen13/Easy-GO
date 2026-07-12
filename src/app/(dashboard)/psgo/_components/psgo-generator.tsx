@@ -13,7 +13,7 @@ import {
 import { renderPsgo, computePsgo, psgoHd } from "@/core/psgo/render";
 import { renderCtgLaudoHtml, letterheadFor } from "@/core/ctg/laudo";
 import { printHtml } from "@/lib/print";
-import { datingDisplay, refFromISO } from "@/core/psgo/dating";
+import { datingDisplay, resolveDatingContext, withAutoGa, refFromISO } from "@/core/psgo/dating";
 import {
   abdFieldsFor,
   toqueFieldsFor,
@@ -378,9 +378,30 @@ export function PsgoGenerator({
     return s;
   }, [hpmaSel]);
   const { robsonMissing } = useMemo(() => computePsgo(form), [form]);
+  // Datação resolvida (DUM/USG) → IG automática dos demais USGs. O exame de
+  // datação mantém a IG digitada; os outros têm a IG (e, portanto, os percentis)
+  // definidos pela própria data de realização.
+  const datingCtx = useMemo(
+    () =>
+      resolveDatingContext({
+        lmp: form.lmp,
+        lmpUncertain: form.lmpUncertain,
+        usgExams: form.imagingExams,
+        preference: form.datingPreference,
+      }),
+    [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference],
+  );
+  const resolvedExams = useMemo(
+    () => withAutoGa(form.imagingExams, datingCtx),
+    [form.imagingExams, datingCtx],
+  );
+  const resolvedById = useMemo(
+    () => Object.fromEntries(resolvedExams.map((e) => [e.id, e])),
+    [resolvedExams],
+  );
   const imagingCentiles = useMemo(
-    () => Object.fromEntries(form.imagingExams.map((e) => [e.id, examCentiles(e)])),
-    [form.imagingExams],
+    () => Object.fromEntries(resolvedExams.map((e) => [e.id, examCentiles(e)])),
+    [resolvedExams],
   );
   const parityView = useMemo(
     () => formatParity(form.priorPregnancies, form.pregnant),
@@ -2192,26 +2213,47 @@ export function PsgoGenerator({
                   <tbody>
                     <tr>
                       <td className="border-b p-1 font-medium">IG (sem / d)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex gap-1">
-                            <Input
-                              type="number"
-                              className="h-7 w-14 text-xs"
-                              placeholder="sem"
-                              value={e.gaWeeks ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { gaWeeks: numOrUndef(ev.target.value) })}
-                            />
-                            <Input
-                              type="number"
-                              className="h-7 w-14 text-xs"
-                              placeholder="d"
-                              value={e.gaDays ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
-                            />
-                          </div>
-                        </td>
-                      ))}
+                      {form.imagingExams.map((e) => {
+                        // O USG de datação mantém a IG digitada; os demais, com
+                        // data e datação definida, têm a IG automática (pela data).
+                        const isDating = datingCtx.datingExamId === e.id;
+                        const autoIg = !isDating && datingCtx.edd != null && !!e.date;
+                        const r = resolvedById[e.id];
+                        return (
+                          <td key={e.id} className="border-b p-1">
+                            {autoIg ? (
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium tabular-nums">
+                                  {r && r.gaWeeks != null
+                                    ? `${r.gaWeeks}s${r.gaDays ? ` ${r.gaDays}d` : ""}`
+                                    : "—"}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">auto</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  className="h-7 w-14 text-xs"
+                                  placeholder="sem"
+                                  value={e.gaWeeks ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { gaWeeks: numOrUndef(ev.target.value) })}
+                                />
+                                <Input
+                                  type="number"
+                                  className="h-7 w-14 text-xs"
+                                  placeholder="d"
+                                  value={e.gaDays ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
+                                />
+                                {isDating && (
+                                  <span className="text-[10px] text-muted-foreground">datação</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
                     </tr>
                     <tr>
                       <td className="border-b p-1 font-medium">Datar</td>
@@ -2479,13 +2521,15 @@ export function PsgoGenerator({
               <p className="text-[11px] text-muted-foreground">
                 Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, DBP, TN,
                 osso nasal, biometria, Doppler, IP da a. uterina) aparecem no mesmo US. Percentis
-                de TN e IP da a. uterina seguem os padrões FMF.
+                de TN e IP da a. uterina seguem os padrões FMF. A IG do USG marcado para datação é
+                digitada; a dos demais é <strong>automática</strong>, definida pela data de
+                realização conforme o método (DUM/USG) — e é ela que determina os percentis.
               </p>
             )}
 
             {form.imagingExams.map((e) => (
               <p key={e.id} className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
-                {renderImagingExam(e)}
+                {renderImagingExam(resolvedById[e.id] ?? e)}
               </p>
             ))}
         </Section>

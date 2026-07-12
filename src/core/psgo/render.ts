@@ -5,7 +5,7 @@
 import type { PsgoForm } from "./types";
 import { formatParity } from "./parity";
 import { classifyRobson } from "./robson";
-import { resolvePsgoDating, refFromISO } from "./dating";
+import { resolvePsgoDating, resolveDatingContext, withAutoGa, refFromISO } from "./dating";
 import { autoComorbidities, classifyBmi } from "./comorbidities";
 import { formatPastMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
@@ -245,8 +245,21 @@ export function renderPsgo(form: PsgoForm): string {
   if (form.labs.trim()) labBlock.push(form.labs.trim());
   push(2, ...labBlock);
 
-  // Exames de imagem (seção própria, em quadro; o quadro USG é obstétrico)
-  const imaging = form.pregnant ? renderImaging(form.imagingExams) : "";
+  // Exames de imagem (seção própria, em quadro; o quadro USG é obstétrico).
+  // A IG dos USGs que não datam é automática (pela datação resolvida) — o que
+  // ajusta os percentis; o USG de datação mantém a IG digitada.
+  const imagingExams = form.pregnant
+    ? withAutoGa(
+        form.imagingExams,
+        resolveDatingContext({
+          lmp: form.lmp,
+          lmpUncertain: form.lmpUncertain,
+          usgExams: form.imagingExams,
+          preference: form.datingPreference,
+        }),
+      )
+    : form.imagingExams;
+  const imaging = form.pregnant ? renderImaging(imagingExams) : "";
   if (imaging.trim()) {
     push(2, "EXAMES DE IMAGEM (USG):", imaging);
   } else {

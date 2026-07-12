@@ -15,7 +15,7 @@ import type { PsgoForm } from "./types";
 import { emptyPsgoCtg, type PsgoCtg } from "./ctg";
 import { formatParity } from "./parity";
 import { autoComorbidities } from "./comorbidities";
-import { resolvePsgoDating } from "./dating";
+import { resolvePsgoDating, findDatingUsg } from "./dating";
 import { computePsgo, renderPsgo } from "./render";
 import { parseDecimal } from "@/lib/num";
 
@@ -82,9 +82,7 @@ function datingColumns(form: PsgoForm): {
     preference: form.datingPreference,
   });
   const lmpDate = form.lmp ? new Date(`${form.lmp}T00:00:00`) : null;
-  const ex =
-    form.imagingExams.find((e) => e.useForDating) ??
-    form.imagingExams.find((e) => e.date && e.gaWeeks != null);
+  const ex = findDatingUsg(form.imagingExams);
   const scanDate = ex?.date ? new Date(`${ex.date}T00:00:00`) : null;
   const scanGa = ex && ex.gaWeeks != null ? { weeks: ex.gaWeeks, days: ex.gaDays ?? 0 } : null;
 
