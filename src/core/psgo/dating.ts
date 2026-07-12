@@ -16,6 +16,16 @@ function fmtDate(d: Date): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
+/**
+ * Data de referência para a IG a partir de uma ISO (ex.: data da consulta);
+ * hoje quando ausente/inválida. A IG passa a ser calculada nessa data.
+ */
+export function refFromISO(iso?: string | null): Date {
+  if (!iso) return new Date();
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+
 export interface UsgExam {
   id: string;
   date?: string; // ISO date

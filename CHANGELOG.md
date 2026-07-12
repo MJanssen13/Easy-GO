@@ -5,6 +5,16 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Entrada de datas em DD/MM/AA e IG pela data da consulta
+
+- Os campos de data do PSGO passam a ser digitados em **DD/MM/AA** (novo
+  `DateBRInput`, com máscara e validação) — o `<input type="date">` nativo não
+  permite ano com 2 dígitos. Guarda o valor como ISO internamente.
+- A **data da CTG** vem pré-preenchida com **hoje** (editável).
+- A **data da consulta** segue pré-preenchida com hoje; ao alterá-la, os itens
+  que dependem dela (**IG** pela DUM/USG, DPP, termo do Robson) passam a ser
+  calculados **naquela data** (`refFromISO`), e não mais sempre em "hoje".
+
 ### PSGO — Data e nova notação da CTG
 
 - Cada CTG passa a registrar a **data** (além da hora); a data pré-preenche com

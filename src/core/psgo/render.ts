@@ -5,7 +5,7 @@
 import type { PsgoForm } from "./types";
 import { formatParity } from "./parity";
 import { classifyRobson } from "./robson";
-import { resolvePsgoDating } from "./dating";
+import { resolvePsgoDating, refFromISO } from "./dating";
 import { autoComorbidities, classifyBmi } from "./comorbidities";
 import { formatPastMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
@@ -52,12 +52,15 @@ export function computePsgo(form: PsgoForm): PsgoComputed {
   // Robson classifica o parto da gestação atual — não se aplica a não gestantes.
   if (!form.pregnant) return { robsonGroup: null, robsonMissing: [] };
   const parity = formatParity(form.priorPregnancies, form.pregnant);
-  const dating = resolvePsgoDating({
-    lmp: form.lmp,
-    lmpUncertain: form.lmpUncertain,
-    usgExams: form.imagingExams,
-    preference: form.datingPreference,
-  });
+  const dating = resolvePsgoDating(
+    {
+      lmp: form.lmp,
+      lmpUncertain: form.lmpUncertain,
+      usgExams: form.imagingExams,
+      preference: form.datingPreference,
+    },
+    refFromISO(form.date),
+  );
   const robson = classifyRobson({
     parity: parity.multipara ? "multipara" : "nullipara",
     priorCesarean: parity.cesareanCount >= 1,
@@ -77,12 +80,15 @@ export function computePsgo(form: PsgoForm): PsgoComputed {
  */
 export function psgoHd(form: PsgoForm): string {
   const parity = formatParity(form.priorPregnancies, form.pregnant);
-  const dating = resolvePsgoDating({
-    lmp: form.lmp,
-    lmpUncertain: form.lmpUncertain,
-    usgExams: form.imagingExams,
-    preference: form.datingPreference,
-  });
+  const dating = resolvePsgoDating(
+    {
+      lmp: form.lmp,
+      lmpUncertain: form.lmpUncertain,
+      usgExams: form.imagingExams,
+      preference: form.datingPreference,
+    },
+    refFromISO(form.date),
+  );
   const cmb = dedup([
     ...form.comorbidities,
     ...splitOther(form.comorbiditiesOther),
@@ -109,12 +115,15 @@ export function psgoHd(form: PsgoForm): string {
 
 export function renderPsgo(form: PsgoForm): string {
   const parity = formatParity(form.priorPregnancies, form.pregnant);
-  const dating = resolvePsgoDating({
-    lmp: form.lmp,
-    lmpUncertain: form.lmpUncertain,
-    usgExams: form.imagingExams,
-    preference: form.datingPreference,
-  });
+  const dating = resolvePsgoDating(
+    {
+      lmp: form.lmp,
+      lmpUncertain: form.lmpUncertain,
+      usgExams: form.imagingExams,
+      preference: form.datingPreference,
+    },
+    refFromISO(form.date),
+  );
   const weight = parseDecimal(form.weight);
   const height = parseDecimal(form.height);
   const bmi = classifyBmi(weight, height);
