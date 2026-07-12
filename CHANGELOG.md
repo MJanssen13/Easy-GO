@@ -5,6 +5,19 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Percentis FMF arredondados como no site oficial (teto)
+
+- Os percentis das medidas de **padrão FMF** (Doppler: IP-AUmb, IP-ACM, RCP; e
+  **IP da a. uterina**) passam a ser exibidos com **arredondamento para cima**
+  (teto), exatamente como a calculadora oficial da FMF (fetalmedicine.org).
+  Antes usávamos arredondamento ao mais próximo, o que gerava divergência de 1
+  ponto (ex.: IG 32s1d — IP-AUmb 0,79 mostrava **P9** e agora **P10**; RCP 1,97
+  mostrava **P49** e agora **P50**). As fórmulas/z-scores não mudaram — só a
+  apresentação do centil.
+- A **biometria** (CC/PESO/CA, Fetal Biometry 3.1 · Perinatology) mantém o
+  arredondamento ao mais próximo (fonte distinta da FMF).
+- Novo `formatCentileCeil` em `@/core/fmf/centile`.
+
 ### PSGO — Novos parâmetros do USG e percentis pela Fetal Biometry 3.1
 
 - No quadro de USG entram **Saco gestacional (SG, mm)**, **Vesícula vitelínica

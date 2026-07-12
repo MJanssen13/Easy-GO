@@ -10,7 +10,7 @@
 import { efwCentile, acCentile, hcCentile } from "@/core/fmf/biometry";
 import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr";
 import { utPiCentile } from "@/core/fmf/uterine";
-import { formatCentile } from "@/core/fmf/centile";
+import { formatCentile, formatCentileCeil } from "@/core/fmf/centile";
 import { parseDecimal } from "@/lib/num";
 
 export interface ImagingExam {
@@ -56,6 +56,12 @@ function pctSuffix(c: number | null): string {
   return f ? ` (P ${f})` : "";
 }
 
+/** Sufixo de percentil das medidas de padrão FMF (centil arredondado p/ cima). */
+function pctSuffixFmf(c: number | null): string {
+  const f = formatCentileCeil(c);
+  return f ? ` (P ${f})` : "";
+}
+
 function dateBR(iso?: string): string {
   if (!iso) return "";
   const d = new Date(`${iso}T00:00:00`);
@@ -87,8 +93,15 @@ export interface ImagingCentiles {
 /** Rótulos de percentil ("P X") de cada medida do exame, para exibição no quadro. */
 export function examCentiles(e: ImagingExam): ImagingCentiles {
   const gaDays = examGaDays(e);
+  // Biometria (Perinatology/Fetal Biometry 3.1): centil arredondado. IP de
+  // padrão FMF (Doppler/uterina): centil arredondado PARA CIMA, como no site
+  // oficial (fetalmedicine.org).
   const lab = (c: number | null) => {
     const f = formatCentile(c);
+    return f ? `P ${f}` : "";
+  };
+  const labFmf = (c: number | null) => {
+    const f = formatCentileCeil(c);
     return f ? `P ${f}` : "";
   };
   const hc = num(e.hc);
@@ -102,10 +115,10 @@ export function examCentiles(e: ImagingExam): ImagingCentiles {
     hc: gaDays != null && hc != null ? lab(hcCentile(hc, gaDays)) : "",
     efw: gaDays != null && efw != null ? lab(efwCentile(efw, gaDays)) : "",
     ac: gaDays != null && ac != null ? lab(acCentile(ac, gaDays)) : "",
-    uaPi: gaDays != null && uaPi != null ? lab(uaPiCentile(uaPi, gaDays)) : "",
-    mcaPi: gaDays != null && mcaPi != null ? lab(mcaPiCentile(mcaPi, gaDays)) : "",
-    cpr: gaDays != null && cpr != null ? lab(cprCentile(cpr, gaDays)) : "",
-    utPi: gaDays != null && utPi != null ? lab(utPiCentile(utPi, gaDays)) : "",
+    uaPi: gaDays != null && uaPi != null ? labFmf(uaPiCentile(uaPi, gaDays)) : "",
+    mcaPi: gaDays != null && mcaPi != null ? labFmf(mcaPiCentile(mcaPi, gaDays)) : "",
+    cpr: gaDays != null && cpr != null ? labFmf(cprCentile(cpr, gaDays)) : "",
+    utPi: gaDays != null && utPi != null ? labFmf(utPiCentile(utPi, gaDays)) : "",
   };
 }
 
@@ -188,25 +201,25 @@ export function renderImagingExam(e: ImagingExam): string {
   const uaPi = num(e.uaPi);
   if (uaPi != null) {
     const c = gaDays != null ? uaPiCentile(uaPi, gaDays) : null;
-    fields.push(`IP AUMB ${e.uaPi}${pctSuffix(c)}`);
+    fields.push(`IP AUMB ${e.uaPi}${pctSuffixFmf(c)}`);
   }
 
   const mcaPi = num(e.mcaPi);
   if (mcaPi != null) {
     const c = gaDays != null ? mcaPiCentile(mcaPi, gaDays) : null;
-    fields.push(`IP ACM ${e.mcaPi}${pctSuffix(c)}`);
+    fields.push(`IP ACM ${e.mcaPi}${pctSuffixFmf(c)}`);
   }
 
   const cpr = examCpr(e);
   if (cpr != null) {
     const c = gaDays != null ? cprCentile(cpr, gaDays) : null;
-    fields.push(`RCP ${cpr.toFixed(2)}${pctSuffix(c)}`);
+    fields.push(`RCP ${cpr.toFixed(2)}${pctSuffixFmf(c)}`);
   }
 
   const utPi = num(e.utPi);
   if (utPi != null) {
     const c = gaDays != null ? utPiCentile(utPi, gaDays) : null;
-    fields.push(`IP A. UTERINA ${e.utPi}${pctSuffix(c)}`);
+    fields.push(`IP A. UTERINA ${e.utPi}${pctSuffixFmf(c)}`);
   }
 
   if (e.notes) fields.push(e.notes);
