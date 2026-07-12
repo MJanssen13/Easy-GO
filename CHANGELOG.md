@@ -5,6 +5,21 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Novos parâmetros do USG e percentis pela Fetal Biometry 3.1
+
+- No quadro de USG entram **Saco gestacional (SG, mm)**, **Vesícula vitelínica
+  (VV, mm)**, **Circunferência cefálica (CC, mm)** e **BCF** (com opção de
+  *ausente* ou o número de bpm). Saíram **DBP**, **TN** e **osso nasal (ON)**.
+- Os percentis de biometria passam a seguir a calculadora **Fetal Biometry 3.1**
+  (Perinatology.com), exceto os de **IP** (Doppler/uterina), que continuam pela
+  FMF:
+  - **PESO** — mediana analítica de Hadlock 1991
+    `PFE = exp(0,578 + 0,332·IG − 0,00354·IG²)` e DP normal = **13,25%** da
+    mediana (antes: tabela + log-normal DP ln 0,127).
+  - **CC** — Hadlock 1984 `−11,48 + 1,56·IG − 0,0002548·IG³`, DP 1,0 cm
+    (antes: referência FMF).
+  - **CA** — inalterada (já era Hadlock 1984).
+
 ### PSGO — IG automática dos USGs pela datação (percentis coerentes)
 
 - A datação continua sendo definida entre **DUM** e **USG** (o USG marcado para

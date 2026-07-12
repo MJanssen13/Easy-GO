@@ -2178,8 +2178,8 @@ export function PsgoGenerator({
         >
             {form.imagingExams.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Adicione um USG. Percentis de PESO/CIRC. ABDOMINAL/DBP pela Hadlock; IP-AUmb,
-                IP-ACM, RCP, TN (pelo CCN) e IP da a. uterina pela FMF (fetalmedicine.org).
+                Adicione um USG. Percentis de CIRC. CEFÁLICA/PESO/CIRC. ABDOMINAL pela Hadlock;
+                IP-AUmb, IP-ACM, RCP e IP da a. uterina pela FMF (fetalmedicine.org).
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -2338,54 +2338,80 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">DBP (mm)</td>
+                      <td className="border-b p-1 font-medium">SG (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <Input
+                            className="h-7 w-16 text-xs"
+                            inputMode="decimal"
+                            value={e.gsac ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { gsac: ev.target.value })}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">VV (mm)</td>
+                      {form.imagingExams.map((e) => (
+                        <td key={e.id} className="border-b p-1">
+                          <Input
+                            className="h-7 w-16 text-xs"
+                            inputMode="decimal"
+                            value={e.yolkSac ?? ""}
+                            onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">BCF</td>
+                      {form.imagingExams.map((e) => {
+                        const absent = e.fhr === "AUSENTE";
+                        return (
+                          <td key={e.id} className="border-b p-1">
+                            <div className="flex items-center gap-1">
+                              <Input
+                                className="h-7 w-16 text-xs"
+                                inputMode="numeric"
+                                placeholder="bpm"
+                                disabled={absent}
+                                value={absent ? "" : (e.fhr ?? "")}
+                                onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })}
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })
+                                }
+                                className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                  absent
+                                    ? "border-rose-400 bg-rose-50 text-rose-600"
+                                    : "text-muted-foreground hover:bg-muted"
+                                }`}
+                                title="Marcar BCF ausente"
+                              >
+                                ausente
+                              </button>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className="border-b p-1 font-medium">CC (mm)</td>
                       {form.imagingExams.map((e) => (
                         <td key={e.id} className="border-b p-1">
                           <div className="flex items-center gap-1">
                             <Input
                               className="h-7 w-16 text-xs"
                               inputMode="decimal"
-                              value={e.bpd ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { bpd: ev.target.value })}
+                              value={e.hc ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
                             />
                             <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.bpd}
+                              {imagingCentiles[e.id]?.hc}
                             </span>
                           </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">TN (mm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-7 w-16 text-xs"
-                              inputMode="decimal"
-                              value={e.nt ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { nt: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.nt}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">Osso nasal</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <select
-                            className={`${selectClass} h-7 w-28 text-xs`}
-                            value={e.nasalBone ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { nasalBone: ev.target.value })}
-                          >
-                            <option value="">—</option>
-                            <option value="PRESENTE">Presente</option>
-                            <option value="AUSENTE">Ausente</option>
-                          </select>
                         </td>
                       ))}
                     </tr>
@@ -2519,9 +2545,9 @@ export function PsgoGenerator({
 
             {form.imagingExams.length > 0 && (
               <p className="text-[11px] text-muted-foreground">
-                Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, DBP, TN,
-                osso nasal, biometria, Doppler, IP da a. uterina) aparecem no mesmo US. Percentis
-                de TN e IP da a. uterina seguem os padrões FMF. A IG do USG marcado para datação é
+                Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, SG, VV, BCF,
+                biometria, Doppler, IP da a. uterina) aparecem no mesmo US. Os percentis de IP da
+                a. uterina e do Doppler seguem os padrões FMF. A IG do USG marcado para datação é
                 digitada; a dos demais é <strong>automática</strong>, definida pela data de
                 realização conforme o método (DUM/USG) — e é ela que determina os percentis.
               </p>

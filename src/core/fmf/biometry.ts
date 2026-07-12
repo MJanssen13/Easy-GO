@@ -1,26 +1,25 @@
 /**
- * Biometria fetal — percentil de PESO e de CIRCUNFERÊNCIA ABDOMINAL por IG.
+ * Biometria fetal — percentil de PESO, CIRCUNFERÊNCIA ABDOMINAL e CIRCUNFERÊNCIA
+ * CEFÁLICA por IG.
  *
- * Replica exatamente a calculadora "Fetal Biometry 5.0" (Perinatology.com),
- * baseada em Hadlock:
+ * Replica a calculadora "Fetal Biometry 3.1" (Perinatology.com), baseada em
+ * Hadlock:
  *
- * - PESO: tabela de mediana (p50) de Hadlock FP et al., "In utero analysis of
- *   fetal growth: a sonographic weight standard", Radiology 1991;181:129-33
- *   (PMID 1887021), interpolada linearmente entre semanas (10–40). Percentil
- *   log-normal: z = (ln(PFE) − ln(p50)) / 0,127. O peso é DADO pelo laudo — a
- *   plataforma só determina o percentil, não estima o peso.
+ * - PESO: Hadlock FP et al., "In utero analysis of fetal growth: a sonographic
+ *   weight standard", Radiology 1991;181:129-33 (PMID 1887021). Mediana (g) pela
+ *   fórmula analítica PFE = exp(0,578 + 0,332·IG − 0,00354·IG²) (IG em semanas);
+ *   percentil normal: z = (PFE − p50) / (0,1325·p50). O peso é DADO pelo laudo —
+ *   a plataforma só determina o percentil, não estima o peso.
  * - CIRC. ABDOMINAL: Hadlock FP et al., "Estimating fetal age...", Radiology
  *   1984;152:497-501 (PMID 6739822). Média (cm) = −13,3 + 1,61·IG − 0,00998·IG²
  *   (IG limitada a 12–42 sem), DP = 1,34 cm (13,4 mm); z normal.
- * - DBP (BPD): mesmo Hadlock 1984. Média (cm) = −3,08 + 0,41·IG − 0,000061·IG³
- *   (IG limitada a 12–42 sem), DP = 0,30 cm (3,0 mm); z normal.
- * - CC e CF: referência FMF (fetalmedicine.org).
+ * - CIRC. CEFÁLICA: mesmo Hadlock 1984. Média (cm) = −11,48 + 1,56·IG −
+ *   0,0002548·IG³, DP = 1,0 cm (10 mm); z normal.
+ * - CF: referência FMF (fetalmedicine.org).
  *
  * IG em DIAS; biometria em mm. Percentil pela CDF normal padrão. Apoio à decisão.
  */
 import { zToCentile } from "./centile";
-
-const log10 = (x: number) => Math.log(x) / Math.LN10;
 
 /** Peso fetal estimado (g) por Hadlock 1985 (CC, CA, CF) — entradas em mm. */
 export function efwFromHcAcFl(hcMm: number, acMm: number, flMm: number): number | null {
@@ -31,43 +30,24 @@ export function efwFromHcAcFl(hcMm: number, acMm: number, flMm: number): number 
   return Math.pow(10, 1.326 - 0.00326 * ac * fl + 0.0107 * hc + 0.0438 * ac + 0.158 * fl);
 }
 
-// --- PESO: padrão de peso de Hadlock 1991 (tabela p50), como no Fetal Biometry 5.0 ---
-// Mediana (g) por semana completa; entre semanas usa-se interpolação linear.
-const HADLOCK_P50_WEEKS = [
-  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
-  34, 35, 36, 37, 38, 39, 40,
-];
-const HADLOCK_P50_G = [
-  35, 45, 58, 73, 93, 117, 146, 181, 223, 273, 331, 399, 478, 568, 670, 785, 913, 1055, 1210, 1379,
-  1559, 1751, 1953, 2162, 2377, 2595, 2813, 3028, 3236, 3435, 3619,
-];
-const EFW_SD_LN = 0.127; // DP na escala ln (Fetal Biometry 5.0)
+// --- PESO: Hadlock 1991, como no Fetal Biometry 3.1 (Perinatology.com) ---
+// Mediana (g) pela fórmula analítica; DP normal = 13,25% da mediana.
+const EFW_CV = 0.1325; // DP como fração da mediana (Fetal Biometry 3.1)
 
-/** Interpolação linear da mediana (p50) de peso; IG (semanas) limitada a 10–40. */
-function hadlockP50(gaWeeks: number): number {
-  const w = HADLOCK_P50_WEEKS;
-  const g = Math.max(w[0], Math.min(w[w.length - 1], gaWeeks));
-  let i = 0;
-  while (i < w.length - 1 && w[i + 1] < g) i++;
-  const j = Math.min(i + 1, w.length - 1);
-  if (w[j] === w[i]) return HADLOCK_P50_G[i];
-  return (
-    HADLOCK_P50_G[i] + ((g - w[i]) * (HADLOCK_P50_G[j] - HADLOCK_P50_G[i])) / (w[j] - w[i])
-  );
-}
-
-/** Peso fetal esperado (mediana, g) para a IG — Hadlock 1991 (tabela). */
+/** Peso fetal esperado (mediana, g) para a IG — Hadlock 1991 (Fetal Biometry 3.1):
+ *  PFE = exp(0,578 + 0,332·IG − 0,00354·IG²), IG em semanas; arredondado ao grama. */
 export function expectedEfw(gaDays: number): number | null {
   if (!Number.isFinite(gaDays)) return null;
-  return hadlockP50(gaDays / 7);
+  const w = gaDays / 7;
+  return Math.round(Math.exp(0.578 + 0.332 * w - 0.00354 * w * w));
 }
 
-/** Z-score do peso (g) para a IG (dias) — log-normal, DP ln = 0,127. */
+/** Z-score do peso (g) para a IG (dias) — normal, DP = 13,25% da mediana. */
 export function efwZ(weightG: number, gaDays: number): number | null {
   if (!weightG || weightG <= 0) return null;
   const p50 = expectedEfw(gaDays);
   if (p50 === null || p50 <= 0) return null;
-  return (Math.log(weightG) - Math.log(p50)) / EFW_SD_LN;
+  return (weightG - p50) / (EFW_CV * p50);
 }
 
 export function efwCentile(weightG: number, gaDays: number): number | null {
@@ -96,33 +76,22 @@ export function acCentile(acMm: number, gaDays: number): number | null {
   return zToCentile(acZ(acMm, gaDays));
 }
 
-// --- DBP (BPD): Hadlock 1984, como no Fetal Biometry 5.0 ---
-const BPD_SD_MM = 3.0; // DP = 0,30 cm
+// --- CIRC. CEFÁLICA (CC): Hadlock 1984, como no Fetal Biometry 3.1 ---
+const HC_SD_MM = 10; // DP = 1,0 cm
 
-/** DBP esperado (mediana, mm) para a IG — Hadlock 1984 (IG limitada a 12–42 sem). */
-export function expectedBpd(gaDays: number): number | null {
+/** CC esperada (mediana, mm) para a IG — Hadlock 1984 (Fetal Biometry 3.1). */
+export function expectedHc(gaDays: number): number | null {
   if (!Number.isFinite(gaDays)) return null;
-  const g = Math.max(12, Math.min(42, gaDays / 7));
-  return (-3.08 + 0.41 * g - 0.000061 * g * g * g) * 10;
-}
-
-/** Z-score do DBP (mm) para a IG (dias) — normal, DP 3,0 mm. */
-export function bpdZ(bpdMm: number, gaDays: number): number | null {
-  if (!bpdMm || bpdMm <= 0) return null;
-  const mean = expectedBpd(gaDays);
-  if (mean === null) return null;
-  return (bpdMm - mean) / BPD_SD_MM;
-}
-
-export function bpdCentile(bpdMm: number, gaDays: number): number | null {
-  return zToCentile(bpdZ(bpdMm, gaDays));
-}
-
-/** Z-score da circunferência cefálica (mm) para a IG (dias) — FMF. */
-export function hcZ(hcMm: number, gaDays: number): number | null {
   const w = gaDays / 7;
-  if (hcMm < 40 || hcMm > 500 || w < 12) return null;
-  return (log10(hcMm + 1) - 1.3369692 - 0.0596493 * w + 0.0007494 * w * w) / 0.01997;
+  return (-11.48 + 1.56 * w - 0.0002548 * w * w * w) * 10;
+}
+
+/** Z-score da circunferência cefálica (mm) para a IG (dias) — normal, DP 1,0 cm. */
+export function hcZ(hcMm: number, gaDays: number): number | null {
+  if (!hcMm || hcMm <= 0) return null;
+  const mean = expectedHc(gaDays);
+  if (mean === null) return null;
+  return (hcMm - mean) / HC_SD_MM;
 }
 
 export function hcCentile(hcMm: number, gaDays: number): number | null {
