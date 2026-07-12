@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
 import { PsgoTransfer } from "../_components/psgo-transfer";
 import { PsgoLifecycle } from "../_components/psgo-lifecycle";
+import { PsgoTermosButton } from "../_components/psgo-termos-button";
 
 export const metadata: Metadata = { title: "Paciente — PSGO" };
 
@@ -53,6 +54,11 @@ export default async function PsgoPatientPage({ params }: { params: Promise<{ id
           <Link href="/psgo" className={buttonVariants({ variant: "outline" })}>
             <ArrowLeft className="h-4 w-4" /> Voltar
           </Link>
+          <PsgoTermosButton
+            name={patient.name}
+            rg={patient.medicalRecordNumber ?? ""}
+            size="default"
+          />
           <Link href={`/psgo/admissao?id=${patient.id}`} className={buttonVariants()}>
             <Pencil className="h-4 w-4" /> Editar admissão
           </Link>

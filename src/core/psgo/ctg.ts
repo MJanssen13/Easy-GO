@@ -6,7 +6,6 @@ import {
   computeCtgScore,
   suggestConclusion,
   VARIABILITY_LABELS,
-  AT_MF_LABELS,
   DECEL_TYPE_LABELS,
   type CtgVariability,
   type CtgPresence,
@@ -18,6 +17,8 @@ import {
 export interface PsgoCtg {
   /** Identificador da CTG (uma admissão pode ter várias). */
   id: string;
+  /** Data de realização (ISO YYYY-MM-DD). */
+  date: string;
   /** Horário de realização (HH:MM). */
   time: string;
   baseline: string;
@@ -43,6 +44,7 @@ export interface PsgoCtg {
 export function emptyPsgoCtg(): PsgoCtg {
   return {
     id: "",
+    date: "",
     time: "",
     baseline: "",
     variability: "6-25",
@@ -76,54 +78,77 @@ export function psgoCtgConclusion(c: PsgoCtg): string {
   return c.conclusion || suggestConclusion(psgoCtgScore(c));
 }
 
-const PRESENCE_UP: Record<CtgPresence, string> = { present: "PRESENTES", absent: "AUSENTES" };
+const PRESENCE_SIGN: Record<CtgPresence, string> = { present: "+", absent: "-" };
+const AT_MF_SHORT: Record<CtgAtMfRatio, string> = {
+  gte60: "≥2 AT EM 20 MIN",
+  lt60: "<2 AT EM 20 MIN",
+};
 
-/** Linha do laudo da CTG para o prontuário (sem timestamp). */
-export function renderPsgoCtg(c: PsgoCtg): string {
-  const parts: string[] = [];
-  if (c.baseline) parts.push(`LINHA BASE ${c.baseline} BPM`);
-  if (c.variability) parts.push(`VARIAB ${VARIABILITY_LABELS[c.variability]}`);
-  if (c.accelerations) parts.push(`AT ${PRESENCE_UP[c.accelerations]}`);
-  if (c.atMfRatio) {
-    const at = AT_MF_LABELS[c.atMfRatio].replace("<", "MENOR").replace(">", "MAIOR");
-    parts.push(`AT/MF ${at.toUpperCase()}`);
-  }
-  if (c.movements) parts.push(`MF ${PRESENCE_UP[c.movements]}`);
-  if (c.decelerations) {
-    let d = PRESENCE_UP[c.decelerations];
-    if (c.decelerations === "present" && c.decelerationType) {
-      d += ` (${DECEL_TYPE_LABELS[c.decelerationType].toUpperCase()}${
-        c.decelerationCount ? ` x${c.decelerationCount}` : ""
-      })`;
-    }
-    parts.push(`DESC ${d}`);
-  }
-  if (c.contractions) parts.push(`CONTRAÇÕES ${PRESENCE_UP[c.contractions]}`);
-  if (c.soundStimulus === "done") {
-    parts.push(`ESTÍMULO SONORO REALIZADO${c.stimulusCount ? ` x${c.stimulusCount}` : ""}`);
-  }
-  if (c.mechanicalStimulus === "done") {
-    parts.push(
-      `ESTÍMULO MECÂNICO REALIZADO${c.mechanicalStimulusCount ? ` x${c.mechanicalStimulusCount}` : ""}`,
-    );
-  }
-  parts.push(`PONTUAÇÃO ${psgoCtgScore(c)}/5 - ${psgoCtgConclusion(c).toUpperCase()}`);
-  if (c.notes.trim()) parts.push(`OBS: ${c.notes.trim().toUpperCase()}`);
-  return parts.join(" | ");
+/** Estímulo (sonoro/mecânico): quantidade quando realizado, "-" quando não. */
+function stimulusMark(state: CtgSoundStimulus | "", count: string): string {
+  if (state === "done") return count.trim() || "+";
+  if (state === "not_done") return "-";
+  return "";
 }
 
-/** Laudo com o horário na frente (quando informado). */
+/** Data ISO (YYYY-MM-DD) → DD/MM/AA. */
+function ctgDateShort(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${yy}`;
+}
+
+/**
+ * Linha da CTG para o prontuário (sem o timestamp), no formato compacto:
+ * `LB 125 BPM / VARIAB 6-25 / AT + (≥2 AT EM 20 MIN) / ES - / EM 1 / MF + /
+ * DESC - / CONTR - / FETO ATIVO (5 PTS) / OBS: ... / CD: ...`.
+ */
+export function renderPsgoCtg(c: PsgoCtg): string {
+  const parts: string[] = [];
+  if (c.baseline) parts.push(`LB ${c.baseline} BPM`);
+  if (c.variability) parts.push(`VARIAB ${VARIABILITY_LABELS[c.variability].toUpperCase()}`);
+  if (c.accelerations) {
+    parts.push(
+      `AT ${PRESENCE_SIGN[c.accelerations]}${c.atMfRatio ? ` (${AT_MF_SHORT[c.atMfRatio]})` : ""}`,
+    );
+  }
+  const es = stimulusMark(c.soundStimulus, c.stimulusCount);
+  if (es) parts.push(`ES ${es}`);
+  const em = stimulusMark(c.mechanicalStimulus, c.mechanicalStimulusCount);
+  if (em) parts.push(`EM ${em}`);
+  if (c.movements) parts.push(`MF ${PRESENCE_SIGN[c.movements]}`);
+  if (c.decelerations) {
+    let d = `DESC ${PRESENCE_SIGN[c.decelerations]}`;
+    if (c.decelerations === "present" && c.decelerationType) {
+      d += ` (${DECEL_TYPE_LABELS[c.decelerationType].toUpperCase()}${
+        c.decelerationCount.trim() ? ` x${c.decelerationCount.trim()}` : ""
+      })`;
+    }
+    parts.push(d);
+  }
+  if (c.contractions) parts.push(`CONTR ${PRESENCE_SIGN[c.contractions]}`);
+  parts.push(`${psgoCtgConclusion(c).toUpperCase()} (${psgoCtgScore(c)} PTS)`);
+  if (c.notes.trim()) parts.push(`OBS: ${c.notes.trim().toUpperCase()}`);
+  if (c.cd.trim()) parts.push(`CD: ${c.cd.trim().toUpperCase()}`);
+  return parts.join(" / ");
+}
+
+/** Linha da CTG com "(DATA HORA)" na frente, quando informados. */
 export function ctgLineWithTime(c: PsgoCtg): string {
-  const t = c.time?.trim();
-  return t ? `${t} - ${renderPsgoCtg(c)}` : renderPsgoCtg(c);
+  const stamp = [ctgDateShort(c.date), c.time?.trim()].filter(Boolean).join(" ");
+  const line = renderPsgoCtg(c);
+  return stamp ? `(${stamp}) ${line}` : line;
 }
 
 /**
  * Bloco de CTG do prontuário para uma ou mais CTGs. Vazio (sem CTGs) → "" para
- * omitir a seção. Uma CTG → linha única; várias → uma por linha.
+ * omitir a seção. Cada CTG sai numa linha própria, com "- " na frente.
  */
 export function renderPsgoCtgs(list: PsgoCtg[]): string {
   if (!list.length) return "";
-  if (list.length === 1) return `CTG: ${ctgLineWithTime(list[0])}`;
   return ["CTG:", ...list.map((c) => `- ${ctgLineWithTime(c)}`)].join("\n");
 }

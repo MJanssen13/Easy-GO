@@ -5,6 +5,159 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Ajustes do formulário de admissão (UI e colagem)
+
+- **Parentesco do acompanhante**: os parentescos com terminação dupla passam a
+  ser opções separadas — `IRMÃ(O)` → **IRMÃ** e **IRMÃO** (idem
+  COMPANHEIRO/COMPANHEIRA, FILHO/FILHA, AMIGO/AMIGA).
+- **Recolher seção**: cada seção ganha um pequeno botão **^** ao final do
+  conteúdo para colapsá-la.
+- **Comorbidades**: `INSULINORREQUERENTE` vira **INSULINO-REQUERENTE**; incluídas
+  **HAG** e **HIPOTIREOIDISMO SUBCLÍNICO**.
+- **Medicamentos**: as sugestões são **editáveis** (aviso na seção) e passam a
+  vir **sem dose**; incluídos ONDANSETRONA, ESCOPOLAMINA, DIPIRONA, METFORMINA,
+  PARACETAMOL, NITROFURANTOÍNA, AMOXICILINA, CEFALEXINA. Na colagem os
+  medicamentos são **deslocados (10 espaços)** sob MEU/FEZ USO. **Em uso** abre
+  campo de início (`… (DESDE XXX)`); **Fez uso** abre **um único** campo de
+  período (`… (PERÍODO)`).
+- **Cirurgias**: as **cesáreas prévias** entram automaticamente a partir da
+  paridade (ex.: `CIRURGIAS: 2 CESÁREAS (2005 E 2015), …`).
+- **Cirurgias e Alergias**: botão **Nega** oculta o campo e cola **NEGA**.
+- **HCV**: removidos **ERRO ALIMENTAR** e **SEDENTARISMO**; ao marcar **NEGA**, a
+  colagem escreve **NEGA TBG, ALCOOLISMO E UDI**.
+- **Datação, dados obstétricos e exames de imagem (USG)** movida para logo
+  **abaixo da Paridade**.
+- **USG de datação**: a **1ª coluna** do quadro é **sempre** a de datação —
+  identificada e **destacada** com um painel **cinza-claro arredondado** (contido
+  à própria coluna), com o selo **DATAÇÃO** centralizado; removida a marcação
+  manual "Datar".
+- **Quadro de USG**: as colunas mantêm **largura fixa** (não esticam com poucos
+  exames); o botão **"+ USG"** **abre a seção** e adiciona um exame quando ela
+  está recolhida; e a **coluna de parâmetros** fica **congelada** na rolagem
+  horizontal.
+- **Origem do USG**: a linha "Externo" vira **Origem**, com uma **pílula
+  dividida** por coluna (**Externo/Interno**).
+- **IG** exibida com **SEM**/**DIAS** por extenso (não apenas `s`/`d`).
+- **Sorologias e Laboratoriais**: sorologias, exames laboratoriais e tipo
+  sanguíneo/Coombs unificados numa só seção.
+
+### PSGO — Notação do USG, exame externo, paridade e admissão colapsada
+
+- **USG externo**: cada exame tem a marcação **"exame externo"**; quando marcado,
+  a data no laudo sai com **EXT** (ex.: `- (14/06/26 EXT): …`).
+- **Nova notação do USG** (segue o modelo do serviço): a IG sai por extenso
+  (`GESTAÇÃO DE 32 SEM E 1 DIA`), apresentação abreviada (CEF/PELV/CORM), e as
+  medidas como `CA: 261 MM (P 7)`, `PFE 1689 G (P 13)`, `MBV 5,7CM`,
+  `BCF 144 BPM`, `PLAC ANT GRAU I`, Doppler ao final. O **RCP** passa a exibir
+  **3 casas** (ex.: `RCP 2,284`).
+- **Aviso cm/mm**: quando a CC ou a CA parece ter sido anotada em cm (valor ~10×
+  menor que o esperado para a IG), aparece um alerta no exame.
+- **Datação + dados obstétricos** foram **unificados** com **Exames de imagem
+  (USG)** numa só seção (a organização do prontuário/colagem não muda).
+- As seções da admissão **iniciam colapsadas** por padrão, exceto a
+  **Identificação**.
+- **MAC** (métodos anticoncepcionais): novo campo, exibido **após a DUM** quando
+  a pessoa **não é gestante** (entra na colagem como `MAC: …`).
+- **Acompanhante**: em branco, a colagem escreve **DESACOMPANHADA**.
+- **Idade**: passa a sair com **ANOS** na colagem (ex.: `IDADE 27 ANOS`).
+- **Paridade** sem o **P**: `G3P2(C1N1)` vira `G3C1N1` (ordem C, N, A, sem
+  parênteses). Removidas as opções **Fórceps** e **Ectópica**.
+
+### PSGO — Percentis FMF arredondados como no site oficial (teto)
+
+- Os percentis das medidas de **padrão FMF** (Doppler: IP-AUmb, IP-ACM, RCP; e
+  **IP da a. uterina**) passam a ser exibidos com **arredondamento para cima**
+  (teto), exatamente como a calculadora oficial da FMF (fetalmedicine.org).
+  Antes usávamos arredondamento ao mais próximo, o que gerava divergência de 1
+  ponto (ex.: IG 32s1d — IP-AUmb 0,79 mostrava **P9** e agora **P10**; RCP 1,97
+  mostrava **P49** e agora **P50**). As fórmulas/z-scores não mudaram — só a
+  apresentação do centil.
+- A **biometria** (CC/PESO/CA, Fetal Biometry 3.1 · Perinatology) mantém o
+  arredondamento ao mais próximo (fonte distinta da FMF).
+- Novo `formatCentileCeil` em `@/core/fmf/centile`.
+
+### PSGO — Novos parâmetros do USG e percentis pela Fetal Biometry 3.1
+
+- No quadro de USG entram **Saco gestacional (SG, mm)**, **Vesícula vitelínica
+  (VV, mm)**, **Circunferência cefálica (CC, mm)** e **BCF** (com opção de
+  *ausente* ou o número de bpm). Saíram **DBP**, **TN** e **osso nasal (ON)**.
+- Os percentis de biometria passam a seguir a calculadora **Fetal Biometry 3.1**
+  (Perinatology.com), exceto os de **IP** (Doppler/uterina), que continuam pela
+  FMF:
+  - **PESO** — mediana analítica de Hadlock 1991
+    `PFE = exp(0,578 + 0,332·IG − 0,00354·IG²)` e DP normal = **13,25%** da
+    mediana (antes: tabela + log-normal DP ln 0,127).
+  - **CC** — Hadlock 1984 `−11,48 + 1,56·IG − 0,0002548·IG³`, DP 1,0 cm
+    (antes: referência FMF).
+  - **CA** — inalterada (já era Hadlock 1984).
+  - **CC/CA**: a mediana (cm) é arredondada a **0,1 cm** antes do z, como no
+    Fetal Biometry 3.1, para **percentil idêntico ao da calculadora** (validado
+    contra o JS real da Perinatology e da FMF: biometria e Doppler batem dígito
+    a dígito).
+- Novo campo **ILA** (índice de líquido amniótico), exibido junto do **MBV** na
+  mesma linha (`MBV / ILA`).
+- Reorganização do quadro: **CCN/SG/VV** ficam num grupo recolhível
+  **"Gestações iniciais"** e **IP AUmb/IP ACM/RCP/IP a. uterina** num grupo
+  recolhível **"Doppler"** (ambos recolhidos por padrão); **Placenta** e **grau**
+  dividem a mesma linha (listas lado a lado, mais estreitas).
+- A **prévia** de cada USG passa a ser **editável** (para inserir observações ou
+  correções) e sai toda em MAIÚSCULAS. O texto editado substitui a linha gerada
+  automaticamente no laudo; o botão **"regenerar"** descarta a edição e volta ao
+  automático (novo campo `overrideText`).
+
+### PSGO — IG automática dos USGs pela datação (percentis coerentes)
+
+- A datação continua sendo definida entre **DUM** e **USG** (o USG marcado para
+  datação). A novidade: a **IG dos demais USGs** deixa de ser digitada e passa a
+  ser **automática**, calculada pela **data de realização** de cada exame sobre a
+  datação resolvida (método DUM/USG + ACOG CO-700). O USG de datação mantém a IG
+  digitada (é a âncora e o insumo do ACOG).
+- Como os percentis (PESO/CA/DBP Hadlock e Doppler/TN/IP uterina FMF) usam a IG,
+  eles passam a refletir a **datação única** — evita "mover o alvo" a cada exame
+  (o que mascararia CIUR) e mantém o crescimento medido contra a mesma linha.
+- No quadro de USG, a IG dos exames automáticos aparece como valor (rótulo
+  `auto`, somente leitura); o exame de datação segue editável (rótulo `datação`).
+- Novo `gaFromEdd` (IG em qualquer data a partir da DPP) e, no PSGO,
+  `resolveDatingContext`/`examEffectiveGa`/`withAutoGa`/`findDatingUsg`.
+
+### PSGO — Entrada de datas em DD/MM/AA e IG pela data da consulta
+
+- Os campos de data do PSGO passam a ser digitados em **DD/MM/AA** (novo
+  `DateBRInput`, com máscara e validação) — o `<input type="date">` nativo não
+  permite ano com 2 dígitos. Guarda o valor como ISO internamente.
+- A **data da CTG** vem pré-preenchida com **hoje** (editável).
+- A **data da consulta** segue pré-preenchida com hoje; ao alterá-la, os itens
+  que dependem dela (**IG** pela DUM/USG, DPP, termo do Robson) passam a ser
+  calculados **naquela data** (`refFromISO`), e não mais sempre em "hoje".
+
+### PSGO — Data e nova notação da CTG
+
+- Cada CTG passa a registrar a **data** (além da hora); a data pré-preenche com
+  a da consulta e é editável (CTG feita em outro dia).
+- A notação da CTG no prontuário virou o formato compacto:
+  `(DD/MM/AA HH:MM) LB 125 BPM / VARIAB 6-25 / AT + (≥2 AT EM 20 MIN) / ES - /
+  EM 1 / MF + / DESC - / CONTR - / FETO ATIVO (5 PTS) / OBS: ... / CD: ...`.
+  O laudo impresso usa a data da própria CTG.
+- Cada CTG sai numa **linha própria** (com "- "), inclusive quando há só uma.
+- As datas das notações do **prontuário** do PSGO passam a **DD/MM/AA** (ano com
+  2 dígitos): cabeçalho, DUM/IG US, DPP, exames de imagem e CI. O **laudo** e os
+  **termos** mantêm o ano com 4 dígitos (DD/MM/AAAA), como nos modelos. O
+  Pré-Parto não muda (usa o formatador compartilhado de `gestational-age`).
+
+### PSGO — Imprimir termos de consentimento
+
+- Botão **"Termos"** na admissão do PSGO gera, em um documento (papel timbrado
+  UFTM · SUS · HUBRASIL, uma folha por termo), os 4 termos do modelo do HC-UFTM:
+  **Apêndice B** (anestesia e sedação), **Apêndice C** (procedimentos invasivos
+  e cirurgias), **parto normal/cesariana** e **indução do trabalho de parto**.
+- Só o **NOME e o RG** (da paciente) e a **DATA** (do momento da impressão) são
+  preenchidos; o restante é o texto fixo do termo, com os campos de assinatura em
+  branco. Novo módulo puro `@/core/psgo/termos`; timbre repetido em toda página
+  (via `thead`).
+- O botão virou um menu com **"Imprimir tudo"** e **"Tudo exceto indução"**, e
+  passou a aparecer também na **página da paciente** (não só na edição da
+  admissão). Mais espaço para as assinaturas nos termos de parto e indução.
+
 ### PSGO — Alta e exclusão de admissão
 
 - Nova ação **Dar alta** (desfecho "alta"): o prontuário **fica salvo por 24h**

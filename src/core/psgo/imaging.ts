@@ -1,17 +1,23 @@
 /**
  * Exames de imagem (USG obstétrico) do PSGO. Seção própria, em quadro: cada
- * exame tem IG própria e a plataforma calcula os percentis de PESO/CA
+ * exame tem IG própria e a plataforma calcula os percentis de CC/PESO/CA
  * (Hadlock) e da tríade Doppler do CIUR (IP-AUmb, IP-ACM, RCP — FMF/Ciobanu).
  *
- * Linha do prontuário (MODELO PS):
- *   -(DATA): IG: XX / APRESENTAÇÃO / PESO (P X) / CIRC. ABDOMINAL (P X) /
- *    PLACENTA E SUA INSERÇÃO, GRAU / MBV / IP AUMB (P X) / IP ACM (P X) / RCP (P X)
+ * Linha do prontuário (MODELO PS); exames externos levam "EXT" após a data:
+ *   - (DATA [EXT]): GESTAÇÃO DE XX SEM E Y DIAS / APRESENTAÇÃO / CC: (P X) /
+ *    CA: (P X) / PFE (P X) / MBV CM / ILA CM / BCF BPM / PLAC INSERÇÃO GRAU /
+ *    IP AUMB (P X) / IP ACM (P X) / RCP (P X) / IP A. UTERINA (P X)
  */
-import { efwCentile, acCentile, bpdCentile } from "@/core/fmf/biometry";
+import {
+  efwCentile,
+  acCentile,
+  hcCentile,
+  expectedAc,
+  expectedHc,
+} from "@/core/fmf/biometry";
 import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr";
-import { ntCentile } from "@/core/fmf/nt";
 import { utPiCentile } from "@/core/fmf/uterine";
-import { formatCentile } from "@/core/fmf/centile";
+import { formatCentile, formatCentileCeil } from "@/core/fmf/centile";
 import { parseDecimal } from "@/lib/num";
 
 export interface ImagingExam {
@@ -20,20 +26,28 @@ export interface ImagingExam {
   gaWeeks?: number;
   gaDays?: number;
   useForDating?: boolean; // USG escolhido para datação
+  external?: boolean; // exame externo (feito fora do serviço) — sai "EXT" na data
   presentation?: string; // APRESENTAÇÃO (cefálica/pélvica/córmica)
+  gsac?: string; // SG — saco gestacional (mm)
+  yolkSac?: string; // VV — vesícula vitelínica (mm)
+  fhr?: string; // BCF — batimentos cardíacos fetais (bpm) ou "AUSENTE"
+  hc?: string; // CC — circunferência cefálica (mm)
   efw?: string; // PESO — PFE (g)
   ac?: string; // CIRC. ABDOMINAL (mm)
   placentaSite?: string; // inserção (anterior/posterior/fúndica/prévia…)
   placentaGrade?: string; // grau (0/I/II/III)
   mbv?: string; // maior bolsão vertical (cm)
+  ila?: string; // ILA — índice de líquido amniótico (cm)
   uaPi?: string; // IP AUMB — IP da artéria umbilical
   mcaPi?: string; // IP ACM — IP da artéria cerebral média
   utPi?: string; // IP A. UTERINA (média) — IP das artérias uterinas
   crl?: string; // CCN — comprimento cabeça-nádega (mm)
-  bpd?: string; // DBP — diâmetro biparietal (mm)
-  nt?: string; // TN — translucência nucal (mm)
-  nasalBone?: string; // ON — osso nasal (presente/ausente)
   notes?: string;
+  /**
+   * Texto do laudo do exame editado manualmente. Quando presente (não vazio),
+   * substitui a linha gerada automaticamente — permite observações/correções.
+   */
+  overrideText?: string;
 }
 
 export function examGaDays(e: Pick<ImagingExam, "gaWeeks" | "gaDays">): number | null {
@@ -50,15 +64,48 @@ function pctSuffix(c: number | null): string {
   return f ? ` (P ${f})` : "";
 }
 
+/** Sufixo de percentil das medidas de padrão FMF (centil arredondado p/ cima). */
+function pctSuffixFmf(c: number | null): string {
+  const f = formatCentileCeil(c);
+  return f ? ` (P ${f})` : "";
+}
+
 function dateBR(iso?: string): string {
   if (!iso) return "";
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR");
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
-function igLabel(e: ImagingExam): string {
+/** IG do exame por extenso, ex.: "GESTAÇÃO DE 32 SEM E 1 DIA". */
+function igPhrase(e: ImagingExam): string {
   if (e.gaWeeks == null) return "";
-  return `IG: ${e.gaWeeks}s${e.gaDays ? `${e.gaDays}d` : ""}`;
+  const d = e.gaDays ?? 0;
+  return `GESTAÇÃO DE ${e.gaWeeks} SEM E ${d} ${d === 1 ? "DIA" : "DIAS"}`;
+}
+
+const PRESENTATION_ABBR: Record<string, string> = {
+  CEFÁLICA: "CEF",
+  PÉLVICA: "PELV",
+  CÓRMICA: "CORM",
+};
+/** Abreviação da apresentação (CEF/PELV/CORM); desconhecidas ficam como estão. */
+function presentationAbbr(p: string): string {
+  return PRESENTATION_ABBR[p.trim().toUpperCase()] ?? p;
+}
+
+const PLACENTA_ABBR: Record<string, string> = {
+  ANTERIOR: "ANT",
+  POSTERIOR: "POST",
+  FÚNDICA: "FÚND",
+  "LATERAL DIREITA": "LAT DIR",
+  "LATERAL ESQUERDA": "LAT ESQ",
+  PRÉVIA: "PRÉVIA",
+};
+/** Abreviação da inserção placentária (ANT/POST/FÚND/…). */
+function placentaAbbr(s: string): string {
+  return PLACENTA_ABBR[s.trim().toUpperCase()] ?? s;
 }
 
 /** RCP (valor) calculado a partir de IP-ACM / IP-AUmb. */
@@ -67,57 +114,63 @@ export function examCpr(e: ImagingExam): number | null {
 }
 
 export interface ImagingCentiles {
+  hc: string; // percentil da CC (Hadlock 1984)
   efw: string; // "P 50" ou ""
   ac: string;
   uaPi: string;
   mcaPi: string;
   cpr: string;
-  nt: string; // percentil da TN (pela FMF, a partir do CCN)
   utPi: string; // percentil do IP da artéria uterina (pela FMF)
-  bpd: string; // percentil do DBP (Hadlock 1984)
 }
 
 /** Rótulos de percentil ("P X") de cada medida do exame, para exibição no quadro. */
 export function examCentiles(e: ImagingExam): ImagingCentiles {
   const gaDays = examGaDays(e);
+  // Biometria (Perinatology/Fetal Biometry 3.1): centil arredondado. IP de
+  // padrão FMF (Doppler/uterina): centil arredondado PARA CIMA, como no site
+  // oficial (fetalmedicine.org).
   const lab = (c: number | null) => {
     const f = formatCentile(c);
     return f ? `P ${f}` : "";
   };
+  const labFmf = (c: number | null) => {
+    const f = formatCentileCeil(c);
+    return f ? `P ${f}` : "";
+  };
+  const hc = num(e.hc);
   const efw = num(e.efw);
   const ac = num(e.ac);
   const uaPi = num(e.uaPi);
   const mcaPi = num(e.mcaPi);
   const cpr = examCpr(e);
-  const nt = num(e.nt);
-  const crl = num(e.crl);
   const utPi = num(e.utPi);
-  const bpd = num(e.bpd);
   return {
+    hc: gaDays != null && hc != null ? lab(hcCentile(hc, gaDays)) : "",
     efw: gaDays != null && efw != null ? lab(efwCentile(efw, gaDays)) : "",
     ac: gaDays != null && ac != null ? lab(acCentile(ac, gaDays)) : "",
-    uaPi: gaDays != null && uaPi != null ? lab(uaPiCentile(uaPi, gaDays)) : "",
-    mcaPi: gaDays != null && mcaPi != null ? lab(mcaPiCentile(mcaPi, gaDays)) : "",
-    cpr: gaDays != null && cpr != null ? lab(cprCentile(cpr, gaDays)) : "",
-    nt: nt != null && crl != null ? lab(ntCentile(nt, crl)) : "",
-    utPi: gaDays != null && utPi != null ? lab(utPiCentile(utPi, gaDays)) : "",
-    bpd: gaDays != null && bpd != null ? lab(bpdCentile(bpd, gaDays)) : "",
+    uaPi: gaDays != null && uaPi != null ? labFmf(uaPiCentile(uaPi, gaDays)) : "",
+    mcaPi: gaDays != null && mcaPi != null ? labFmf(mcaPiCentile(mcaPi, gaDays)) : "",
+    cpr: gaDays != null && cpr != null ? labFmf(cprCentile(cpr, gaDays)) : "",
+    utPi: gaDays != null && utPi != null ? labFmf(utPiCentile(utPi, gaDays)) : "",
   };
 }
 
 export function hasImagingData(e: ImagingExam): boolean {
   return Boolean(
-    e.date ||
+    e.overrideText?.trim() ||
+      e.date ||
+      e.gsac ||
+      e.yolkSac ||
+      e.fhr ||
+      e.hc ||
       e.efw ||
       e.ac ||
       e.uaPi ||
       e.mcaPi ||
       e.mbv ||
+      e.ila ||
       e.utPi ||
       e.crl ||
-      e.bpd ||
-      e.nt ||
-      e.nasalBone ||
       e.placentaSite ||
       e.placentaGrade ||
       e.presentation ||
@@ -127,75 +180,110 @@ export function hasImagingData(e: ImagingExam): boolean {
 
 /** Linha de prontuário de um exame, no formato do MODELO PS, com percentis. */
 export function renderImagingExam(e: ImagingExam): string {
+  // Laudo editado manualmente tem prioridade sobre a geração automática.
+  if (e.overrideText?.trim()) return e.overrideText;
+
   const gaDays = examGaDays(e);
   const fields: string[] = [];
 
-  const ig = igLabel(e);
+  const ig = igPhrase(e);
   if (ig) fields.push(ig);
-  if (e.presentation) fields.push(e.presentation);
+  if (e.presentation) fields.push(presentationAbbr(e.presentation));
 
-  // Marcadores/biometria (nem todos presentes no mesmo US).
+  // Gestações iniciais (nem todos presentes no mesmo US).
   const crl = num(e.crl);
-  if (crl != null) fields.push(`CCN ${e.crl}mm`);
-  const bpd = num(e.bpd);
-  if (bpd != null) {
-    const c = gaDays != null ? bpdCentile(bpd, gaDays) : null;
-    fields.push(`DBP ${e.bpd}mm${pctSuffix(c)}`);
-  }
-  const nt = num(e.nt);
-  if (nt != null) {
-    const c = crl != null ? ntCentile(nt, crl) : null;
-    fields.push(`TN ${e.nt}mm${pctSuffix(c)}`);
-  }
-  if (e.nasalBone) fields.push(`OSSO NASAL ${e.nasalBone.toUpperCase()}`);
+  if (crl != null) fields.push(`CCN ${e.crl} mm`);
 
-  const efw = num(e.efw);
-  if (efw != null) {
-    const c = gaDays != null ? efwCentile(efw, gaDays) : null;
-    fields.push(`PESO ${e.efw}g${pctSuffix(c)}`);
+  const gsac = num(e.gsac);
+  if (gsac != null) fields.push(`SG ${e.gsac} mm`);
+
+  const yolkSac = num(e.yolkSac);
+  if (yolkSac != null) fields.push(`VV ${e.yolkSac} mm`);
+
+  // Biometria (CC / CA / PFE).
+  const hc = num(e.hc);
+  if (hc != null) {
+    const c = gaDays != null ? hcCentile(hc, gaDays) : null;
+    fields.push(`CC: ${e.hc} mm${pctSuffix(c)}`);
   }
 
   const ac = num(e.ac);
   if (ac != null) {
     const c = gaDays != null ? acCentile(ac, gaDays) : null;
-    fields.push(`CIRC. ABDOMINAL ${e.ac}mm${pctSuffix(c)}`);
+    fields.push(`CA: ${e.ac} mm${pctSuffix(c)}`);
   }
 
+  const efw = num(e.efw);
+  if (efw != null) {
+    const c = gaDays != null ? efwCentile(efw, gaDays) : null;
+    fields.push(`PFE ${e.efw} g${pctSuffix(c)}`);
+  }
+
+  // Líquido amniótico.
+  if (e.mbv) fields.push(`MBV ${e.mbv}CM`);
+  if (e.ila) fields.push(`ILA ${e.ila}CM`);
+
+  // BCF.
+  if (e.fhr) {
+    fields.push(num(e.fhr) != null ? `BCF ${e.fhr} BPM` : `BCF ${e.fhr.toUpperCase()}`);
+  }
+
+  // Placenta.
   if (e.placentaSite || e.placentaGrade) {
-    const site = e.placentaSite ? ` ${e.placentaSite}` : "";
-    const grade = e.placentaGrade ? `, GRAU ${e.placentaGrade}` : "";
-    fields.push(`PLACENTA${site}${grade}`);
+    const site = e.placentaSite ? ` ${placentaAbbr(e.placentaSite)}` : "";
+    const grade = e.placentaGrade ? ` GRAU ${e.placentaGrade}` : "";
+    fields.push(`PLAC${site}${grade}`);
   }
 
-  if (e.mbv) fields.push(`MBV ${e.mbv}`);
-
+  // Doppler.
   const uaPi = num(e.uaPi);
   if (uaPi != null) {
     const c = gaDays != null ? uaPiCentile(uaPi, gaDays) : null;
-    fields.push(`IP AUMB ${e.uaPi}${pctSuffix(c)}`);
+    fields.push(`IP AUMB ${e.uaPi}${pctSuffixFmf(c)}`);
   }
 
   const mcaPi = num(e.mcaPi);
   if (mcaPi != null) {
     const c = gaDays != null ? mcaPiCentile(mcaPi, gaDays) : null;
-    fields.push(`IP ACM ${e.mcaPi}${pctSuffix(c)}`);
+    fields.push(`IP ACM ${e.mcaPi}${pctSuffixFmf(c)}`);
   }
 
   const cpr = examCpr(e);
   if (cpr != null) {
     const c = gaDays != null ? cprCentile(cpr, gaDays) : null;
-    fields.push(`RCP ${cpr.toFixed(2)}${pctSuffix(c)}`);
+    fields.push(`RCP ${cpr.toFixed(3).replace(".", ",")}${pctSuffixFmf(c)}`);
   }
 
   const utPi = num(e.utPi);
   if (utPi != null) {
     const c = gaDays != null ? utPiCentile(utPi, gaDays) : null;
-    fields.push(`IP A. UTERINA ${e.utPi}${pctSuffix(c)}`);
+    fields.push(`IP A. UTERINA ${e.utPi}${pctSuffixFmf(c)}`);
   }
 
   if (e.notes) fields.push(e.notes);
 
-  return `-(${dateBR(e.date)}): ${fields.join(" / ")}`;
+  const ext = e.external ? " EXT" : "";
+  return `- (${dateBR(e.date)}${ext}): ${fields.join(" / ")}`;
+}
+
+/**
+ * Avisos de possível confusão cm/mm ao anotar biometria (valor ~10× menor que
+ * o esperado em mm para a IG). Cobre CC e CA (têm valor esperado por IG).
+ */
+export function imagingWarnings(e: ImagingExam): string[] {
+  const gaDays = examGaDays(e);
+  if (gaDays == null) return [];
+  const out: string[] = [];
+  const suspectCm = (valueMm: number | null, expectedMm: number | null): boolean => {
+    if (valueMm == null || valueMm <= 0 || expectedMm == null || expectedMm <= 0) return false;
+    const x10 = valueMm * 10;
+    return x10 >= expectedMm * 0.55 && x10 <= expectedMm * 1.6;
+  };
+  if (suspectCm(num(e.ac), expectedAc(gaDays)))
+    out.push("CA parece estar em cm — confira (valor em mm, ex.: 261, não 26,1).");
+  if (suspectCm(num(e.hc), expectedHc(gaDays)))
+    out.push("CC parece estar em cm — confira (valor em mm, ex.: 290, não 29,0).");
+  return out;
 }
 
 export function renderImaging(exams: ImagingExam[]): string {

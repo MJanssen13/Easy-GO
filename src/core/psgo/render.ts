@@ -3,11 +3,11 @@
  * Saída em MAIÚSCULAS, mantendo os rótulos mesmo quando vazios (como o modelo).
  */
 import type { PsgoForm } from "./types";
-import { formatParity } from "./parity";
+import { formatParity, formatCesareans } from "./parity";
 import { classifyRobson } from "./robson";
-import { resolvePsgoDating } from "./dating";
+import { resolvePsgoDating, resolveDatingContext, withAutoGa, refFromISO } from "./dating";
 import { autoComorbidities, classifyBmi } from "./comorbidities";
-import { formatPastMedication } from "./medications";
+import { formatCurrentMedication, formatPastMedication } from "./medications";
 import { buildExamLine, EXAM_SYSTEMS } from "./exam";
 import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
@@ -18,7 +18,9 @@ import { parseDecimal } from "@/lib/num";
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR");
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
 function splitOther(s?: string): string[] {
@@ -50,12 +52,15 @@ export function computePsgo(form: PsgoForm): PsgoComputed {
   // Robson classifica o parto da gestação atual — não se aplica a não gestantes.
   if (!form.pregnant) return { robsonGroup: null, robsonMissing: [] };
   const parity = formatParity(form.priorPregnancies, form.pregnant);
-  const dating = resolvePsgoDating({
-    lmp: form.lmp,
-    lmpUncertain: form.lmpUncertain,
-    usgExams: form.imagingExams,
-    preference: form.datingPreference,
-  });
+  const dating = resolvePsgoDating(
+    {
+      lmp: form.lmp,
+      lmpUncertain: form.lmpUncertain,
+      usgExams: form.imagingExams,
+      preference: form.datingPreference,
+    },
+    refFromISO(form.date),
+  );
   const robson = classifyRobson({
     parity: parity.multipara ? "multipara" : "nullipara",
     priorCesarean: parity.cesareanCount >= 1,
@@ -75,12 +80,15 @@ export function computePsgo(form: PsgoForm): PsgoComputed {
  */
 export function psgoHd(form: PsgoForm): string {
   const parity = formatParity(form.priorPregnancies, form.pregnant);
-  const dating = resolvePsgoDating({
-    lmp: form.lmp,
-    lmpUncertain: form.lmpUncertain,
-    usgExams: form.imagingExams,
-    preference: form.datingPreference,
-  });
+  const dating = resolvePsgoDating(
+    {
+      lmp: form.lmp,
+      lmpUncertain: form.lmpUncertain,
+      usgExams: form.imagingExams,
+      preference: form.datingPreference,
+    },
+    refFromISO(form.date),
+  );
   const cmb = dedup([
     ...form.comorbidities,
     ...splitOther(form.comorbiditiesOther),
@@ -107,12 +115,15 @@ export function psgoHd(form: PsgoForm): string {
 
 export function renderPsgo(form: PsgoForm): string {
   const parity = formatParity(form.priorPregnancies, form.pregnant);
-  const dating = resolvePsgoDating({
-    lmp: form.lmp,
-    lmpUncertain: form.lmpUncertain,
-    usgExams: form.imagingExams,
-    preference: form.datingPreference,
-  });
+  const dating = resolvePsgoDating(
+    {
+      lmp: form.lmp,
+      lmpUncertain: form.lmpUncertain,
+      usgExams: form.imagingExams,
+      preference: form.datingPreference,
+    },
+    refFromISO(form.date),
+  );
   const weight = parseDecimal(form.weight);
   const height = parseDecimal(form.height);
   const bmi = classifyBmi(weight, height);
@@ -134,9 +145,11 @@ export function renderPsgo(form: PsgoForm): string {
   push(
     1,
     `${form.name}${form.socialName ? ` (NOME SOCIAL: ${form.socialName})` : ""}, RG ${form.rg}`,
-    `IDADE ${form.age}`,
+    `IDADE ${form.age}${form.age.trim() ? " ANOS" : ""}`,
     `PROCEDENTE DE ${form.origin}`,
-    `ACOMPANHANTE: ${form.companion}${relation ? ` (${relation})` : ""}`,
+    form.companion.trim()
+      ? `ACOMPANHANTE: ${form.companion}${relation ? ` (${relation})` : ""}`
+      : "DESACOMPANHADA",
   );
 
   if (form.pregnant) {
@@ -165,11 +178,11 @@ export function renderPsgo(form: PsgoForm): string {
   // Paridade
   push(1, `PARIDADE: ${parity.summary}`, ...parity.lines);
 
-  // Datação (para não gestantes registra-se apenas a DUM, sem IG)
+  // Datação (para não gestantes registra-se apenas a DUM + MAC, sem IG)
   if (form.pregnant) {
     push(1, dating.dumLine ?? "DUM:", dating.igUsLine ?? "IG US :");
   } else {
-    push(1, `DUM: ${dateBR(form.lmp)}`);
+    push(1, `DUM: ${dateBR(form.lmp)}`, `MAC: ${form.mac ?? ""}`);
   }
 
   // Tipo sanguíneo / Coombs (um ou mais CI, com datas)
@@ -186,23 +199,36 @@ export function renderPsgo(form: PsgoForm): string {
     ...autoComorbidities({ weightKg: weight, heightM: height, cesareanCount: parity.cesareanCount }),
   ]);
   const meu = dedup([
-    ...form.medications.filter((m) => m.current).map((m) => m.label),
+    ...form.medications.filter((m) => m.current).map(formatCurrentMedication),
     ...splitOther(form.medicationsOther),
   ]);
   const fezUso = dedup([
     ...form.medications.filter((m) => !m.current).map(formatPastMedication),
     ...splitOther(form.medicationsPast),
   ]);
+  // Cirurgias: as cesáreas prévias (da paridade) entram automaticamente. "Nega"
+  // cola NEGA (mas as cesáreas, se houver, ainda constam).
+  const cesareanText = formatCesareans(form.priorPregnancies);
+  const surgeriesText = form.surgeriesDenied
+    ? cesareanText || "NEGA"
+    : [cesareanText, form.surgeries.trim()].filter(Boolean).join(", ");
+  const allergiesText = form.allergiesDenied ? "NEGA" : form.allergies;
   const habitsList = form.habits.map((h) =>
     h === "UDI" && (form.udiWhich ?? "").trim() ? `UDI (${form.udiWhich.trim()})` : h,
   );
-  const hcv = dedup([...habitsList, ...splitOther(form.habitsOther)]);
-  const medsBlock = [`CMB: ${cmb.join(" + ")}`, "MEU:", ...meu];
-  if (fezUso.length > 0) medsBlock.push("", "FEZ USO:", ...fezUso);
+  // HCV: "NEGA" cola a negação padronizada dos hábitos (mantém eventuais outros).
+  const hcvText = form.habits.includes("NEGA")
+    ? ["NEGA TBG, ALCOOLISMO E UDI", ...splitOther(form.habitsOther)].join(", ")
+    : dedup([...habitsList, ...splitOther(form.habitsOther)]).join(", ");
+  // Medicamentos deslocados (10 espaços) sob os rótulos MEU / FEZ USO.
+  const MED_INDENT = " ".repeat(10);
+  const medsBlock = [`CMB: ${cmb.join(" + ")}`, "MEU:", ...meu.map((m) => `${MED_INDENT}${m}`)];
+  if (fezUso.length > 0)
+    medsBlock.push("", "FEZ USO:", ...fezUso.map((m) => `${MED_INDENT}${m}`));
   medsBlock.push(
-    `CIRURGIAS: ${form.surgeries}`,
-    `ALERGIAS: ${form.allergies}`,
-    `HCV: ${hcv.join(", ")}`,
+    `CIRURGIAS: ${surgeriesText}`,
+    `ALERGIAS: ${allergiesText}`,
+    `HCV: ${hcvText}`,
   );
   push(1, ...medsBlock);
 
@@ -234,8 +260,21 @@ export function renderPsgo(form: PsgoForm): string {
   if (form.labs.trim()) labBlock.push(form.labs.trim());
   push(2, ...labBlock);
 
-  // Exames de imagem (seção própria, em quadro; o quadro USG é obstétrico)
-  const imaging = form.pregnant ? renderImaging(form.imagingExams) : "";
+  // Exames de imagem (seção própria, em quadro; o quadro USG é obstétrico).
+  // A IG dos USGs que não datam é automática (pela datação resolvida) — o que
+  // ajusta os percentis; o USG de datação mantém a IG digitada.
+  const imagingExams = form.pregnant
+    ? withAutoGa(
+        form.imagingExams,
+        resolveDatingContext({
+          lmp: form.lmp,
+          lmpUncertain: form.lmpUncertain,
+          usgExams: form.imagingExams,
+          preference: form.datingPreference,
+        }),
+      )
+    : form.imagingExams;
+  const imaging = form.pregnant ? renderImaging(imagingExams) : "";
   if (imaging.trim()) {
     push(2, "EXAMES DE IMAGEM (USG):", imaging);
   } else {

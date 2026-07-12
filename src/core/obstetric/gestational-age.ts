@@ -64,6 +64,15 @@ export function eddFromUltrasound(scanDate: Date, scanGa: { weeks: number; days:
 }
 
 /**
+ * GA at `ref` implied by an estimated due date (EDD/DPP). The EDD anchors the
+ * whole gestational timeline, so this yields the GA on ANY date regardless of
+ * how the dating was resolved (DUM or ultrasound).
+ */
+export function gaFromEdd(edd: Date, ref: Date = new Date()): GestationalAge {
+  return toGestationalAge(280 - diffDays(ref, edd));
+}
+
+/**
  * ACOG CO-700 discrepancy threshold (days) above which the ultrasound EDD
  * should REPLACE the LMP-based EDD, keyed by the GA at the time of the scan.
  */

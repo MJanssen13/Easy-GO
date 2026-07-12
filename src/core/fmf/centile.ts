@@ -50,10 +50,25 @@ export function centileToZ(centile: number): number {
   }
 }
 
-/** Formata um centil para exibição: "<1", ">99" ou inteiro. */
+/** Formata um centil para exibição: "<1", ">99" ou inteiro (arredondado). */
 export function formatCentile(centile: number | null): string | null {
   if (centile === null || Number.isNaN(centile)) return null;
   if (centile < 1) return "<1";
   if (centile > 99) return ">99";
   return String(Math.round(centile));
+}
+
+/**
+ * Como `formatCentile`, mas arredondando o centil PARA CIMA (teto).
+ *
+ * É a convenção de exibição das calculadoras da FMF (fetalmedicine.org): um
+ * centil bruto de 9,48 é mostrado como "10"; 49,24 como "50". Usada nas medidas
+ * de padrão FMF (Doppler e IP uterino) para bater exatamente com o site oficial.
+ * A biometria (Perinatology/Fetal Biometry 3.1) segue com `formatCentile`.
+ */
+export function formatCentileCeil(centile: number | null): string | null {
+  if (centile === null || Number.isNaN(centile)) return null;
+  if (centile < 1) return "<1";
+  if (centile > 99) return ">99";
+  return String(Math.ceil(centile));
 }

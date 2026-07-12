@@ -15,7 +15,7 @@ import type { PsgoForm } from "./types";
 import { emptyPsgoCtg, type PsgoCtg } from "./ctg";
 import { formatParity } from "./parity";
 import { autoComorbidities } from "./comorbidities";
-import { resolvePsgoDating } from "./dating";
+import { resolvePsgoDating, findDatingUsg } from "./dating";
 import { computePsgo, renderPsgo } from "./render";
 import { parseDecimal } from "@/lib/num";
 
@@ -82,9 +82,7 @@ function datingColumns(form: PsgoForm): {
     preference: form.datingPreference,
   });
   const lmpDate = form.lmp ? new Date(`${form.lmp}T00:00:00`) : null;
-  const ex =
-    form.imagingExams.find((e) => e.useForDating) ??
-    form.imagingExams.find((e) => e.date && e.gaWeeks != null);
+  const ex = findDatingUsg(form.imagingExams);
   const scanDate = ex?.date ? new Date(`${ex.date}T00:00:00`) : null;
   const scanGa = ex && ex.gaWeeks != null ? { weeks: ex.gaWeeks, days: ex.gaDays ?? 0 } : null;
 
@@ -156,12 +154,20 @@ export function patientToPsgoForm(patient: Patient): PsgoForm | null {
       : cs.form.coombs
         ? [{ id: "legacy", result: cs.form.coombs, date: cs.form.coombsDate ?? "" }]
         : [];
+  // Medicamentos: migra o intervalo legado (início/fim) para o campo único.
+  const medications = (cs.form.medications ?? []).map((m) => ({
+    ...m,
+    pastPeriod: m.pastPeriod ?? ([m.pastStart, m.pastEnd].filter(Boolean).join(" A ") || undefined),
+  }));
   return {
     ...cs.form,
     pregnant: cs.form.pregnant ?? true,
     companionRelationOther: cs.form.companionRelationOther ?? "",
     prenatalIrregular: cs.form.prenatalIrregular ?? false,
+    medications,
     medicationsPast: cs.form.medicationsPast ?? "",
+    surgeriesDenied: cs.form.surgeriesDenied ?? false,
+    allergiesDenied: cs.form.allergiesDenied ?? false,
     coombsList,
     udiWhich: cs.form.udiWhich ?? "",
     hd: cs.form.hd ?? "",
