@@ -57,7 +57,6 @@ export default async function PsgoPatientPage({ params }: { params: Promise<{ id
           <PsgoTermosButton
             name={patient.name}
             rg={patient.medicalRecordNumber ?? ""}
-            date={form?.date}
             size="default"
           />
           <Link href={`/psgo/admissao?id=${patient.id}`} className={buttonVariants()}>

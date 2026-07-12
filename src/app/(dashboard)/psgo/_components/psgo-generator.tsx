@@ -2561,7 +2561,7 @@ export function PsgoGenerator({
                 >
                   {saving ? "Salvando…" : patientId ? "Salvar alterações" : "Salvar admissão"}
                 </Button>
-                <PsgoTermosButton name={form.name} rg={form.rg} date={form.date} />
+                <PsgoTermosButton name={form.name} rg={form.rg} />
                 <CopyButton text={text} />
               </div>
             </CardTitle>

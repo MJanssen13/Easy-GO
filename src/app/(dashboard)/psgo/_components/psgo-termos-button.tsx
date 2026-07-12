@@ -7,29 +7,20 @@ import { renderTermosHtml } from "@/core/psgo/termos";
 import { letterheadFor } from "@/core/ctg/laudo";
 import { printHtml } from "@/lib/print";
 
-/** Data ISO → DD/MM/AAAA; vazia = hoje. */
-function termosDate(iso?: string): string {
-  const d = iso ? new Date(`${iso}T00:00:00`) : new Date();
-  if (Number.isNaN(d.getTime())) return iso ?? "";
-  if (!iso) d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toLocaleDateString("pt-BR");
-}
-
 /**
  * Botão "Termos" com menu: imprime os termos de consentimento do PSGO com o
- * nome/RG/data da paciente. Compartilhado pela admissão e pela página da
- * paciente. "Tudo exceto indução" omite o termo de indução do parto.
+ * nome/RG da paciente e a **data do momento da impressão**. Compartilhado pela
+ * admissão e pela página da paciente. "Tudo exceto indução" omite o termo de
+ * indução do parto.
  */
 export function PsgoTermosButton({
   name,
   rg,
-  date,
   size = "sm",
   variant = "outline",
 }: {
   name: string;
   rg: string;
-  date?: string;
   size?: "sm" | "default";
   variant?: "outline" | "default" | "secondary";
 }) {
@@ -39,7 +30,7 @@ export function PsgoTermosButton({
     setOpen(false);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const html = renderTermosHtml(
-      { name, rg, date: termosDate(date) },
+      { name, rg, date: new Date().toLocaleDateString("pt-BR") },
       letterheadFor(origin),
       { includeInducao },
     );
