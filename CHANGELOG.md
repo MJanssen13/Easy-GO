@@ -14,9 +14,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   EM 1 / MF + / DESC - / CONTR - / FETO ATIVO (5 PTS) / OBS: ... / CD: ...`.
   O laudo impresso usa a data da própria CTG.
 - Cada CTG sai numa **linha própria** (com "- "), inclusive quando há só uma.
-- Todas as datas das notações do PSGO passam a **DD/MM/AA** (ano com 2 dígitos):
-  prontuário (cabeçalho, DUM/IG US, DPP, exames, CI), laudo e termos. O Pré-Parto
-  não muda (usa o formatador compartilhado de `gestational-age`).
+- As datas das notações do **prontuário** do PSGO passam a **DD/MM/AA** (ano com
+  2 dígitos): cabeçalho, DUM/IG US, DPP, exames de imagem e CI. O **laudo** e os
+  **termos** mantêm o ano com 4 dígitos (DD/MM/AAAA), como nos modelos. O
+  Pré-Parto não muda (usa o formatador compartilhado de `gestational-age`).
 
 ### PSGO — Imprimir termos de consentimento
 

@@ -100,12 +100,11 @@ function uid(): string {
 }
 
 /** Data ISO → DD/MM/AAAA (para o cabeçalho do laudo). */
+// Laudo/termos mantêm o ano com 4 dígitos (DD/MM/AAAA), como nos modelos.
 function formatDateBR(iso: string): string {
   if (!iso) return "";
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("pt-BR");
 }
 
 function Field({
