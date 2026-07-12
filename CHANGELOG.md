@@ -19,6 +19,11 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   - **CC** — Hadlock 1984 `−11,48 + 1,56·IG − 0,0002548·IG³`, DP 1,0 cm
     (antes: referência FMF).
   - **CA** — inalterada (já era Hadlock 1984).
+- Novo campo **ILA** (índice de líquido amniótico), exibido junto do **MBV** na
+  mesma linha (`MBV / ILA`).
+- Reorganização do quadro: **CCN/SG/VV** ficam num grupo recolhível
+  **"Gestações iniciais"**; **Placenta** e **grau** dividem a mesma linha (listas
+  lado a lado, mais estreitas). A **prévia** de cada USG sai toda em MAIÚSCULAS.
 
 ### PSGO — IG automática dos USGs pela datação (percentis coerentes)
 

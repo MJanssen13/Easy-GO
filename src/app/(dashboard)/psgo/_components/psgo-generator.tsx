@@ -304,6 +304,8 @@ export function PsgoGenerator({
   const [saving, startSaving] = useTransition();
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [medInput, setMedInput] = useState("");
+  // Grupo "Gestações iniciais" (CCN/SG/VV) recolhível no quadro de USG.
+  const [showEarlyUsg, setShowEarlyUsg] = useState(false);
   // Montador de HPMA (estado transitório; só o texto final vai para form.hpma)
   const [hpmaSel, setHpmaSel] = useState<string[]>([]);
   const [hpmaVals, setHpmaVals] = useState<Record<string, string>>({});
@@ -2325,44 +2327,67 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">CCN (mm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <Input
-                            className="h-7 w-16 text-xs"
-                            inputMode="decimal"
-                            value={e.crl ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
+                      <td
+                        colSpan={form.imagingExams.length + 1}
+                        className="border-b bg-muted/30 p-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setShowEarlyUsg((v) => !v)}
+                          className="flex w-full items-center gap-1 px-1 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
+                          aria-expanded={showEarlyUsg}
+                        >
+                          <ChevronDown
+                            className={`h-3.5 w-3.5 transition-transform ${showEarlyUsg ? "" : "-rotate-90"}`}
                           />
-                        </td>
-                      ))}
+                          GESTAÇÕES INICIAIS
+                          <span className="text-[10px] font-normal">(CCN / SG / VV)</span>
+                        </button>
+                      </td>
                     </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">SG (mm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <Input
-                            className="h-7 w-16 text-xs"
-                            inputMode="decimal"
-                            value={e.gsac ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { gsac: ev.target.value })}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">VV (mm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <Input
-                            className="h-7 w-16 text-xs"
-                            inputMode="decimal"
-                            value={e.yolkSac ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
-                          />
-                        </td>
-                      ))}
-                    </tr>
+                    {showEarlyUsg && (
+                      <>
+                        <tr>
+                          <td className="border-b p-1 font-medium">CCN (mm)</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <Input
+                                className="h-7 w-16 text-xs"
+                                inputMode="decimal"
+                                value={e.crl ?? ""}
+                                onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">SG (mm)</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <Input
+                                className="h-7 w-16 text-xs"
+                                inputMode="decimal"
+                                value={e.gsac ?? ""}
+                                onChange={(ev) => updateImaging(e.id, { gsac: ev.target.value })}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="border-b p-1 font-medium">VV (mm)</td>
+                          {form.imagingExams.map((e) => (
+                            <td key={e.id} className="border-b p-1">
+                              <Input
+                                className="h-7 w-16 text-xs"
+                                inputMode="decimal"
+                                value={e.yolkSac ?? ""}
+                                onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      </>
+                    )}
                     <tr>
                       <td className="border-b p-1 font-medium">BCF</td>
                       {form.imagingExams.map((e) => {
@@ -2416,53 +2441,59 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">Placenta (inserção)</td>
+                      <td className="border-b p-1 font-medium">Placenta / grau</td>
                       {form.imagingExams.map((e) => (
                         <td key={e.id} className="border-b p-1">
-                          <select
-                            className={`${selectClass} h-7 w-28 text-xs`}
-                            value={e.placentaSite ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
-                          >
-                            <option value="">—</option>
-                            <option value="ANTERIOR">Anterior</option>
-                            <option value="POSTERIOR">Posterior</option>
-                            <option value="FÚNDICA">Fúndica</option>
-                            <option value="LATERAL DIREITA">Lateral D</option>
-                            <option value="LATERAL ESQUERDA">Lateral E</option>
-                            <option value="PRÉVIA">Prévia</option>
-                          </select>
+                          <div className="flex items-center gap-1">
+                            <select
+                              className={`${selectClass} h-7 !w-24 px-2 text-xs`}
+                              value={e.placentaSite ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
+                            >
+                              <option value="">—</option>
+                              <option value="ANTERIOR">Anterior</option>
+                              <option value="POSTERIOR">Posterior</option>
+                              <option value="FÚNDICA">Fúndica</option>
+                              <option value="LATERAL DIREITA">Lateral D</option>
+                              <option value="LATERAL ESQUERDA">Lateral E</option>
+                              <option value="PRÉVIA">Prévia</option>
+                            </select>
+                            <select
+                              className={`${selectClass} h-7 !w-14 px-2 text-xs`}
+                              value={e.placentaGrade ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
+                            >
+                              <option value="">—</option>
+                              <option value="0">0</option>
+                              <option value="I">I</option>
+                              <option value="II">II</option>
+                              <option value="III">III</option>
+                            </select>
+                          </div>
                         </td>
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">Grau placentário</td>
+                      <td className="border-b p-1 font-medium">MBV / ILA (cm)</td>
                       {form.imagingExams.map((e) => (
                         <td key={e.id} className="border-b p-1">
-                          <select
-                            className={`${selectClass} h-7 w-14 text-xs`}
-                            value={e.placentaGrade ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
-                          >
-                            <option value="">—</option>
-                            <option value="0">0</option>
-                            <option value="I">I</option>
-                            <option value="II">II</option>
-                            <option value="III">III</option>
-                          </select>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-1 font-medium">MBV (cm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <Input
-                            className="h-7 w-16 text-xs"
-                            inputMode="decimal"
-                            value={e.mbv ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
-                          />
+                          <div className="flex items-center gap-1">
+                            <Input
+                              className="h-7 w-14 text-xs"
+                              inputMode="decimal"
+                              placeholder="MBV"
+                              value={e.mbv ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
+                            />
+                            <span className="text-[10px] text-muted-foreground">/</span>
+                            <Input
+                              className="h-7 w-14 text-xs"
+                              inputMode="decimal"
+                              placeholder="ILA"
+                              value={e.ila ?? ""}
+                              onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })}
+                            />
+                          </div>
                         </td>
                       ))}
                     </tr>
@@ -2554,8 +2585,11 @@ export function PsgoGenerator({
             )}
 
             {form.imagingExams.map((e) => (
-              <p key={e.id} className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px]">
-                {renderImagingExam(resolvedById[e.id] ?? e)}
+              <p
+                key={e.id}
+                className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px] uppercase"
+              >
+                {renderImagingExam(resolvedById[e.id] ?? e).toUpperCase()}
               </p>
             ))}
         </Section>

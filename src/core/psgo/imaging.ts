@@ -29,6 +29,7 @@ export interface ImagingExam {
   placentaSite?: string; // inserção (anterior/posterior/fúndica/prévia…)
   placentaGrade?: string; // grau (0/I/II/III)
   mbv?: string; // maior bolsão vertical (cm)
+  ila?: string; // ILA — índice de líquido amniótico (cm)
   uaPi?: string; // IP AUMB — IP da artéria umbilical
   mcaPi?: string; // IP ACM — IP da artéria cerebral média
   utPi?: string; // IP A. UTERINA (média) — IP das artérias uterinas
@@ -115,6 +116,7 @@ export function hasImagingData(e: ImagingExam): boolean {
       e.uaPi ||
       e.mcaPi ||
       e.mbv ||
+      e.ila ||
       e.utPi ||
       e.crl ||
       e.placentaSite ||
@@ -172,6 +174,7 @@ export function renderImagingExam(e: ImagingExam): string {
   }
 
   if (e.mbv) fields.push(`MBV ${e.mbv}`);
+  if (e.ila) fields.push(`ILA ${e.ila}`);
 
   const uaPi = num(e.uaPi);
   if (uaPi != null) {
