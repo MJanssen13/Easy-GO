@@ -5,6 +5,23 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Gerador de HPMA e reconhecimento de datas
+
+- **Febre** melhor detalhada nas QPs que a referem (além da própria Febre):
+  termometrada (→ temperatura) e padrão (contínuo/intermitente) — em GECA,
+  Náusea/vômitos e Disúria.
+- Novo modelo de HPMA: **Pielonefrite**.
+- **Dor em baixo ventre**: as relações com **esforço, micção e evacuação** viram
+  itens **individuais** (cada um refere/nega). Os **fatores de melhora e piora**
+  viram **dois campos** independentes, cada um com **Nega**: escreve
+  `COM MELHORA AO …` (não mais `COM FATORES: MELHORA AO …`), com
+  `sem fatores de piora`/`sem fatores de melhora` quando só um existe, e **nada**
+  quando ambos são negados.
+- **Síndrome gripal**: removida a menção à **saturação de O₂**.
+- **Sorologias e laboratoriais**: a data é reconhecida por **dd/mm/aa** no início
+  da linha, **ignorando a formatação ao redor** (traço, parênteses, `EXT`, `:`) —
+  garante a ordenação por data mesmo com o marcador **EXT**.
+
 ### PSGO — Gestação múltipla, exames de imagem e sorologias/laboratoriais
 
 - **Gestação múltipla**: ao marcar **Múltiplos** em nº de fetos, abre a

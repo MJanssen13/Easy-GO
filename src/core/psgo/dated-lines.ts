@@ -5,7 +5,9 @@
  * outras fontes (ex.: USGs) por data.
  */
 
-const DATE_PREFIX = /^-\s*\((\d{2}\/\d{2}\/\d{2,4})\)/;
+// Reconhece a data dd/mm/aa(aa) no início da linha, ignorando a formatação ao
+// redor (traço, parênteses, "EXT", ":" etc.).
+const DATE_PREFIX = /^[\s\-(]*(\d{2}\/\d{2}\/\d{2,4})/;
 
 /** Timestamp de uma data BR (aceita ano com 2 ou 4 dígitos); Infinity se inválida. */
 export function brToTimestamp(ddmmaa: string): number {

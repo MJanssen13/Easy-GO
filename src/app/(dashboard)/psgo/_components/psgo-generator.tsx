@@ -823,6 +823,46 @@ export function PsgoGenerator({
           </span>
         );
       }
+      if (n.k === "melpio") {
+        const melNegKey = `${prefix}.${n.melNegId}`;
+        const pioNegKey = `${prefix}.${n.pioNegId}`;
+        const melNeg = hpmaVals[melNegKey] === "1";
+        const pioNeg = hpmaVals[pioNegKey] === "1";
+        return (
+          <span key={k} className="mx-0.5 inline-flex flex-wrap items-center gap-1 align-middle">
+            <span className="text-xs text-muted-foreground">melhora:</span>
+            {!melNeg && (
+              <input
+                value={hpmaVals[`${prefix}.${n.melId}`] ?? ""}
+                onChange={(e) => setHpmaVal(`${prefix}.${n.melId}`, e.target.value)}
+                className={hpmaInputCls}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setHpmaVal(melNegKey, melNeg ? "" : "1")}
+              className={hpmaChipCls(melNeg)}
+            >
+              Nega
+            </button>
+            <span className="text-xs text-muted-foreground">piora:</span>
+            {!pioNeg && (
+              <input
+                value={hpmaVals[`${prefix}.${n.pioId}`] ?? ""}
+                onChange={(e) => setHpmaVal(`${prefix}.${n.pioId}`, e.target.value)}
+                className={hpmaInputCls}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setHpmaVal(pioNegKey, pioNeg ? "" : "1")}
+              className={hpmaChipCls(pioNeg)}
+            >
+              Nega
+            </button>
+          </span>
+        );
+      }
       // multi
       const base = `${prefix}.${n.id}`;
       return (
@@ -887,6 +927,47 @@ export function PsgoGenerator({
           </Field>,
         );
         if (selOpt?.reveal) items.push(...hpmaFormFields(selOpt.reveal, prefix));
+        continue;
+      }
+      if (n.k === "melpio") {
+        const melKey = `${prefix}.${n.melId}`;
+        const melNegKey = `${prefix}.${n.melNegId}`;
+        const pioKey = `${prefix}.${n.pioId}`;
+        const pioNegKey = `${prefix}.${n.pioNegId}`;
+        const melNeg = hpmaVals[melNegKey] === "1";
+        const pioNeg = hpmaVals[pioNegKey] === "1";
+        items.push(
+          <Field key={melKey} label="Fatores de melhora">
+            <div className="flex items-center gap-2">
+              {!melNeg && (
+                <Input
+                  className="w-44"
+                  placeholder="melhora ao…"
+                  value={hpmaVals[melKey] ?? ""}
+                  onChange={(e) => setHpmaVal(melKey, e.target.value)}
+                />
+              )}
+              <Chip active={melNeg} onClick={() => setHpmaVal(melNegKey, melNeg ? "" : "1")}>
+                Nega
+              </Chip>
+            </div>
+          </Field>,
+          <Field key={pioKey} label="Fatores de piora">
+            <div className="flex items-center gap-2">
+              {!pioNeg && (
+                <Input
+                  className="w-44"
+                  placeholder="piora ao…"
+                  value={hpmaVals[pioKey] ?? ""}
+                  onChange={(e) => setHpmaVal(pioKey, e.target.value)}
+                />
+              )}
+              <Chip active={pioNeg} onClick={() => setHpmaVal(pioNegKey, pioNeg ? "" : "1")}>
+                Nega
+              </Chip>
+            </div>
+          </Field>,
+        );
         continue;
       }
       // multi

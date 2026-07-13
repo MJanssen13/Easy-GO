@@ -60,10 +60,12 @@ interface SerologyEntry {
   external: boolean;
 }
 
-function brToSortKey(ddmmaaaa: string): number {
-  const m = ddmmaaaa.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+function brToSortKey(ddmmaa: string): number {
+  const m = ddmmaa.match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
   if (!m) return Number.POSITIVE_INFINITY;
-  return new Date(`${m[3]}-${m[2]}-${m[1]}T00:00:00`).getTime();
+  const yr = m[3].length === 2 ? `20${m[3]}` : m[3];
+  const t = new Date(`${yr}-${m[2]}-${m[1]}T00:00:00`).getTime();
+  return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
 }
 
 function isoToBR(iso: string): string {
@@ -71,26 +73,33 @@ function isoToBR(iso: string): string {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 }
 
-/** Faz o parse do texto colado em entradas de sorologia (internas). */
+/**
+ * Faz o parse do texto colado em entradas de sorologia. Identifica apenas a data
+ * dd/mm/aa(aa) no início da linha, ignorando a formatação ao redor (traço,
+ * parênteses, ":"); reconhece o marcador `EXT` (coleta externa).
+ */
 export function parsePastedSerologies(text: string): SerologyEntry[] {
   const entries: SerologyEntry[] = [];
-  const lineRe = /^-\s*\((\d{2}\/\d{2}\/\d{4})\)\s*:\s*(.*)$/;
+  // (opcional traço/parêntese) DATA (opcional EXT) (opcional ) e :) resto
+  const lineRe = /^[\s\-(]*(\d{2}\/\d{2}\/\d{2,4})\s*(EXT)?\s*\)?\s*:?\s*(.*)$/i;
   const alertRe = /^\*\*.*\*\*$/;
 
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
+    if (alertRe.test(line)) {
+      if (entries.length > 0) entries[entries.length - 1].alerts.push(line);
+      continue;
+    }
     const m = line.match(lineRe);
     if (m) {
       entries.push({
         dateStr: m[1],
         sortKey: brToSortKey(m[1]),
-        tokens: m[2].trim(),
+        tokens: m[3].trim(),
         alerts: [],
-        external: false,
+        external: !!m[2],
       });
-    } else if (alertRe.test(line)) {
-      if (entries.length > 0) entries[entries.length - 1].alerts.push(line);
     } else if (entries.length > 0) {
       // continuação da linha anterior
       entries[entries.length - 1].tokens += ` ${line}`;
