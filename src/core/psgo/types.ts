@@ -4,6 +4,7 @@ import type { ExamSystemState, ExamVitals } from "./exam";
 import { EXAM_SYSTEMS } from "./exam";
 import type { UsgExam, DatingPreference } from "./dating";
 import type { RobsonPresentation, RobsonFetuses, RobsonOnset } from "./robson";
+import type { Multiplicity } from "./multiple";
 import type { SerologyGrid } from "./serology";
 import { emptySerologyGrid } from "./serology";
 import type { ImagingExam } from "./imaging";
@@ -71,6 +72,10 @@ export interface PsgoForm {
   presentation: RobsonPresentation | "";
   fetuses: RobsonFetuses | "";
   laborOnset: RobsonOnset | "";
+  /** Gestação múltipla: gemelaridade (só quando `fetuses === "multiple"`). */
+  multiplicity: Multiplicity | "";
+  /** Sigla da corionicidade/amnionicidade escolhida (ex.: "TC/TA"). */
+  chorionAmnion: string;
 
   // tipo sanguíneo / coombs
   bloodType: string;
@@ -132,6 +137,8 @@ export interface PsgoForm {
 
   // exames de imagem (USG)
   imagingExams: ImagingExam[];
+  /** Outros exames de imagem (texto livre; linhas "-(dd/mm/aa): ..." ordenadas). */
+  otherImaging: string;
 }
 
 function todayISO(): string {
@@ -170,6 +177,8 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     presentation: "",
     fetuses: "",
     laborOnset: "",
+    multiplicity: "",
+    chorionAmnion: "",
     bloodType: "",
     coombsList: [],
     comorbidities: [],
@@ -199,6 +208,7 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     serologyGrid: emptySerologyGrid(),
     labs: "",
     imagingExams: [],
+    otherImaging: "",
   };
 }
 

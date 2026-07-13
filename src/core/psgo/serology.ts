@@ -99,16 +99,54 @@ export function parsePastedSerologies(text: string): SerologyEntry[] {
   return entries;
 }
 
+/**
+ * Pares IGG/IGM com interpretação sorológica: numa mesma coleta, IGG e IGM não
+ * reagentes → SUSCETÍVEL; apenas IGG reagente → IMUNE. Caso contrário mantém os
+ * analitos individuais (ex.: IGM reagente = infecção recente).
+ */
+const IGG_IGM_GROUPS: { disease: string; igg: string; igm: string }[] = [
+  { disease: "TOXO", igg: "TOXO-IGG", igm: "TOXO-IGM" },
+  { disease: "CMV", igg: "CMV-IGG", igm: "CMV-IGM" },
+  { disease: "RUB", igg: "RUB-IGG", igm: "RUB-IGM" },
+];
+
+/** Tokens de uma coleta externa (uma coluna), com a regra SUSCETÍVEL/IMUNE. */
+function columnTokens(grid: SerologyGrid, colId: string): string[] {
+  const val = (a: string) => grid.values[`${a}:${colId}`]?.trim() ?? "";
+  const groupByAnalyte = new Map<string, (typeof IGG_IGM_GROUPS)[number]>();
+  for (const g of IGG_IGM_GROUPS) {
+    groupByAnalyte.set(g.igg, g);
+    groupByAnalyte.set(g.igm, g);
+  }
+  const emitted = new Set<string>();
+  const tokens: string[] = [];
+  for (const a of SEROLOGY_ANALYTES) {
+    const g = groupByAnalyte.get(a);
+    if (g) {
+      if (emitted.has(g.disease)) continue;
+      emitted.add(g.disease);
+      const igg = val(g.igg);
+      const igm = val(g.igm);
+      if (igg === "NR" && igm === "NR") {
+        tokens.push(`${g.disease} SUSCETÍVEL`);
+      } else if (igg === "REAG" && igm !== "REAG") {
+        tokens.push(`${g.disease} IMUNE`);
+      } else {
+        if (igg) tokens.push(`${g.igg} ${igg}`);
+        if (igm) tokens.push(`${g.igm} ${igm}`);
+      }
+      continue;
+    }
+    const v = val(a);
+    if (v) tokens.push(`${a} ${v}`);
+  }
+  return tokens;
+}
+
 /** Converte o quadro de sorologias externas em entradas. */
 export function gridToEntries(grid: SerologyGrid): SerologyEntry[] {
   return grid.columns
-    .map((col) => {
-      const tokens = SEROLOGY_ANALYTES.map((a) => {
-        const v = grid.values[`${a}:${col.id}`]?.trim();
-        return v ? `${a} ${v}` : null;
-      }).filter(Boolean) as string[];
-      return { col, tokens };
-    })
+    .map((col) => ({ col, tokens: columnTokens(grid, col.id) }))
     .filter((x) => x.tokens.length > 0)
     .map(({ col, tokens }) => ({
       dateStr: isoToBR(col.date),

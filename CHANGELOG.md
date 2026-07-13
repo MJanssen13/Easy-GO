@@ -5,6 +5,31 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Gestação múltipla, exames de imagem e sorologias/laboratoriais
+
+- **Gestação múltipla**: ao marcar **Múltiplos** em nº de fetos, abre a
+  **gemelaridade** (Gemelar/Trigemelar) e a **corionicidade/amnionicidade** (opções
+  por tipo). Entra na **HD** (ex.: `GESTAÇÃO TRIGEMELAR TRICORIÔNICA TRIAMNIÓTICA
+  (TC/TA) DE 33 SEMANAS E 5 DIAS`).
+- **USG de gestação múltipla**: o **"+ USG"** abre **2/3 colunas** (uma por feto),
+  com **data, IG e origem mescladas** (célula única por USG) e biometria por feto.
+  Na colagem, um cabeçalho por USG e **FETO 1/2/3** em linhas (fetos 2+ deslocados
+  10 espaços): `- (08/07/2026): GESTAÇÃO TRIGEMELAR … DE 33 SEM E 1 DIA:FETO 1: …`.
+- **Exames de imagem**: o botão **"+ USG"** desceu para o início da parte de
+  imagem (ao lado do rótulo **Exames de imagem**). Novos USGs vêm como
+  **Externo** por padrão. As colunas **IG** e **Origem** ficam centralizadas e as
+  células do quadro ficaram **mais baixas**.
+- **Ordem cronológica**: USGs e **outros exames de imagem** (novo campo de texto,
+  linhas `-(dd/mm/aa): …`) saem **ordenados por data** na prévia e na colagem.
+- **IG US** passa a sair como `IG US (9 SEM E 3 DIAS EM 09/03/26): IG: 27 SEM E 2 DIAS`.
+- **Sorologias e Laboratoriais**: o campo de **sorologias do hospital** vem
+  **abaixo** das externas; sorologias externas + internas são **mescladas e
+  ordenadas por data** na colagem; os **laboratoriais** também ordenam por data
+  (`-(dd/mm/aa): …`). Um **único** botão do **LabFlow** (com o **gradiente** da
+  marca). O campo do **VDRL** ficou mais estreito.
+- **Sorologias externas (Toxo/CMV/rubéola)**: numa mesma coleta, IGG+IGM **NR** →
+  **SUSCETÍVEL**; apenas IGG reagente → **IMUNE**.
+
 ### PSGO — Ajustes do formulário de admissão (UI e colagem)
 
 - **Parentesco do acompanhante**: os parentescos com terminação dupla passam a
