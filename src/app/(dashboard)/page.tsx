@@ -29,7 +29,7 @@ export default function HubPage() {
                       <Icon className="h-5 w-5" />
                     </span>
                     <span className="rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      {m.stateful ? "Armazena dados" : "Gera prontuário"}
+                      {m.badge ?? (m.stateful ? "Armazena dados" : "Gera prontuário")}
                     </span>
                   </div>
                   <CardTitle className="pt-2 flex items-center gap-1">

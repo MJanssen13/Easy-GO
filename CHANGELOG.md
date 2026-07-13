@@ -5,6 +5,17 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Ferramentas — Cardiotocografia (leitor de .trc do Edan)
+
+- Nova aba **Ferramentas** no painel geral, com o utilitário **Cardiotocografia**.
+- Leitor dos arquivos **`.trc`** dos monitores fetais **Edan (F2/F3)** (formato
+  binário proprietário, decodificado por engenharia reversa): reconstrói os canais
+  **FHR** e **TOCO** (1 amostra/s; `0xFF` = perda de sinal) e extrai data, horário,
+  linha de base e % de perda de sinal. Aceita **vários arquivos** de uma vez.
+- Traçado renderizado em **preto e branco** (grade cinza, faixa 110–160 bpm em
+  cinza claro, quebra em linhas de 6 min) e **exportação em PDF** via impressão.
+- Todo o processamento é **no dispositivo**; nenhum arquivo é enviado.
+
 ### PSGO — Gerador de HPMA e reconhecimento de datas
 
 - **Febre** melhor detalhada nas QPs que a referem (além da própria Febre):

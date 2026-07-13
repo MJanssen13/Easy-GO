@@ -1,4 +1,4 @@
-import { Activity, Stethoscope, Siren, Baby, Microscope, type LucideIcon } from "lucide-react";
+import { Activity, Stethoscope, Siren, Baby, Microscope, Wrench, type LucideIcon } from "lucide-react";
 
 export interface ModuleDef {
   slug: string;
@@ -9,6 +9,8 @@ export interface ModuleDef {
   /** Whether the module persists patient data (vs. a stateless generator). */
   stateful: boolean;
   accent: string;
+  /** Rótulo do selo no hub (sobrepõe o padrão "Armazena dados"/"Gera prontuário"). */
+  badge?: string;
 }
 
 export const MODULES: ModuleDef[] = [
@@ -61,6 +63,17 @@ export const MODULES: ModuleDef[] = [
     icon: Microscope,
     stateful: true,
     accent: "text-purple-600",
+  },
+  {
+    slug: "ferramentas",
+    label: "Ferramentas",
+    short: "Utilitários clínicos",
+    description:
+      "Utilitários que não armazenam dados. Inclui a leitura dos arquivos .trc do monitor fetal Edan (F2/F3) para gerar a cardiotocografia (FHR + TOCO) em PDF.",
+    icon: Wrench,
+    stateful: false,
+    accent: "text-slate-600",
+    badge: "Utilitário",
   },
 ];
 
