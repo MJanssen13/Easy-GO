@@ -254,6 +254,8 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       B("dias", "Início (há quantos dias)"),
       T(" dias de "),
       MANY("sx", ["febre", "tosse", "congestão nasal", "mialgia", "cefaleia"], { empty: "sintomas gripais" }, "Sintomas"),
+      // Detalha a febre quando marcada na lista de sintomas (checkbox "sx#febre").
+      COND("sx#febre", "1", [T(". A febre é"), ...feverDetail("febre")]),
       T(". Nega dispneia. "),
       ONE("contato", YN("Refere", "Nega"), "Contato com sintomáticos"),
       T(" contato com sintomáticos respiratórios. Nega dor torácica."),

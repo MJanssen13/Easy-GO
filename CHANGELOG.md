@@ -17,7 +17,8 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   `COM MELHORA AO …` (não mais `COM FATORES: MELHORA AO …`), com
   `sem fatores de piora`/`sem fatores de melhora` quando só um existe, e **nada**
   quando ambos são negados.
-- **Síndrome gripal**: removida a menção à **saturação de O₂**.
+- **Síndrome gripal**: removida a menção à **saturação de O₂**; quando **febre**
+  é marcada, ela também é detalhada (termometrada + padrão).
 - **Sorologias e laboratoriais**: a data é reconhecida por **dd/mm/aa** no início
   da linha, **ignorando a formatação ao redor** (traço, parênteses, `EXT`, `:`) —
   garante a ordenação por data mesmo com o marcador **EXT**.
