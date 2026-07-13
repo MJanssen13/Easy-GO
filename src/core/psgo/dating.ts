@@ -181,11 +181,11 @@ export function resolvePsgoDating(
     if (chosen?.tag === "US") dumLine += " - DISCORDANTE";
   }
 
-  // Linha IG US
+  // Linha IG US — ex.: "IG US (9 SEM E 3 DIAS EM 09/03/26): IG: 27 SEM E 2 DIAS"
   let igUsLine: string | null = null;
   if (scanDate && scanGa) {
     const now = gaFromUltrasound(scanDate, scanGa, ref);
-    igUsLine = `IG US: ${scanGa.weeks} sem e ${scanGa.days} d em ${fmtDate(scanDate)} (IG: ${now.weeks} sem e ${now.days} dias)`;
+    igUsLine = `IG US (${scanGa.weeks} sem e ${scanGa.days} dias em ${fmtDate(scanDate)}): IG: ${now.weeks} sem e ${now.days} dias`;
   }
 
   return {

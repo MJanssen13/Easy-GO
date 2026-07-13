@@ -39,7 +39,13 @@ export type HpmaNode =
   | { k: "single"; id: string; opts: HpmaOpt[]; q?: string }
   | ({ k: "multi"; id: string; opts: HpmaOpt[]; q?: string } & MultiCfg)
   /** Mostra `nodes` só quando a escolha única `ref` estiver no valor `eq`. */
-  | { k: "cond"; ref: string; eq: string; nodes: HpmaNode[] };
+  | { k: "cond"; ref: string; eq: string; nodes: HpmaNode[] }
+  /**
+   * Fatores de melhora e piora (dois campos independentes, cada um com "nega"):
+   * escreve "com melhora ao X, com piora ao Y" / "com melhora ao X, sem fatores
+   * de piora" / "com piora ao Y, sem fatores de melhora" — e nada se ambos negados.
+   */
+  | { k: "melpio"; melId: string; melNegId: string; pioId: string; pioNegId: string };
 
 // Construtores compactos (`q` = rótulo no modo formulário)
 const T = (v: string): HpmaNode => ({ k: "t", v });
@@ -68,6 +74,33 @@ const COND = (ref: string, eq: string, nodes: HpmaNode[]): HpmaNode => ({ k: "co
 const YN = (yes: string, no: string): HpmaOpt[] => [
   { label: "Sim", write: yes },
   { label: "Não", write: no },
+];
+/** Fatores de melhora/piora (dois campos independentes, cada um com "nega"). */
+const MELPIO = (melId = "mel", melNegId = "melneg", pioId = "pio", pioNegId = "pioneg"): HpmaNode => ({
+  k: "melpio",
+  melId,
+  melNegId,
+  pioId,
+  pioNegId,
+});
+
+/**
+ * Detalhamento da febre reutilizável (para QPs que a referem, além da própria
+ * Febre): termometrada (→ temperatura) e padrão. Os ids recebem um prefixo para
+ * não colidirem com outros campos do modelo. Usar dentro de COND(id, "Sim", …).
+ */
+const feverDetail = (p: string): HpmaNode[] => [
+  T(" "),
+  ONE(
+    `${p}Term`,
+    [
+      { label: "termometrada", reveal: [T(" (até "), B(`${p}Temp`, "Temperatura máxima (°C)"), T("°C)")] },
+      { label: "não termometrada" },
+    ],
+    "Febre termometrada?",
+  ),
+  T(", de padrão "),
+  ONE(`${p}Pad`, ["contínuo", "intermitente"], "Padrão da febre"),
 ];
 
 // --- Templates ---
@@ -101,17 +134,7 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       T(". "),
       ONE("febre", YN("Refere", "Nega"), "Febre"),
       T(" febre"),
-      COND("febre", "Sim", [
-        T(" "),
-        ONE(
-          "febret",
-          [
-            { label: "termometrada", reveal: [T(" ("), B("temp", "Temperatura (°C)"), T("º)")] },
-            { label: "não termometrada" },
-          ],
-          "Febre termometrada?",
-        ),
-      ]),
+      COND("febre", "Sim", feverDetail("febre")),
       T(". "),
       ONE("muco", YN("Relata", "Nega"), "Muco ou sangue nas fezes"),
       T(" muco ou sangue nas fezes. "),
@@ -185,13 +208,15 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
         ],
         "Irradiação",
       ),
-      T(", "),
-      ONE("fat", ["sem fatores", "com fatores"], "Fatores de melhora/piora"),
-      COND("fat", "sem fatores", [T(" de melhora ou piora")]),
-      COND("fat", "com fatores", [T(": melhora ao "), B("mel", "Melhora ao", true), T(" e piora ao "), B("pio", "Piora ao", true)]),
+      MELPIO(),
       T(". "),
-      ONE("rel", YN("Refere", "Nega"), "Relação com esforço/micção/evacuação"),
-      T(" relação com esforço, micção ou evacuação."),
+      MANY(
+        "rel",
+        ["esforço", "micção", "evacuação"],
+        { posPre: "Refere relação com ", negMid: "; nega relação com ", negAlone: "Nega relação com " },
+        "Relação com esforço/micção/evacuação",
+      ),
+      T("."),
     ],
   },
   {
@@ -229,9 +254,9 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       B("dias", "Início (há quantos dias)"),
       T(" dias de "),
       MANY("sx", ["febre", "tosse", "congestão nasal", "mialgia", "cefaleia"], { empty: "sintomas gripais" }, "Sintomas"),
-      T(". Nega dispneia; saturação de O2 em ar ambiente de "),
-      B("sat", "Saturação O2 (%)"),
-      T("%. "),
+      // Detalha a febre quando marcada na lista de sintomas (checkbox "sx#febre").
+      COND("sx#febre", "1", [T(". A febre é"), ...feverDetail("febre")]),
+      T(". Nega dispneia. "),
       ONE("contato", YN("Refere", "Nega"), "Contato com sintomáticos"),
       T(" contato com sintomáticos respiratórios. Nega dor torácica."),
     ],
@@ -255,7 +280,9 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("desid", YN("Refere", "Nega"), "Sinais de desidratação"),
       T(" sinais de desidratação (boca seca, tontura, oligúria). "),
       ONE("febre", YN("Relata", "Nega"), "Febre"),
-      T(" febre."),
+      T(" febre"),
+      COND("febre", "Sim", feverDetail("febre")),
+      T("."),
     ],
   },
   {
@@ -400,11 +427,44 @@ export const HPMA_TEMPLATES: HpmaTemplate[] = [
       ONE("lombar", YN("Refere", "Nega"), "Dor lombar"),
       T(" dor lombar. "),
       ONE("febre", YN("Refere", "Nega"), "Febre"),
-      T(" febre. "),
+      T(" febre"),
+      COND("febre", "Sim", feverDetail("febre")),
+      T(". "),
       ONE("hema", YN("Refere", "Nega"), "Hematúria"),
       T(" hematúria. "),
       ONE("corr", YN("Refere", "Nega"), "Corrimento vaginal"),
       T(" corrimento vaginal."),
+    ],
+  },
+  {
+    id: "pielonefrite",
+    label: "Pielonefrite",
+    covers: ["urinario"],
+    mode: "form",
+    nodes: [
+      T("dor lombar "),
+      ONE("lado", ["à direita", "à esquerda", "bilateral"], "Lado"),
+      T(", com início há "),
+      B("dias", "Início (há quantos dias)"),
+      T(" dias, "),
+      ONE("febre", YN("associada a", "sem"), "Febre"),
+      T(" febre"),
+      COND("febre", "Sim", feverDetail("febre")),
+      T(". "),
+      ONE("calafrios", YN("Refere", "Nega"), "Calafrios"),
+      T(" calafrios. "),
+      ONE("urin", YN("Refere", "Nega"), "Sintomas urinários"),
+      T(" sintomas urinários"),
+      COND("urin", "Sim", [
+        T(" ("),
+        MANY("urinm", ["disúria", "polaciúria", "urgência", "hematúria"], {}, "Quais"),
+        T(")"),
+      ]),
+      T(". "),
+      ONE("nv", YN("Associa", "Nega"), "Náuseas e vômitos"),
+      T(" náuseas/vômitos. "),
+      ONE("lombalgia", YN("Refere", "Nega"), "Dor à punho-percussão lombar (referida)"),
+      T(" dor à punho-percussão lombar."),
     ],
   },
   {
@@ -573,6 +633,16 @@ function asmNode(n: HpmaNode, prefix: string, vals: Record<string, string>): str
   }
   if (n.k === "cond") {
     return vals[`${prefix}.${n.ref}`] === n.eq ? asmNodes(n.nodes, prefix, vals) : "";
+  }
+  if (n.k === "melpio") {
+    const melNeg = isOn(vals, `${prefix}.${n.melNegId}`);
+    const pioNeg = isOn(vals, `${prefix}.${n.pioNegId}`);
+    const mel = val(vals, `${prefix}.${n.melId}`) || "___";
+    const pio = val(vals, `${prefix}.${n.pioId}`) || "___";
+    if (!melNeg && !pioNeg) return `, com melhora ao ${mel}, com piora ao ${pio}`;
+    if (!melNeg && pioNeg) return `, com melhora ao ${mel}, sem fatores de piora`;
+    if (melNeg && !pioNeg) return `, com piora ao ${pio}, sem fatores de melhora`;
+    return "";
   }
   // multi
   const wr = (x: HpmaOpt) => x.write ?? x.label;

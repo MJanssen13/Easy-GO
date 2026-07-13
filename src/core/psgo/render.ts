@@ -13,6 +13,8 @@ import { renderGyneco } from "./gyneco-exam";
 import { renderSerologies } from "./serology";
 import { renderImaging } from "./imaging";
 import { renderPsgoCtgs } from "./ctg";
+import { multipleGestationPhrase } from "./multiple";
+import { sortDatedText } from "./dated-lines";
 import { parseDecimal } from "@/lib/num";
 
 function dateBR(iso?: string | null): string {
@@ -105,7 +107,13 @@ export function psgoHd(form: PsgoForm): string {
   const hdDiagnoses = dedup([...cmb, ...hdFlags]);
 
   if (form.pregnant) {
-    const gaPart = dating.gaPhrase ? `GESTAÇÃO DE ${dating.gaPhrase}` : "GESTAÇÃO DE";
+    // Gestação múltipla: "GESTAÇÃO TRIGEMELAR TRICORIÔNICA TRIAMNIÓTICA (TC/TA) DE …"
+    const mult =
+      form.fetuses === "multiple"
+        ? multipleGestationPhrase(form.multiplicity, form.chorionAmnion, { withAbbr: true })
+        : "";
+    const gestLabel = mult ? `GESTAÇÃO ${mult}` : "GESTAÇÃO";
+    const gaPart = dating.gaPhrase ? `${gestLabel} DE ${dating.gaPhrase}` : `${gestLabel} DE`;
     const method = dating.methodTag ? ` (${dating.methodTag})` : "";
     const hdExtra = hdDiagnoses.length > 0 ? ` + ${hdDiagnoses.join(" + ")}` : "";
     return `${gaPart}${method}${hdExtra}`;
@@ -255,9 +263,10 @@ export function renderPsgo(form: PsgoForm): string {
   }
   push(2, ...examBlock);
 
-  // Laboratoriais
+  // Laboratoriais (linhas datadas "-(dd/mm/aa): …" saem em ordem cronológica)
   const labBlock = ["EXAMES LABORATORIAIS:"];
-  if (form.labs.trim()) labBlock.push(form.labs.trim());
+  const labs = sortDatedText(form.labs);
+  if (labs.trim()) labBlock.push(labs);
   push(2, ...labBlock);
 
   // Exames de imagem (seção própria, em quadro; o quadro USG é obstétrico).
@@ -274,7 +283,14 @@ export function renderPsgo(form: PsgoForm): string {
         }),
       )
     : form.imagingExams;
-  const imaging = form.pregnant ? renderImaging(imagingExams) : "";
+  // Frase da gestação múltipla (sem sigla) p/ o cabeçalho dos grupos de USG.
+  const multiplePhrase =
+    form.pregnant && form.fetuses === "multiple"
+      ? multipleGestationPhrase(form.multiplicity, form.chorionAmnion, { withAbbr: false })
+      : "";
+  const imaging = form.pregnant
+    ? renderImaging(imagingExams, { multiplePhrase, otherImaging: form.otherImaging })
+    : renderImaging([], { otherImaging: form.otherImaging });
   if (imaging.trim()) {
     push(2, "EXAMES DE IMAGEM (USG):", imaging);
   } else {

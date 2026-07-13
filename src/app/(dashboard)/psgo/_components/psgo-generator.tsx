@@ -70,11 +70,19 @@ import { EXAM_SYSTEMS, buildNormalLine } from "@/core/psgo/exam";
 import { SEROLOGY_ANALYTES, VDRL_TITERS } from "@/core/psgo/serology";
 import {
   renderImagingExam,
+  renderImagingGroup,
+  groupImaging,
   examCpr,
   examCentiles,
   imagingWarnings,
   type ImagingExam,
 } from "@/core/psgo/imaging";
+import {
+  MULTIPLICITY_COUNT,
+  CHORION_OPTIONS,
+  multipleGestationPhrase,
+  type Multiplicity,
+} from "@/core/psgo/multiple";
 import { parseDecimal } from "@/lib/num";
 import { readShiftTeam, formatShiftTeamBlock, formatShiftTeamInline, EMPTY_TEAM } from "@/lib/shift-team";
 import type { TeamInput } from "@/core/prontuario/preparto-evolution";
@@ -305,14 +313,14 @@ function Section({
   );
 }
 
-/** Botão para abrir o LabFlow (laboratório) em nova aba — teal da marca LabFlow. */
+/** Botão único para abrir o LabFlow (laboratório) em nova aba — gradiente teal da marca. */
 function LabflowButton() {
   return (
     <a
       href="https://labflowai.vercel.app/"
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-xl bg-[#039a8a] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0a7b71] active:scale-[0.98]"
+      className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(105deg,hsl(176_88%_22%),hsl(174_92%_30%)_52%,hsl(172_74%_41%))] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-[0.98]"
     >
       <FlaskConical className="h-4 w-4" />
       Acessar LabFlow
@@ -440,6 +448,19 @@ export function PsgoGenerator({
     () => Object.fromEntries(resolvedExams.map((e) => [e.id, examCentiles(e)])),
     [resolvedExams],
   );
+  // Colunas do quadro de USG agrupadas por gestação múltipla (fetos com groupId).
+  const imagingGroups = useMemo(() => groupImaging(form.imagingExams), [form.imagingExams]);
+  // Chave do grupo de datação (o do 1º exame) — destacado como coluna de datação.
+  const datingGroupKey =
+    form.imagingExams.length > 0
+      ? (form.imagingExams[0].groupId ?? form.imagingExams[0].id)
+      : null;
+  const isDatingExam = (e: ImagingExam) => (e.groupId ?? e.id) === datingGroupKey;
+  // Frase da gestação múltipla (sem sigla) para o cabeçalho dos grupos de USG.
+  const multipleUsgPhrase =
+    form.fetuses === "multiple"
+      ? multipleGestationPhrase(form.multiplicity, form.chorionAmnion, { withAbbr: false })
+      : "";
   const parityView = useMemo(
     () => formatParity(form.priorPregnancies, form.pregnant),
     [form.priorPregnancies, form.pregnant],
@@ -568,13 +589,45 @@ export function PsgoGenerator({
 
   // Exames de imagem
   function addImaging() {
-    update({ imagingExams: [...form.imagingExams, { id: uid() }] });
+    // Gestação múltipla: abre 2/3 colunas (uma por feto), com groupId comum e a
+    // data compartilhada. Novos exames vêm como "externo" por padrão.
+    const count =
+      form.fetuses === "multiple" && form.multiplicity
+        ? MULTIPLICITY_COUNT[form.multiplicity]
+        : 1;
+    if (count > 1) {
+      const gid = uid();
+      const group: ImagingExam[] = Array.from({ length: count }, (_, i) => ({
+        id: uid(),
+        external: true,
+        groupId: gid,
+        fetusIndex: i + 1,
+      }));
+      update({ imagingExams: [...form.imagingExams, ...group] });
+    } else {
+      update({ imagingExams: [...form.imagingExams, { id: uid(), external: true }] });
+    }
   }
   function updateImaging(id: string, patch: Partial<ImagingExam>) {
     update({ imagingExams: form.imagingExams.map((e) => (e.id === id ? { ...e, ...patch } : e)) });
   }
+  /** Atualiza um campo compartilhado (data/IG/origem) em todos os fetos do grupo. */
+  function updateImagingGroup(groupKey: string, patch: Partial<ImagingExam>) {
+    update({
+      imagingExams: form.imagingExams.map((e) =>
+        (e.groupId ?? e.id) === groupKey ? { ...e, ...patch } : e,
+      ),
+    });
+  }
   function removeImaging(id: string) {
-    update({ imagingExams: form.imagingExams.filter((e) => e.id !== id) });
+    // Remove o exame; se for de um grupo (gestação múltipla), remove o grupo todo.
+    const target = form.imagingExams.find((e) => e.id === id);
+    const key = target?.groupId;
+    update({
+      imagingExams: form.imagingExams.filter((e) =>
+        key ? e.groupId !== key : e.id !== id,
+      ),
+    });
   }
   function numOrUndef(v: string): number | undefined {
     return v === "" ? undefined : Number(v);
@@ -770,6 +823,46 @@ export function PsgoGenerator({
           </span>
         );
       }
+      if (n.k === "melpio") {
+        const melNegKey = `${prefix}.${n.melNegId}`;
+        const pioNegKey = `${prefix}.${n.pioNegId}`;
+        const melNeg = hpmaVals[melNegKey] === "1";
+        const pioNeg = hpmaVals[pioNegKey] === "1";
+        return (
+          <span key={k} className="mx-0.5 inline-flex flex-wrap items-center gap-1 align-middle">
+            <span className="text-xs text-muted-foreground">melhora:</span>
+            {!melNeg && (
+              <input
+                value={hpmaVals[`${prefix}.${n.melId}`] ?? ""}
+                onChange={(e) => setHpmaVal(`${prefix}.${n.melId}`, e.target.value)}
+                className={hpmaInputCls}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setHpmaVal(melNegKey, melNeg ? "" : "1")}
+              className={hpmaChipCls(melNeg)}
+            >
+              Nega
+            </button>
+            <span className="text-xs text-muted-foreground">piora:</span>
+            {!pioNeg && (
+              <input
+                value={hpmaVals[`${prefix}.${n.pioId}`] ?? ""}
+                onChange={(e) => setHpmaVal(`${prefix}.${n.pioId}`, e.target.value)}
+                className={hpmaInputCls}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setHpmaVal(pioNegKey, pioNeg ? "" : "1")}
+              className={hpmaChipCls(pioNeg)}
+            >
+              Nega
+            </button>
+          </span>
+        );
+      }
       // multi
       const base = `${prefix}.${n.id}`;
       return (
@@ -834,6 +927,47 @@ export function PsgoGenerator({
           </Field>,
         );
         if (selOpt?.reveal) items.push(...hpmaFormFields(selOpt.reveal, prefix));
+        continue;
+      }
+      if (n.k === "melpio") {
+        const melKey = `${prefix}.${n.melId}`;
+        const melNegKey = `${prefix}.${n.melNegId}`;
+        const pioKey = `${prefix}.${n.pioId}`;
+        const pioNegKey = `${prefix}.${n.pioNegId}`;
+        const melNeg = hpmaVals[melNegKey] === "1";
+        const pioNeg = hpmaVals[pioNegKey] === "1";
+        items.push(
+          <Field key={melKey} label="Fatores de melhora">
+            <div className="flex items-center gap-2">
+              {!melNeg && (
+                <Input
+                  className="w-44"
+                  placeholder="melhora ao…"
+                  value={hpmaVals[melKey] ?? ""}
+                  onChange={(e) => setHpmaVal(melKey, e.target.value)}
+                />
+              )}
+              <Chip active={melNeg} onClick={() => setHpmaVal(melNegKey, melNeg ? "" : "1")}>
+                Nega
+              </Chip>
+            </div>
+          </Field>,
+          <Field key={pioKey} label="Fatores de piora">
+            <div className="flex items-center gap-2">
+              {!pioNeg && (
+                <Input
+                  className="w-44"
+                  placeholder="piora ao…"
+                  value={hpmaVals[pioKey] ?? ""}
+                  onChange={(e) => setHpmaVal(pioKey, e.target.value)}
+                />
+              )}
+              <Chip active={pioNeg} onClick={() => setHpmaVal(pioNegKey, pioNeg ? "" : "1")}>
+                Nega
+              </Chip>
+            </div>
+          </Field>,
+        );
         continue;
       }
       // multi
@@ -1312,21 +1446,6 @@ export function PsgoGenerator({
           open={usgOpen}
           onOpenChange={setUsgOpen}
           contentClassName="space-y-3"
-          headerExtra={
-            form.pregnant ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setUsgOpen(true);
-                  addImaging();
-                }}
-              >
-                <Plus className="h-4 w-4" /> USG
-              </Button>
-            ) : undefined
-          }
         >
             {/* ---- Datação / dados obstétricos ---- */}
             {/* DUM · DUM incerta · datação na mesma linha */}
@@ -1462,7 +1581,12 @@ export function PsgoGenerator({
                 <Label className="text-xs">Nº de fetos</Label>
                 <Segmented
                   value={form.fetuses}
-                  onChange={(v) => update({ fetuses: v })}
+                  onChange={(v) =>
+                    update({
+                      fetuses: v,
+                      ...(v !== "multiple" ? { multiplicity: "", chorionAmnion: "" } : {}),
+                    })
+                  }
                   options={[
                     { value: "single", label: "Único" },
                     { value: "multiple", label: "Múltiplos" },
@@ -1494,6 +1618,38 @@ export function PsgoGenerator({
                 />
               </div>
             </div>
+            {form.fetuses === "multiple" && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Gemelaridade</Label>
+                  <Segmented
+                    value={form.multiplicity}
+                    onChange={(v) => update({ multiplicity: v, chorionAmnion: "" })}
+                    options={[
+                      { value: "gemelar", label: "Gemelar (2 fetos)" },
+                      { value: "trigemelar", label: "Trigemelar (3 fetos)" },
+                    ]}
+                  />
+                </div>
+                {form.multiplicity && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Corionicidade e amnionicidade</Label>
+                    <select
+                      className={`${selectClass} max-w-full`}
+                      value={form.chorionAmnion}
+                      onChange={(e) => update({ chorionAmnion: e.target.value })}
+                    >
+                      <option value="">—</option>
+                      {CHORION_OPTIONS[form.multiplicity].map((o) => (
+                        <option key={o.abbr} value={o.abbr}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
             {robsonMissing.length > 0 && (
               <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
                 Robson incompleto — faltam: {robsonMissing.join(", ")}.
@@ -1505,6 +1661,12 @@ export function PsgoGenerator({
             {/* ---- Exames de imagem (USG) — só gestantes ---- */}
             {form.pregnant && (
             <>
+            <div className="flex items-center justify-between gap-2 border-t pt-3">
+              <p className="text-sm font-semibold">Exames de imagem</p>
+              <Button type="button" size="sm" variant="outline" onClick={addImaging}>
+                <Plus className="h-4 w-4" /> USG
+              </Button>
+            </div>
             {form.imagingExams.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Adicione um USG. Percentis de CIRC. CEFÁLICA/PESO/CIRC. ABDOMINAL pela Hadlock;
@@ -1512,65 +1674,84 @@ export function PsgoGenerator({
               </p>
             ) : (
               <div className="overflow-x-auto">
-                {/* border-separate p/ permitir cantos arredondados; a 1ª coluna de
-                    exame (nth-child(2)) recebe um destaque cinza-claro e arredondado
-                    (é a coluna de datação). w-auto p/ as colunas manterem largura fixa
-                    (não esticam com poucos exames). A 1ª coluna (parâmetros) fica
-                    congelada (sticky) na rolagem horizontal. As linhas de seção
-                    (colSpan) não são atingidas por nth-child(2). */}
-                <table
-                  className={`w-auto border-separate border-spacing-0 text-xs [&_th:nth-child(2)]:bg-muted/50 [&_td:nth-child(2)]:bg-muted/50 [&_thead_th:nth-child(2)]:rounded-t-lg [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-20 [&_th:first-child]:border-r [&_th:first-child]:bg-background [&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:z-10 [&_td:first-child]:border-r [&_td:first-child]:bg-background ${
-                    showDopplerUsg
-                      ? "[&_tbody_tr:last-child_td:nth-child(2)]:rounded-b-lg"
-                      : "[&_tbody_tr:nth-last-child(2)_td:nth-child(2)]:rounded-b-lg"
-                  }`}
-                >
+                {/* border-separate p/ cantos arredondados; a coluna (ou grupo) de
+                    datação recebe destaque cinza-claro. Gestação múltipla: a data,
+                    a IG e a origem são células mescladas (colSpan) por grupo; a
+                    biometria é por feto. A 1ª coluna (parâmetros) fica congelada. */}
+                <table className="w-auto border-separate border-spacing-0 text-xs [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-20 [&_th:first-child]:border-r [&_th:first-child]:bg-background [&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:z-10 [&_td:first-child]:border-r [&_td:first-child]:bg-background">
                   <thead>
                     <tr>
-                      <th className="border-b p-1 text-left font-medium text-muted-foreground">
+                      <th className="border-b p-0.5 text-left font-medium text-muted-foreground">
                         USG
                       </th>
-                      {form.imagingExams.map((e, i) => (
-                        <th key={e.id} className="border-b p-1 align-top">
-                          <div className="flex items-center justify-center gap-1">
-                            <DateBRInput
-                              className="h-7 w-28 text-xs"
-                              value={e.date ?? ""}
-                              onChange={(iso) => updateImaging(e.id, { date: iso })}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImaging(e.id)}
-                              className="text-destructive"
-                              title="Remover USG"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                          {i === 0 && (
-                            <div className="mt-1 flex justify-center">
-                              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground">
-                                Datação
-                              </span>
+                      {imagingGroups.map((g) => {
+                        const first = g.exams[0];
+                        const isDG = g.key === datingGroupKey;
+                        return (
+                          <th
+                            key={g.key}
+                            colSpan={g.exams.length}
+                            className={`border-b p-0.5 align-top ${isDG ? "rounded-t-lg bg-muted/50" : ""}`}
+                          >
+                            <div className="flex items-center justify-center gap-1">
+                              <DateBRInput
+                                className="h-6 w-28 text-xs"
+                                value={first.date ?? ""}
+                                onChange={(iso) => updateImagingGroup(g.key, { date: iso })}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeImaging(first.id)}
+                                className="text-destructive"
+                                title="Remover USG"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
-                          )}
-                        </th>
-                      ))}
+                            {isDG && (
+                              <div className="mt-0.5 flex justify-center">
+                                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground">
+                                  Datação
+                                </span>
+                              </div>
+                            )}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
+                    {form.imagingExams.some((e) => e.groupId) && (
+                      <tr>
+                        <td className="border-b p-0.5 font-medium">Feto</td>
+                        {form.imagingExams.map((e) => (
+                          <td
+                            key={e.id}
+                            className={`border-b p-0.5 text-center text-[10px] font-semibold text-muted-foreground ${isDatingExam(e) ? "bg-muted/50" : ""}`}
+                          >
+                            {e.groupId ? `FETO ${e.fetusIndex}` : ""}
+                          </td>
+                        ))}
+                      </tr>
+                    )}
                     <tr>
-                      <td className="border-b p-1 font-medium">IG (sem / dias)</td>
-                      {form.imagingExams.map((e) => {
-                        // O USG de datação mantém a IG digitada; os demais, com
-                        // data e datação definida, têm a IG automática (pela data).
-                        const isDating = datingCtx.datingExamId === e.id;
-                        const autoIg = !isDating && datingCtx.edd != null && !!e.date;
-                        const r = resolvedById[e.id];
+                      <td className="border-b p-0.5 font-medium">IG (sem / dias)</td>
+                      {imagingGroups.map((g) => {
+                        const first = g.exams[0];
+                        const isDG = g.key === datingGroupKey;
+                        // O USG de datação mantém a IG digitada; os demais, com data
+                        // e datação definida, têm a IG automática (pela data).
+                        const isDating = datingCtx.datingExamId === first.id;
+                        const autoIg = !isDating && datingCtx.edd != null && !!first.date;
+                        const r = resolvedById[first.id];
                         return (
-                          <td key={e.id} className="border-b p-1">
+                          <td
+                            key={g.key}
+                            colSpan={g.exams.length}
+                            className={`border-b p-0.5 ${isDG ? "bg-muted/50" : ""}`}
+                          >
                             {autoIg ? (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center justify-center gap-1">
                                 <span className="font-medium tabular-nums">
                                   {r && r.gaWeeks != null
                                     ? `${r.gaWeeks} sem${r.gaDays ? ` ${r.gaDays} dias` : ""}`
@@ -1579,20 +1760,20 @@ export function PsgoGenerator({
                                 <span className="text-[10px] text-muted-foreground">auto</span>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center justify-center gap-1">
                                 <Input
                                   type="number"
-                                  className="h-7 w-14 text-xs"
+                                  className="h-6 w-14 text-xs"
                                   placeholder="sem"
-                                  value={e.gaWeeks ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { gaWeeks: numOrUndef(ev.target.value) })}
+                                  value={first.gaWeeks ?? ""}
+                                  onChange={(ev) => updateImagingGroup(g.key, { gaWeeks: numOrUndef(ev.target.value) })}
                                 />
                                 <Input
                                   type="number"
-                                  className="h-7 w-14 text-xs"
+                                  className="h-6 w-14 text-xs"
                                   placeholder="d"
-                                  value={e.gaDays ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { gaDays: numOrUndef(ev.target.value) })}
+                                  value={first.gaDays ?? ""}
+                                  onChange={(ev) => updateImagingGroup(g.key, { gaDays: numOrUndef(ev.target.value) })}
                                 />
                                 {isDating && (
                                   <span className="text-[10px] text-muted-foreground">datação</span>
@@ -1604,42 +1785,52 @@ export function PsgoGenerator({
                       })}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">Origem</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
-                          <div className="inline-flex overflow-hidden rounded-full border text-[10px] font-medium">
-                            <button
-                              type="button"
-                              onClick={() => updateImaging(e.id, { external: true })}
-                              className={`px-2 py-0.5 transition-colors ${
-                                e.external
-                                  ? "bg-primary text-primary-foreground"
-                                  : "text-muted-foreground hover:bg-muted"
-                              }`}
-                            >
-                              Externo
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => updateImaging(e.id, { external: false })}
-                              className={`border-l px-2 py-0.5 transition-colors ${
-                                !e.external
-                                  ? "bg-primary text-primary-foreground"
-                                  : "text-muted-foreground hover:bg-muted"
-                              }`}
-                            >
-                              Interno
-                            </button>
-                          </div>
-                        </td>
-                      ))}
+                      <td className="border-b p-0.5 font-medium">Origem</td>
+                      {imagingGroups.map((g) => {
+                        const first = g.exams[0];
+                        const isDG = g.key === datingGroupKey;
+                        return (
+                          <td
+                            key={g.key}
+                            colSpan={g.exams.length}
+                            className={`border-b p-0.5 ${isDG ? "bg-muted/50" : ""}`}
+                          >
+                            <div className="flex justify-center">
+                              <div className="inline-flex overflow-hidden rounded-full border text-[10px] font-medium">
+                                <button
+                                  type="button"
+                                  onClick={() => updateImagingGroup(g.key, { external: true })}
+                                  className={`px-2 py-0.5 transition-colors ${
+                                    first.external
+                                      ? "bg-primary text-primary-foreground"
+                                      : "text-muted-foreground hover:bg-muted"
+                                  }`}
+                                >
+                                  Externo
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateImagingGroup(g.key, { external: false })}
+                                  className={`border-l px-2 py-0.5 transition-colors ${
+                                    !first.external
+                                      ? "bg-primary text-primary-foreground"
+                                      : "text-muted-foreground hover:bg-muted"
+                                  }`}
+                                >
+                                  Interno
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      })}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">Apresentação</td>
+                      <td className="border-b p-0.5 font-medium">Apresentação</td>
                       {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
+                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                           <select
-                            className={`${selectClass} h-7 w-28 text-xs`}
+                            className={`${selectClass} h-6 w-28 text-xs`}
                             value={e.presentation ?? ""}
                             onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
                           >
@@ -1652,12 +1843,12 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">Peso (g)</td>
+                      <td className="border-b p-0.5 font-medium">Peso (g)</td>
                       {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
+                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                           <div className="flex items-center gap-1">
                             <Input
-                              className="h-7 w-16 text-xs"
+                              className="h-6 w-16 text-xs"
                               inputMode="numeric"
                               value={e.efw ?? ""}
                               onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
@@ -1670,12 +1861,12 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">Circ. abd. (mm)</td>
+                      <td className="border-b p-0.5 font-medium">Circ. abd. (mm)</td>
                       {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
+                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                           <div className="flex items-center gap-1">
                             <Input
-                              className="h-7 w-16 text-xs"
+                              className="h-6 w-16 text-xs"
                               inputMode="numeric"
                               value={e.ac ?? ""}
                               onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
@@ -1688,14 +1879,11 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td
-                        colSpan={form.imagingExams.length + 1}
-                        className="border-b !bg-muted/30 p-0"
-                      >
+                      <td colSpan={form.imagingExams.length + 1} className="border-b !bg-muted/30 p-0">
                         <button
                           type="button"
                           onClick={() => setShowEarlyUsg((v) => !v)}
-                          className="flex w-full items-center gap-1 px-1 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
+                          className="flex w-full items-center gap-1 px-1 py-1 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
                           aria-expanded={showEarlyUsg}
                         >
                           <ChevronDown
@@ -1709,11 +1897,11 @@ export function PsgoGenerator({
                     {showEarlyUsg && (
                       <>
                         <tr>
-                          <td className="border-b p-1 font-medium">CCN (mm)</td>
+                          <td className="border-b p-0.5 font-medium">CCN (mm)</td>
                           {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
+                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                               <Input
-                                className="h-7 w-16 text-xs"
+                                className="h-6 w-16 text-xs"
                                 inputMode="decimal"
                                 value={e.crl ?? ""}
                                 onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
@@ -1722,11 +1910,11 @@ export function PsgoGenerator({
                           ))}
                         </tr>
                         <tr>
-                          <td className="border-b p-1 font-medium">SG (mm)</td>
+                          <td className="border-b p-0.5 font-medium">SG (mm)</td>
                           {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
+                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                               <Input
-                                className="h-7 w-16 text-xs"
+                                className="h-6 w-16 text-xs"
                                 inputMode="decimal"
                                 value={e.gsac ?? ""}
                                 onChange={(ev) => updateImaging(e.id, { gsac: ev.target.value })}
@@ -1735,11 +1923,11 @@ export function PsgoGenerator({
                           ))}
                         </tr>
                         <tr>
-                          <td className="border-b p-1 font-medium">VV (mm)</td>
+                          <td className="border-b p-0.5 font-medium">VV (mm)</td>
                           {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
+                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                               <Input
-                                className="h-7 w-16 text-xs"
+                                className="h-6 w-16 text-xs"
                                 inputMode="decimal"
                                 value={e.yolkSac ?? ""}
                                 onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
@@ -1750,14 +1938,14 @@ export function PsgoGenerator({
                       </>
                     )}
                     <tr>
-                      <td className="border-b p-1 font-medium">BCF</td>
+                      <td className="border-b p-0.5 font-medium">BCF</td>
                       {form.imagingExams.map((e) => {
                         const absent = e.fhr === "AUSENTE";
                         return (
-                          <td key={e.id} className="border-b p-1">
+                          <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                             <div className="flex items-center gap-1">
                               <Input
-                                className="h-7 w-16 text-xs"
+                                className="h-6 w-16 text-xs"
                                 inputMode="numeric"
                                 placeholder="bpm"
                                 disabled={absent}
@@ -1766,9 +1954,7 @@ export function PsgoGenerator({
                               />
                               <button
                                 type="button"
-                                onClick={() =>
-                                  updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })
-                                }
+                                onClick={() => updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })}
                                 className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
                                   absent
                                     ? "border-rose-400 bg-rose-50 text-rose-600"
@@ -1784,12 +1970,12 @@ export function PsgoGenerator({
                       })}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">CC (mm)</td>
+                      <td className="border-b p-0.5 font-medium">CC (mm)</td>
                       {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
+                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                           <div className="flex items-center gap-1">
                             <Input
-                              className="h-7 w-16 text-xs"
+                              className="h-6 w-16 text-xs"
                               inputMode="decimal"
                               value={e.hc ?? ""}
                               onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
@@ -1802,12 +1988,12 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">Placenta / grau</td>
+                      <td className="border-b p-0.5 font-medium">Placenta / grau</td>
                       {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
+                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                           <div className="flex items-center gap-1">
                             <select
-                              className={`${selectClass} h-7 !w-24 px-2 text-xs`}
+                              className={`${selectClass} h-6 !w-24 px-2 text-xs`}
                               value={e.placentaSite ?? ""}
                               onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
                             >
@@ -1820,7 +2006,7 @@ export function PsgoGenerator({
                               <option value="PRÉVIA">Prévia</option>
                             </select>
                             <select
-                              className={`${selectClass} h-7 !w-14 px-2 text-xs`}
+                              className={`${selectClass} h-6 !w-14 px-2 text-xs`}
                               value={e.placentaGrade ?? ""}
                               onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
                             >
@@ -1835,12 +2021,15 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td className="border-b p-1 font-medium">MBV / ILA (cm)</td>
+                      <td className="border-b p-0.5 font-medium">MBV / ILA (cm)</td>
                       {form.imagingExams.map((e) => (
-                        <td key={e.id} className="border-b p-1">
+                        <td
+                          key={e.id}
+                          className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""} ${!showDopplerUsg && isDatingExam(e) ? "rounded-b-lg" : ""}`}
+                        >
                           <div className="flex items-center gap-1">
                             <Input
-                              className="h-7 w-14 text-xs"
+                              className="h-6 w-14 text-xs"
                               inputMode="decimal"
                               placeholder="MBV"
                               value={e.mbv ?? ""}
@@ -1848,7 +2037,7 @@ export function PsgoGenerator({
                             />
                             <span className="text-[10px] text-muted-foreground">/</span>
                             <Input
-                              className="h-7 w-14 text-xs"
+                              className="h-6 w-14 text-xs"
                               inputMode="decimal"
                               placeholder="ILA"
                               value={e.ila ?? ""}
@@ -1859,14 +2048,11 @@ export function PsgoGenerator({
                       ))}
                     </tr>
                     <tr>
-                      <td
-                        colSpan={form.imagingExams.length + 1}
-                        className="border-b !bg-muted/30 p-0"
-                      >
+                      <td colSpan={form.imagingExams.length + 1} className="border-b !bg-muted/30 p-0">
                         <button
                           type="button"
                           onClick={() => setShowDopplerUsg((v) => !v)}
-                          className="flex w-full items-center gap-1 px-1 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
+                          className="flex w-full items-center gap-1 px-1 py-1 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
                           aria-expanded={showDopplerUsg}
                         >
                           <ChevronDown
@@ -1882,12 +2068,12 @@ export function PsgoGenerator({
                     {showDopplerUsg && (
                       <>
                         <tr>
-                          <td className="border-b p-1 font-medium">IP AUmb</td>
+                          <td className="border-b p-0.5 font-medium">IP AUmb</td>
                           {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
+                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                               <div className="flex items-center gap-1">
                                 <Input
-                                  className="h-7 w-16 text-xs"
+                                  className="h-6 w-16 text-xs"
                                   inputMode="decimal"
                                   value={e.uaPi ?? ""}
                                   onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
@@ -1900,12 +2086,12 @@ export function PsgoGenerator({
                           ))}
                         </tr>
                         <tr>
-                          <td className="border-b p-1 font-medium">IP ACM</td>
+                          <td className="border-b p-0.5 font-medium">IP ACM</td>
                           {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
+                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                               <div className="flex items-center gap-1">
                                 <Input
-                                  className="h-7 w-16 text-xs"
+                                  className="h-6 w-16 text-xs"
                                   inputMode="decimal"
                                   value={e.mcaPi ?? ""}
                                   onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
@@ -1918,11 +2104,11 @@ export function PsgoGenerator({
                           ))}
                         </tr>
                         <tr>
-                          <td className="border-b p-1 font-medium">RCP</td>
+                          <td className="border-b p-0.5 font-medium">RCP</td>
                           {form.imagingExams.map((e) => {
                             const rcp = examCpr(e);
                             return (
-                              <td key={e.id} className="border-b p-1">
+                              <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
                                 <div className="flex items-center gap-1">
                                   <span className="font-medium tabular-nums">
                                     {rcp != null ? rcp.toFixed(3).replace(".", ",") : "—"}
@@ -1936,12 +2122,15 @@ export function PsgoGenerator({
                           })}
                         </tr>
                         <tr>
-                          <td className="border-b p-1 font-medium">IP A. uterina</td>
+                          <td className="border-b p-0.5 font-medium">IP A. uterina</td>
                           {form.imagingExams.map((e) => (
-                            <td key={e.id} className="border-b p-1">
+                            <td
+                              key={e.id}
+                              className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50 rounded-b-lg" : ""}`}
+                            >
                               <div className="flex items-center gap-1">
                                 <Input
-                                  className="h-7 w-16 text-xs"
+                                  className="h-6 w-16 text-xs"
                                   inputMode="decimal"
                                   value={e.utPi ?? ""}
                                   onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
@@ -1970,12 +2159,18 @@ export function PsgoGenerator({
               </p>
             )}
 
-            {form.imagingExams.map((e) => {
-              const edited = e.overrideText != null;
-              const computed = renderImagingExam(resolvedById[e.id] ?? e);
-              const warns = imagingWarnings(resolvedById[e.id] ?? e);
+            {imagingGroups.map((g) => {
+              // Um card por USG (grupo). Gestação múltipla → bloco com FETO 1/2/3.
+              const exams = g.exams.map((e) => resolvedById[e.id] ?? e);
+              const first = g.exams[0];
+              const edited = first.overrideText != null;
+              const computed =
+                exams.length > 1
+                  ? renderImagingGroup(exams, multipleUsgPhrase)
+                  : renderImagingExam(exams[0]);
+              const warns = exams.flatMap((e) => imagingWarnings(e));
               return (
-                <div key={e.id} className="space-y-1">
+                <div key={g.key} className="space-y-1">
                   <div className="flex items-center justify-between gap-2 px-1">
                     <span className="text-[10px] font-medium text-muted-foreground">
                       Prévia editável {edited ? "(editada)" : "(automática)"}
@@ -1983,7 +2178,7 @@ export function PsgoGenerator({
                     {edited && (
                       <button
                         type="button"
-                        onClick={() => updateImaging(e.id, { overrideText: undefined })}
+                        onClick={() => updateImaging(first.id, { overrideText: undefined })}
                         className="text-[10px] font-medium text-primary hover:underline"
                         title="Descartar edição e regerar automaticamente"
                       >
@@ -1992,8 +2187,8 @@ export function PsgoGenerator({
                     )}
                   </div>
                   <AutoGrowTextarea
-                    value={edited ? (e.overrideText ?? "") : computed}
-                    onChange={(v) => updateImaging(e.id, { overrideText: v })}
+                    value={edited ? (first.overrideText ?? "") : computed}
+                    onChange={(v) => updateImaging(first.id, { overrideText: v })}
                     className="prontuario-text w-full rounded border bg-muted/40 px-2 py-1 text-[11px] uppercase"
                   />
                   {warns.map((w, i) => (
@@ -2007,6 +2202,21 @@ export function PsgoGenerator({
                 </div>
               );
             })}
+
+            {/* Outros exames de imagem (RX, TC, RM…) — texto livre, datado. */}
+            <div className="space-y-1 border-t pt-3">
+              <Label className="text-xs">Outros exames de imagem</Label>
+              <Textarea
+                rows={2}
+                placeholder="-(dd/mm/aa): RX DE TÓRAX SEM ALTERAÇÕES / -(dd/mm/aa): TC DE CRÂNIO…"
+                value={form.otherImaging}
+                onChange={(e) => update({ otherImaging: e.target.value })}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Inicie cada exame com a data <strong>-(dd/mm/aa):</strong> para sair em ordem
+                cronológica junto aos USGs.
+              </p>
+            </div>
             </>
             )}
         </Section>
@@ -2177,6 +2387,7 @@ export function PsgoGenerator({
           defaultOpen={false}
           title="Sorologias e Laboratoriais"
           contentClassName="space-y-4"
+          headerExtra={<LabflowButton />}
         >
             {/* Tipo sanguíneo e Coombs */}
             <div className="space-y-3">
@@ -2246,18 +2457,6 @@ export function PsgoGenerator({
                   <Plus className="h-4 w-4" /> Coleta externa
                 </Button>
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <Label className="text-xs">Colar sorologias do hospital</Label>
-                  <LabflowButton />
-                </div>
-                <Textarea
-                  rows={3}
-                  placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
-                  value={form.serologyPasted}
-                  onChange={(e) => update({ serologyPasted: e.target.value })}
-                />
-              </div>
 
               {form.serologyGrid.columns.length > 0 && (
                 <div className="overflow-x-auto">
@@ -2299,7 +2498,7 @@ export function PsgoGenerator({
                               return (
                                 <td key={c.id} className="border-b p-1">
                                   <select
-                                    className={`${selectClass} h-7 w-32 px-2 text-xs`}
+                                    className={`${selectClass} h-7 !w-20 px-2 text-xs`}
                                     value={val}
                                     onChange={(e) => setSerologyValue(a, c.id, e.target.value)}
                                   >
@@ -2339,20 +2538,33 @@ export function PsgoGenerator({
                   </table>
                 </div>
               )}
+
+              {/* Sorologias do hospital (internas) — coladas abaixo das externas;
+                  são mescladas e ordenadas por data na colagem. */}
+              <div className="space-y-1">
+                <Label className="text-xs">Colar sorologias do hospital (internas)</Label>
+                <Textarea
+                  rows={3}
+                  placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
+                  value={form.serologyPasted}
+                  onChange={(e) => update({ serologyPasted: e.target.value })}
+                />
+              </div>
             </div>
 
             {/* Exames laboratoriais */}
             <div className="space-y-2 border-t pt-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold">Exames laboratoriais</p>
-                <LabflowButton />
-              </div>
+              <p className="text-sm font-semibold">Exames laboratoriais</p>
               <Textarea
                 rows={3}
-                placeholder="Cole os exames laboratoriais..."
+                placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …"
                 value={form.labs}
                 onChange={(e) => update({ labs: e.target.value })}
               />
+              <p className="text-[11px] text-muted-foreground">
+                Inicie cada coleta com a data <strong>-(dd/mm/aa):</strong> para sair em ordem
+                cronológica.
+              </p>
             </div>
         </Section>
 

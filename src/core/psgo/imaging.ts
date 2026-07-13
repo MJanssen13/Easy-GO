@@ -19,6 +19,7 @@ import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr"
 import { utPiCentile } from "@/core/fmf/uterine";
 import { formatCentile, formatCentileCeil } from "@/core/fmf/centile";
 import { parseDecimal } from "@/lib/num";
+import { parseDatedText } from "./dated-lines";
 
 export interface ImagingExam {
   id: string;
@@ -26,6 +27,10 @@ export interface ImagingExam {
   gaWeeks?: number;
   gaDays?: number;
   useForDating?: boolean; // USG escolhido para datação
+  /** Gestação múltipla: fetos do mesmo USG compartilham `groupId` (e a data). */
+  groupId?: string;
+  /** Índice do feto no grupo (1..N), para "FETO 1/2/3". */
+  fetusIndex?: number;
   external?: boolean; // exame externo (feito fora do serviço) — sai "EXT" na data
   presentation?: string; // APRESENTAÇÃO (cefálica/pélvica/córmica)
   gsac?: string; // SG — saco gestacional (mm)
@@ -78,11 +83,17 @@ function dateBR(iso?: string): string {
     : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
-/** IG do exame por extenso, ex.: "GESTAÇÃO DE 32 SEM E 1 DIA". */
-function igPhrase(e: ImagingExam): string {
+/** IG do exame sem "GESTAÇÃO DE", ex.: "32 SEM E 1 DIA". */
+function gaText(e: Pick<ImagingExam, "gaWeeks" | "gaDays">): string {
   if (e.gaWeeks == null) return "";
   const d = e.gaDays ?? 0;
-  return `GESTAÇÃO DE ${e.gaWeeks} SEM E ${d} ${d === 1 ? "DIA" : "DIAS"}`;
+  return `${e.gaWeeks} SEM E ${d} ${d === 1 ? "DIA" : "DIAS"}`;
+}
+
+/** IG do exame por extenso, ex.: "GESTAÇÃO DE 32 SEM E 1 DIA". */
+function igPhrase(e: ImagingExam): string {
+  const ga = gaText(e);
+  return ga ? `GESTAÇÃO DE ${ga}` : "";
 }
 
 const PRESENTATION_ABBR: Record<string, string> = {
@@ -178,16 +189,14 @@ export function hasImagingData(e: ImagingExam): boolean {
   );
 }
 
-/** Linha de prontuário de um exame, no formato do MODELO PS, com percentis. */
-export function renderImagingExam(e: ImagingExam): string {
-  // Laudo editado manualmente tem prioridade sobre a geração automática.
-  if (e.overrideText?.trim()) return e.overrideText;
-
+/**
+ * Campos do laudo (sem a IG): apresentação, biometria, líquido, BCF, placenta,
+ * Doppler e observações. Reusado por gestação única e por cada feto (múltipla).
+ */
+export function imagingFields(e: ImagingExam): string[] {
   const gaDays = examGaDays(e);
   const fields: string[] = [];
 
-  const ig = igPhrase(e);
-  if (ig) fields.push(ig);
   if (e.presentation) fields.push(presentationAbbr(e.presentation));
 
   // Gestações iniciais (nem todos presentes no mesmo US).
@@ -262,8 +271,19 @@ export function renderImagingExam(e: ImagingExam): string {
 
   if (e.notes) fields.push(e.notes);
 
+  return fields;
+}
+
+/** Linha de prontuário de um exame (gestação única), no formato do MODELO PS. */
+export function renderImagingExam(e: ImagingExam): string {
+  // Laudo editado manualmente tem prioridade sobre a geração automática.
+  if (e.overrideText?.trim()) return e.overrideText;
+  const parts: string[] = [];
+  const ig = igPhrase(e);
+  if (ig) parts.push(ig);
+  parts.push(...imagingFields(e));
   const ext = e.external ? " EXT" : "";
-  return `- (${dateBR(e.date)}${ext}): ${fields.join(" / ")}`;
+  return `- (${dateBR(e.date)}${ext}): ${parts.join(" / ")}`;
 }
 
 /**
@@ -286,6 +306,77 @@ export function imagingWarnings(e: ImagingExam): string[] {
   return out;
 }
 
-export function renderImaging(exams: ImagingExam[]): string {
-  return exams.filter(hasImagingData).map(renderImagingExam).join("\n");
+export interface ImagingGroup {
+  key: string;
+  exams: ImagingExam[];
+}
+
+/** Agrupa exames consecutivos que compartilham `groupId` (fetos do mesmo USG). */
+export function groupImaging(exams: ImagingExam[]): ImagingGroup[] {
+  const groups: ImagingGroup[] = [];
+  for (const e of exams) {
+    const key = e.groupId ?? e.id;
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.exams.push(e);
+    else groups.push({ key, exams: [e] });
+  }
+  return groups;
+}
+
+function sortKeyOf(dateISO?: string): number {
+  if (!dateISO) return Number.POSITIVE_INFINITY;
+  const t = new Date(`${dateISO}T00:00:00`).getTime();
+  return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
+}
+
+const IMAGING_INDENT = " ".repeat(10);
+
+/**
+ * Bloco de um USG de gestação múltipla: cabeçalho com a gestação/IG (data
+ * compartilhada) e um "FETO n: …" por linha (fetos 2+ deslocados 10 espaços).
+ */
+export function renderImagingGroup(exams: ImagingExam[], multiplePhrase?: string): string {
+  const first = exams[0];
+  if (first.overrideText?.trim()) return first.overrideText;
+  const ext = first.external ? " EXT" : "";
+  const ga = gaText(first);
+  const gest = multiplePhrase
+    ? `GESTAÇÃO ${multiplePhrase}${ga ? ` DE ${ga}` : ""}`
+    : ga
+      ? `GESTAÇÃO DE ${ga}`
+      : "";
+  const fetusLines = exams.map(
+    (e, i) => `FETO ${e.fetusIndex ?? i + 1}: ${imagingFields(e).join(" / ")}`,
+  );
+  const firstLine = `- (${dateBR(first.date)}${ext}): ${gest ? `${gest}:` : ""}${fetusLines[0]}`;
+  const rest = fetusLines.slice(1).map((l) => `${IMAGING_INDENT}${l}`);
+  return [firstLine, ...rest].join("\n");
+}
+
+/**
+ * Renderiza os exames de imagem: USGs (agrupando fetos de gestação múltipla) e
+ * os "outros exames" (texto livre datado), tudo ordenado por data. `multiplePhrase`
+ * é a frase da gestação múltipla (sem sigla) para o cabeçalho dos grupos.
+ */
+export function renderImaging(
+  exams: ImagingExam[],
+  opts?: { multiplePhrase?: string; otherImaging?: string },
+): string {
+  const entries: { sortKey: number; order: number; text: string }[] = [];
+  let order = 0;
+  for (const g of groupImaging(exams)) {
+    if (!g.exams.some(hasImagingData)) continue;
+    const text =
+      g.exams.length > 1
+        ? renderImagingGroup(g.exams, opts?.multiplePhrase)
+        : renderImagingExam(g.exams[0]);
+    entries.push({ sortKey: sortKeyOf(g.exams[0].date), order: order++, text });
+  }
+  for (const oe of parseDatedText(opts?.otherImaging)) {
+    entries.push({ sortKey: oe.sortKey, order: order++, text: oe.text });
+  }
+  return entries
+    .sort((a, b) => a.sortKey - b.sortKey || a.order - b.order)
+    .map((e) => e.text)
+    .join("\n");
 }
