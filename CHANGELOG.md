@@ -12,8 +12,11 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   binário proprietário, decodificado por engenharia reversa): reconstrói os canais
   **FHR** e **TOCO** (1 amostra/s; `0xFF` = perda de sinal) e extrai data, horário,
   linha de base e % de perda de sinal. Aceita **vários arquivos** de uma vez.
-- Traçado renderizado em **preto e branco** (grade cinza, faixa 110–160 bpm em
-  cinza claro, quebra em linhas de 6 min) e **exportação em PDF** via impressão.
+- Laudo em **uma folha por gravação**, em **linha contínua** e **paisagem**, na
+  escala física real de **1 cm/min** (FHR a 20 bpm/cm), em **preto e branco**
+  (grade cinza, faixa 110–160 bpm em cinza claro). Traçados longos que não
+  caibam em uma folha a 1 cm/min são comprimidos e a escala efetiva é anotada.
+- **Imprimir/exportar em PDF** via diálogo de impressão do navegador.
 - Todo o processamento é **no dispositivo**; nenhum arquivo é enviado.
 
 ### PSGO — Gerador de HPMA e reconhecimento de datas

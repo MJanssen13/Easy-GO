@@ -58,9 +58,10 @@ export default function CardiotocografiaToolPage() {
         </h1>
         <p className="text-muted-foreground">
           Abra os arquivos <code className="rounded bg-muted px-1">.trc</code> do monitor fetal Edan
-          (F2/F3) e gere a cardiotocografia em PDF. FHR (frequência cardíaca fetal) em cima e TOCO
-          (atividade uterina) embaixo, em preto e branco. Tudo é processado no seu dispositivo —
-          nenhum arquivo é enviado.
+          (F2/F3) e gere o laudo em <strong>uma folha por gravação</strong>, em linha contínua e
+          paisagem, na escala real de <strong>1 cm/min</strong> (FHR a 20 bpm/cm). Em preto e branco,
+          pronto para imprimir ou salvar como PDF. Tudo é processado no seu dispositivo — nenhum
+          arquivo é enviado.
         </p>
       </div>
 
@@ -81,7 +82,7 @@ export default function CardiotocografiaToolPage() {
           {traces.length > 0 && (
             <>
               <Button type="button" variant="outline" onClick={exportPdf}>
-                <Printer className="h-4 w-4" /> Exportar PDF
+                <Printer className="h-4 w-4" /> Imprimir / Exportar PDF
               </Button>
               <Button type="button" variant="ghost" onClick={clear}>
                 <Trash2 className="h-4 w-4" /> Limpar
@@ -118,8 +119,9 @@ export default function CardiotocografiaToolPage() {
 
       {traces.length > 0 && (
         <p className="px-1 text-xs text-muted-foreground">
-          Reconstrução a partir dos dados brutos do aparelho (1 amostra/s; faixa de FHR 50–210 bpm,
-          faixa cinza = 110–160 bpm). Ferramenta de apoio — a interpretação clínica deve ser feita
+          Reconstrução a partir dos dados brutos do aparelho (1 amostra/s; FHR 50–210 bpm a 20 bpm/cm,
+          faixa cinza = 110–160 bpm; papel a 1 cm/min). No diálogo de impressão, escolha a impressora
+          ou &quot;Salvar como PDF&quot;. Ferramenta de apoio — a interpretação clínica deve ser feita
           pelo profissional sobre o traçado original do monitor.
         </p>
       )}

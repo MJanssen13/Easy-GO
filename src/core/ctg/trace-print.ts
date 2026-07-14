@@ -1,10 +1,11 @@
-// Monta um documento HTML autocontido (A4 paisagem, preto e branco) com um ou
-// mais traçados de cardiotocografia, para ser impresso/exportado em PDF via
-// `printHtml`. Função pura; reutiliza o mesmo SVG da prévia na tela.
+// Monta um documento HTML autocontido (A4 paisagem, preto e branco) com os
+// traçados de cardiotocografia — UMA folha por gravação, em linha contínua e
+// escala real de 1 cm/min — para imprimir ou exportar em PDF via `printHtml`.
+// Função pura; reutiliza o mesmo SVG (em mm) da prévia na tela.
 
 import type { CtgTrace } from "./trc";
 import { traceSummary } from "./trc";
-import { renderCtgTraceSvg } from "./trace-svg";
+import { renderCtgTrace } from "./trace-svg";
 
 function escapeHtml(s: string): string {
   return s
@@ -16,13 +17,18 @@ function escapeHtml(s: string): string {
 
 export function buildCtgTraceHtml(traces: CtgTrace[]): string {
   const sections = traces
-    .map(
-      (t) => `
-      <section class="rec">
-        <div class="hdr">${escapeHtml(traceSummary(t))}</div>
-        ${renderCtgTraceSvg(t)}
-      </section>`,
-    )
+    .map((t, i) => {
+      const { svg } = renderCtgTrace(t);
+      const last = i === traces.length - 1;
+      return `
+      <section class="rec"${last ? "" : ' style="page-break-after:always"'}>
+        <div class="hdr">
+          <span class="ttl">Cardiotocografia — monitor fetal Edan</span>
+          <span class="meta">${escapeHtml(traceSummary(t))}</span>
+        </div>
+        ${svg}
+      </section>`;
+    })
     .join("");
 
   return `<!doctype html>
@@ -33,17 +39,16 @@ export function buildCtgTraceHtml(traces: CtgTrace[]): string {
 <style>
   @page { size: A4 landscape; margin: 8mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  h1 { font-size: 15px; margin: 0 0 2px; }
-  .sub { font-size: 10px; color: #444; margin-bottom: 10px; }
-  .rec { margin-bottom: 14px; page-break-inside: avoid; }
-  .hdr { font-size: 11px; font-weight: 600; border-left: 3px solid #000; padding: 3px 8px; margin-bottom: 4px; }
-  svg { max-width: 100%; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rec { page-break-inside: avoid; }
+  .hdr { margin-bottom: 3mm; }
+  .ttl { display: block; font-size: 12px; font-weight: 700; }
+  .meta { display: block; font-size: 10px; color: #333; }
+  svg { display: block; }
 </style>
 </head>
 <body>
-  <h1>Cardiotocografia — monitor fetal Edan</h1>
-  <div class="sub">FHR (frequência cardíaca fetal) e TOCO (atividade uterina) · 1 amostra/s · grade vertical a cada 60 s · faixa cinza = 110–160 bpm</div>
   ${sections}
 </body>
 </html>`;
