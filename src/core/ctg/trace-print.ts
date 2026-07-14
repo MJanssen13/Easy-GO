@@ -1,11 +1,19 @@
 // Monta um documento HTML autocontido (A4 paisagem, preto e branco) com os
 // traçados de cardiotocografia — UMA folha por gravação, em linha contínua e
-// escala real de 1 cm/min — para imprimir ou exportar em PDF via `printHtml`.
-// Função pura; reutiliza o mesmo SVG (em mm) da prévia na tela.
+// escala real (1 cm/min; FHR 30 bpm/cm; TOCO 25 mmHg/cm) — para imprimir ou
+// exportar em PDF via `printHtml`. Cada folha traz a identificação do laudo
+// (Nome, RG, Data, Hora). Função pura; reutiliza o mesmo SVG (em mm) da prévia.
 
 import type { CtgTrace } from "./trc";
 import { traceSummary } from "./trc";
 import { renderCtgTrace } from "./trace-svg";
+
+export interface LaudoPatient {
+  nome?: string;
+  rg?: string;
+  data?: string;
+  hora?: string;
+}
 
 function escapeHtml(s: string): string {
   return s
@@ -15,7 +23,20 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export function buildCtgTraceHtml(traces: CtgTrace[]): string {
+function field(label: string, value: string | undefined): string {
+  const v = value && value.trim() ? escapeHtml(value.trim()) : "&nbsp;";
+  return `<span class="fld"><b>${label}:</b> <span class="val">${v}</span></span>`;
+}
+
+export function buildCtgTraceHtml(traces: CtgTrace[], patient: LaudoPatient = {}): string {
+  const identBlock =
+    `<div class="ident">` +
+    field("Nome", patient.nome) +
+    field("RG", patient.rg) +
+    field("Data", patient.data) +
+    field("Hora", patient.hora) +
+    `</div>`;
+
   const sections = traces
     .map((t, i) => {
       const { svg } = renderCtgTrace(t);
@@ -24,6 +45,7 @@ export function buildCtgTraceHtml(traces: CtgTrace[]): string {
       <section class="rec"${last ? "" : ' style="page-break-after:always"'}>
         <div class="hdr">
           <span class="ttl">Cardiotocografia — monitor fetal Edan</span>
+          ${identBlock}
           <span class="meta">${escapeHtml(traceSummary(t))}</span>
         </div>
         ${svg}
@@ -44,6 +66,8 @@ export function buildCtgTraceHtml(traces: CtgTrace[]): string {
   .rec { page-break-inside: avoid; }
   .hdr { margin-bottom: 3mm; }
   .ttl { display: block; font-size: 12px; font-weight: 700; }
+  .ident { display: flex; flex-wrap: wrap; gap: 2mm 8mm; margin: 1mm 0; font-size: 11px; }
+  .ident .val { display: inline-block; min-width: 30mm; border-bottom: 0.2mm solid #999; }
   .meta { display: block; font-size: 10px; color: #333; }
   svg { display: block; }
 </style>

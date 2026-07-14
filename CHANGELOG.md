@@ -13,9 +13,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   **FHR** e **TOCO** (1 amostra/s; `0xFF` = perda de sinal) e extrai data, horário,
   linha de base e % de perda de sinal. Aceita **vários arquivos** de uma vez.
 - Laudo em **uma folha por gravação**, em **linha contínua** e **paisagem**, na
-  escala física real de **1 cm/min** (FHR a 20 bpm/cm), em **preto e branco**
-  (grade cinza, faixa 110–160 bpm em cinza claro). Traçados longos que não
-  caibam em uma folha a 1 cm/min são comprimidos e a escala efetiva é anotada.
+  escala física real: **1 cm/min** na horizontal, **FHR a 30 bpm/cm** e **TOCO a
+  25 mmHg/cm** na vertical. Preto e branco (grade cinza, faixa 110–160 bpm em
+  cinza claro), com **traços finos**. Traçados longos que não caibam em uma folha
+  a 1 cm/min são comprimidos e a escala efetiva é anotada.
+- Expõe as **marcações** (botão de evento) e os **autozeros** do TOCO lidos do
+  arquivo, com legenda de símbolos.
+- Campos de identificação do laudo — **Nome, RG, Data e Hora** — mostrados em
+  cada folha; **Data e Hora** vêm preenchidas automaticamente do arquivo (ou do
+  horário atual) e podem ser editadas.
 - **Imprimir/exportar em PDF** via diálogo de impressão do navegador.
 - Todo o processamento é **no dispositivo**; nenhum arquivo é enviado.
 

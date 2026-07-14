@@ -1,8 +1,10 @@
-// Renderizador do traçado de cardiotocografia em SVG (string), estilo do papel
-// clássico, em PRETO E BRANCO e em ESCALA FÍSICA REAL: coordenadas em milímetros
-// e velocidade de papel de 1 cm/min (padrão europeu), FHR a 20 bpm/cm. O traçado
-// é uma LINHA CONTÍNUA (sem quebra em faixas), pensado para caber em UMA folha
-// A4 em paisagem — assim o que se vê na tela é exatamente o que sai no PDF/papel.
+// Renderizador do traçado de cardiotocografia em SVG (string), em PRETO E BRANCO
+// e ESCALA FÍSICA REAL. Linha contínua (sem quebra em faixas), pensado para caber
+// em UMA folha A4 em paisagem por gravação. Coordenadas em milímetros:
+//   • horizontal: 1 cm/min (papel);
+//   • FHR: 1 cm / 30 bpm  (vertical);
+//   • TOCO: 1 cm / 25 mmHg (vertical).
+// Expõe também as marcações (botão de evento) e os autozeros do TOCO.
 // Função pura (sem React); usada tanto na prévia quanto na impressão.
 
 import type { CtgTrace } from "./trc";
@@ -26,12 +28,17 @@ const TOCO_HI = 100;
 const LEFT = 12; // faixa de rótulos do eixo Y
 const RIGHT = 4;
 const TOP = 6; // rótulos de tempo acima do painel de FHR
-const MM_PER_BPM = 0.5; // 20 bpm por cm
-const FHR_H = (FHR_HI - FHR_LO) * MM_PER_BPM; // 80 mm
+const MM_PER_BPM = 10 / 30; // 1 cm = 30 bpm
+const FHR_H = (FHR_HI - FHR_LO) * MM_PER_BPM; // ≈ 53,3 mm
 const GAP = 6; // entre painéis FHR e TOCO
-const MM_PER_TOCO = 0.4; // 100 unidades em 40 mm
-const TOCO_H = (TOCO_HI - TOCO_LO) * MM_PER_TOCO; // 40 mm
-const BOTTOM = 4;
+const MM_PER_MMHG = 10 / 25; // 1 cm = 25 mmHg
+const TOCO_H = (TOCO_HI - TOCO_LO) * MM_PER_MMHG; // 40 mm
+const MARK_H = 4; // faixa inferior para marcações/legenda
+const BOTTOM = 6;
+
+// Espessura dos traçados (mm) — finos.
+const FHR_SW = 0.22;
+const TOCO_SW = 0.2;
 
 // Paleta monocromática (preto e branco).
 const PANEL_BG = "#ffffff";
@@ -80,7 +87,6 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   const requested = opts.mmPerMin ?? 10;
   const maxW = opts.maxTraceWidthMM ?? A4_LANDSCAPE_TRACE_MM;
   const durationMin = trace.samples / 60;
-  // Comprime só se, a 1 cm/min, não couber em uma folha.
   const mmPerMin = durationMin > 0 ? Math.min(requested, maxW / durationMin) : requested;
   const compressed = mmPerMin < requested - 1e-6;
   const mmPerSec = mmPerMin / 60;
@@ -89,10 +95,12 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   const width = LEFT + traceW + RIGHT;
   const fTop = TOP;
   const tTop = fTop + FHR_H + GAP;
-  const height = tTop + TOCO_H + BOTTOM;
+  const tBottom = tTop + TOCO_H;
+  const height = tBottom + MARK_H + BOTTOM;
 
   const yFhr = (v: number) => fTop + (FHR_HI - clamp(v, FHR_LO, FHR_HI)) * MM_PER_BPM;
-  const yToco = (v: number) => tTop + (TOCO_HI - clamp(v, TOCO_LO, TOCO_HI)) * MM_PER_TOCO;
+  const yToco = (v: number) => tTop + (TOCO_HI - clamp(v, TOCO_LO, TOCO_HI)) * MM_PER_MMHG;
+  const xAt = (sec: number) => LEFT + sec * mmPerSec;
 
   const out: string[] = [];
   out.push(
@@ -100,55 +108,79 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
       `xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif" style="display:block">`,
   );
 
-  // ---- painel FHR ----
-  out.push(`<rect x="${LEFT}" y="${fTop}" width="${f(traceW)}" height="${FHR_H}" fill="${PANEL_BG}" stroke="${GRID_HEAVY}" stroke-width="0.3"/>`);
-  // faixa normal 110–160 bpm em cinza claro (sem cor)
+  // ---- painel FHR (1 cm = 30 bpm) ----
+  out.push(`<rect x="${LEFT}" y="${fTop}" width="${f(traceW)}" height="${f(FHR_H)}" fill="${PANEL_BG}" stroke="${GRID_HEAVY}" stroke-width="0.3"/>`);
   out.push(`<rect x="${LEFT}" y="${f(yFhr(160))}" width="${f(traceW)}" height="${f(yFhr(110) - yFhr(160))}" fill="${BAND}"/>`);
   for (let v = FHR_LO; v <= FHR_HI; v += 10) {
     const edge = v === 110 || v === 160;
-    const heavy = v % 20 === 0; // linhas de cm (20 bpm)
+    const heavy = v % 30 === 0; // linhas de cm (30 bpm)
     const stroke = edge ? BAND_EDGE : GRID_LIGHT;
-    const sw = edge ? 0.3 : heavy ? 0.22 : 0.12;
+    const sw = edge ? 0.28 : heavy ? 0.22 : 0.1;
     out.push(`<line x1="${LEFT}" y1="${f(yFhr(v))}" x2="${f(LEFT + traceW)}" y2="${f(yFhr(v))}" stroke="${stroke}" stroke-width="${sw}"/>`);
-    if (v % 20 === 0) {
-      out.push(`<text x="${LEFT - 1.5}" y="${f(yFhr(v) + 1)}" font-size="2.6" text-anchor="end" fill="${LABEL}">${v}</text>`);
+    if (heavy || edge) {
+      out.push(`<text x="${LEFT - 1.5}" y="${f(yFhr(v) + 1)}" font-size="2.4" text-anchor="end" fill="${LABEL}">${v}</text>`);
     }
   }
-  // ---- painel TOCO ----
-  out.push(`<rect x="${LEFT}" y="${f(tTop)}" width="${f(traceW)}" height="${TOCO_H}" fill="${PANEL_BG}" stroke="${GRID_HEAVY}" stroke-width="0.3"/>`);
-  for (let v = TOCO_LO; v <= TOCO_HI; v += 20) {
-    out.push(`<line x1="${LEFT}" y1="${f(yToco(v))}" x2="${f(LEFT + traceW)}" y2="${f(yToco(v))}" stroke="${GRID_LIGHT}" stroke-width="0.12"/>`);
+
+  // ---- painel TOCO (1 cm = 25 mmHg) ----
+  out.push(`<rect x="${LEFT}" y="${f(tTop)}" width="${f(traceW)}" height="${f(TOCO_H)}" fill="${PANEL_BG}" stroke="${GRID_HEAVY}" stroke-width="0.3"/>`);
+  for (let v = TOCO_LO; v <= TOCO_HI; v += 25) {
+    out.push(`<line x1="${LEFT}" y1="${f(yToco(v))}" x2="${f(LEFT + traceW)}" y2="${f(yToco(v))}" stroke="${GRID_LIGHT}" stroke-width="0.15"/>`);
     out.push(`<text x="${LEFT - 1.5}" y="${f(yToco(v) + 1)}" font-size="2.4" text-anchor="end" fill="${LABEL}">${v}</text>`);
   }
 
-  // ---- linhas verticais de tempo (comuns aos dois painéis) ----
+  // ---- linhas verticais de tempo (1 cm/min) ----
   const totalSec = trace.samples;
   for (let sec = 0; sec <= totalSec; sec += 20) {
-    const x = LEFT + sec * mmPerSec;
+    const x = xAt(sec);
     const isMin = sec % 60 === 0;
-    // FHR
     out.push(`<line x1="${f(x)}" y1="${fTop}" x2="${f(x)}" y2="${f(fTop + FHR_H)}" stroke="${isMin ? GRID_HEAVY : GRID_LIGHT}" stroke-width="${isMin ? 0.22 : 0.1}"/>`);
-    // TOCO
-    out.push(`<line x1="${f(x)}" y1="${f(tTop)}" x2="${f(x)}" y2="${f(tTop + TOCO_H)}" stroke="${isMin ? GRID_HEAVY : GRID_LIGHT}" stroke-width="${isMin ? 0.22 : 0.1}"/>`);
+    out.push(`<line x1="${f(x)}" y1="${f(tTop)}" x2="${f(x)}" y2="${f(tBottom)}" stroke="${isMin ? GRID_HEAVY : GRID_LIGHT}" stroke-width="${isMin ? 0.22 : 0.1}"/>`);
     if (isMin) {
       out.push(`<text x="${f(x)}" y="${f(fTop - 1.5)}" font-size="2.4" text-anchor="middle" fill="${LABEL}">${sec / 60}</text>`);
     }
   }
 
-  // ---- traçados ----
+  // ---- traçados (finos) ----
   for (const d of segments(trace.fhr, mmPerSec, yFhr)) {
-    out.push(`<path d="${d}" fill="none" stroke="${TRACE}" stroke-width="0.4" stroke-linejoin="round"/>`);
+    out.push(`<path d="${d}" fill="none" stroke="${TRACE}" stroke-width="${FHR_SW}" stroke-linejoin="round"/>`);
   }
   for (const d of segments(trace.toco, mmPerSec, yToco)) {
-    out.push(`<path d="${d}" fill="none" stroke="${TRACE}" stroke-width="0.35" stroke-linejoin="round"/>`);
+    out.push(`<path d="${d}" fill="none" stroke="${TRACE}" stroke-width="${TOCO_SW}" stroke-linejoin="round"/>`);
   }
 
-  // ---- rótulos dos painéis e escala ----
+  // ---- marcações e autozeros ----
+  for (const ev of trace.events) {
+    const x = clamp(xAt(ev.positionSec), LEFT, LEFT + traceW);
+    if (ev.kind === "marca") {
+      // linha-guia tracejada + triângulo cheio apontando para cima na base
+      out.push(`<line x1="${f(x)}" y1="${f(fTop)}" x2="${f(x)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.15" stroke-dasharray="1 1"/>`);
+      const ty = tBottom + 3;
+      out.push(`<path d="M ${f(x - 1.4)} ${f(ty)} L ${f(x + 1.4)} ${f(ty)} L ${f(x)} ${f(ty - 2.6)} Z" fill="#000"/>`);
+    } else {
+      // autozero: triângulo vazado na linha de base do TOCO + rótulo AZ
+      const y = yToco(TOCO_LO);
+      out.push(`<path d="M ${f(x - 1.4)} ${f(y)} L ${f(x + 1.4)} ${f(y)} L ${f(x)} ${f(y - 2.6)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
+      out.push(`<text x="${f(x + 2)}" y="${f(y - 0.5)}" font-size="2.2" fill="${LABEL}">AZ</text>`);
+    }
+  }
+
+  // ---- rótulos dos painéis, escala e legenda ----
   out.push(`<text x="1" y="${f(fTop + 4)}" font-size="2.6" fill="${LABEL}">FHR</text>`);
   out.push(`<text x="1" y="${f(fTop + 7)}" font-size="2" fill="${LABEL}">bpm</text>`);
   out.push(`<text x="1" y="${f(tTop + 5)}" font-size="2.6" fill="${LABEL}">TOCO</text>`);
-  const scaleLabel = compressed ? `${mmPerMin.toFixed(1)} mm/min` : "1 cm/min";
-  out.push(`<text x="${f(LEFT + 1)}" y="${f(height - 1)}" font-size="2.2" fill="${LABEL}">${scaleLabel} · eixo em minutos</text>`);
+  out.push(`<text x="1" y="${f(tTop + 8)}" font-size="2" fill="${LABEL}">mmHg</text>`);
+  const scaleLabel = compressed
+    ? `${mmPerMin.toFixed(1)} mm/min (comprimido) · FHR 30 bpm/cm · TOCO 25 mmHg/cm`
+    : `1 cm/min · FHR 30 bpm/cm · TOCO 25 mmHg/cm`;
+  const legendY = height - 1.5;
+  // legenda de símbolos
+  const lx = LEFT + 1;
+  out.push(`<path d="M ${f(lx)} ${f(legendY)} L ${f(lx + 2.8)} ${f(legendY)} L ${f(lx + 1.4)} ${f(legendY - 2.4)} Z" fill="#000"/>`);
+  out.push(`<text x="${f(lx + 4)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">marcação</text>`);
+  out.push(`<path d="M ${f(lx + 20)} ${f(legendY)} L ${f(lx + 22.8)} ${f(legendY)} L ${f(lx + 21.4)} ${f(legendY - 2.4)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
+  out.push(`<text x="${f(lx + 24)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">autozero</text>`);
+  out.push(`<text x="${f(lx + 44)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">${scaleLabel} · eixo em minutos</text>`);
 
   out.push("</svg>");
   return { svg: out.join(""), mmPerMin, compressed };

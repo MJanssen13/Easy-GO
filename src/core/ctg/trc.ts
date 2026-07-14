@@ -31,7 +31,15 @@ const OFF_DAY = 0x138;
 const OFF_MONTH = 0x139;
 const OFF_YEAR = 0x13a;
 const OFF_NSAMPLES = 0x144;
+const OFF_NEVENTS = 0x1c0; // 448 — número de registros de evento
 const NO_SIGNAL = 0xff;
+
+// Bloco de eventos: começa em dataOff + 4*N (após os 4 canais de N bytes) e tem
+// `nEvents` registros de 116 bytes. Cada registro: [tipo u32][counter u32]
+// [dia u8][mês u8][ano u16][posição_seg u32]…zeros. Tipo 3 = marcação (evento
+// pressionado no exame); demais (1/4), com posição 0, = autozero do TOCO.
+const EVENT_RECORD_SIZE = 116;
+const EVENT_TYPE_MARK = 3;
 
 export interface CtgTraceDate {
   day: number;
@@ -48,6 +56,17 @@ export interface CtgTraceStats {
   durationSec: number;
 }
 
+export type CtgEventKind = "marca" | "autozero";
+
+export interface CtgEvent {
+  /** Posição do evento em segundos a partir do início da gravação. */
+  positionSec: number;
+  /** Marcação (botão de evento) ou autozero do TOCO. */
+  kind: CtgEventKind;
+  /** Código de tipo bruto do aparelho (3 = marcação; 1/4 = autozero). */
+  rawType: number;
+}
+
 export interface CtgTrace {
   fileName: string;
   sampleRateHz: number;
@@ -62,6 +81,8 @@ export interface CtgTrace {
   toco: (number | null)[];
   /** 2º canal fetal (gemelar); geralmente todo `null`. */
   fhr2: (number | null)[];
+  /** Marcações e autozeros registrados durante o exame. */
+  events: CtgEvent[];
   stats: CtgTraceStats;
 }
 
@@ -148,6 +169,25 @@ export function parseTrc(buffer: ArrayBuffer, fileName = "trace.trc"): CtgTrace 
   const fhr2 = ch1Valid ? ch0 : ch1;
   const toco = ch2;
 
+  // Eventos (marcações + autozeros): logo após os 4 canais de N bytes.
+  const events: CtgEvent[] = [];
+  const nEvents = view.getUint32(OFF_NEVENTS, true);
+  const eventBlock = dataOff + 4 * n;
+  if (nEvents > 0 && nEvents < 10_000) {
+    for (let i = 0; i < nEvents; i++) {
+      const rs = eventBlock + i * EVENT_RECORD_SIZE;
+      if (rs + 16 > bytes.length) break;
+      const rawType = view.getUint32(rs, true);
+      const positionSec = view.getUint32(rs + 12, true);
+      if (positionSec > n) continue; // fora da gravação: registro inconsistente
+      events.push({
+        positionSec,
+        rawType,
+        kind: rawType === EVENT_TYPE_MARK ? "marca" : "autozero",
+      });
+    }
+  }
+
   const fhrValid = fhr.filter((v): v is number => v !== null);
   const stats: CtgTraceStats = {
     baselineFhr: median(fhrValid),
@@ -155,7 +195,7 @@ export function parseTrc(buffer: ArrayBuffer, fileName = "trace.trc"): CtgTrace 
     durationSec: n / TRC_SAMPLE_RATE_HZ,
   };
 
-  return { fileName, sampleRateHz: TRC_SAMPLE_RATE_HZ, samples: n, date, startTime, fhr, toco, fhr2, stats };
+  return { fileName, sampleRateHz: TRC_SAMPLE_RATE_HZ, samples: n, date, startTime, fhr, toco, fhr2, events, stats };
 }
 
 /** Formata segundos como "Xmin YYs" para exibição. */
