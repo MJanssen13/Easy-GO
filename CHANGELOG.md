@@ -17,8 +17,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   25 mmHg/cm** na vertical. Preto e branco (grade cinza, faixa 110–160 bpm em
   cinza claro), com **traços finos**. Traçados longos que não caibam em uma folha
   a 1 cm/min são comprimidos e a escala efetiva é anotada.
-- Expõe os **movimentos fetais** (botão de evento, desenhados como linha
-  pontilhada vertical) e os **autozeros** do TOCO lidos do arquivo, com legenda.
+- Expõe os **movimentos fetais** (botão de evento) e os **autozeros** do TOCO.
+  Movimentos fetais e estímulos são desenhados com **linha indicativa vertical**
+  e um **selo circular preto com a sigla em branco** (MF/EM/ES) no espaço de
+  **1 cm entre os gráficos** (distância aumentada para acomodá-los).
 - **Estímulos** mecânicos e sonoros adicionáveis na plataforma por **tempo
   decorrido** (mm:ss) ou **hora de relógio** (HH:MM) — as duas formas são
   exibidas — plotados como linhas verticais (sólida = mecânico, tracejada =
@@ -26,7 +28,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - Nome da paciente impresso em **MAIÚSCULO**; traços ainda mais finos.
 - Campos de identificação do laudo — **Nome, RG, Data e Hora** — mostrados em
   cada folha; **Data e Hora** vêm preenchidas automaticamente do arquivo (ou do
-  horário atual) e podem ser editadas.
+  horário atual) e o **RG** vem do **ID do próprio arquivo**; todos editáveis.
+- **Exportação em lote**: aba "Lote" que lista os exames abertos (data, hora,
+  RG preenchido pelo ID e nome do paciente) com **caixas de seleção**; exporta os
+  selecionados em **um único arquivo, um exame por página**.
 - **Imprimir/exportar em PDF** via diálogo de impressão do navegador.
 - Todo o processamento é **no dispositivo**; nenhum arquivo é enviado.
 
