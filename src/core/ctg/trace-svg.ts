@@ -8,12 +8,15 @@
 // Função pura (sem React); usada tanto na prévia quanto na impressão.
 
 import type { CtgTrace } from "./trc";
+import type { TraceMark } from "./stimuli";
 
 export interface TraceSvgOptions {
   /** Milímetros por minuto (velocidade do papel). Padrão 10 (= 1 cm/min). */
   mmPerMin?: number;
   /** Largura máxima do traçado em mm (para caber em 1 folha). Padrão A4 paisagem. */
   maxTraceWidthMM?: number;
+  /** Marcas a desenhar. Se ausente, deriva dos eventos do próprio arquivo. */
+  marks?: TraceMark[];
 }
 
 // A4 paisagem: 297 mm − 2×8 mm de margem = 281 mm úteis; menos os eixos.
@@ -36,9 +39,9 @@ const TOCO_H = (TOCO_HI - TOCO_LO) * MM_PER_MMHG; // 40 mm
 const MARK_H = 4; // faixa inferior para marcações/legenda
 const BOTTOM = 6;
 
-// Espessura dos traçados (mm) — finos.
-const FHR_SW = 0.22;
-const TOCO_SW = 0.2;
+// Espessura dos traçados (mm) — bem finos.
+const FHR_SW = 0.14;
+const TOCO_SW = 0.12;
 
 // Paleta monocromática (preto e branco).
 const PANEL_BG = "#ffffff";
@@ -149,16 +152,24 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
     out.push(`<path d="${d}" fill="none" stroke="${TRACE}" stroke-width="${TOCO_SW}" stroke-linejoin="round"/>`);
   }
 
-  // ---- marcações e autozeros ----
-  for (const ev of trace.events) {
-    const x = clamp(xAt(ev.positionSec), LEFT, LEFT + traceW);
-    if (ev.kind === "marca") {
-      // linha-guia tracejada + triângulo cheio apontando para cima na base
-      out.push(`<line x1="${f(x)}" y1="${f(fTop)}" x2="${f(x)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.15" stroke-dasharray="1 1"/>`);
-      const ty = tBottom + 3;
-      out.push(`<path d="M ${f(x - 1.4)} ${f(ty)} L ${f(x + 1.4)} ${f(ty)} L ${f(x)} ${f(ty - 2.6)} Z" fill="#000"/>`);
-    } else {
-      // autozero: triângulo vazado na linha de base do TOCO + rótulo AZ
+  // ---- marcas: movimento fetal, estímulos e autozeros ----
+  // movimento fetal → linha pontilhada vertical; estímulos → linhas verticais
+  // (sólida = mecânico, tracejada = sonoro); autozero → triângulo vazado no TOCO.
+  const marks =
+    opts.marks ??
+    trace.events.map((e) => ({ positionSec: e.positionSec, kind: e.kind } as TraceMark));
+  const vline = (x: number, dash: string, tag: string) => {
+    const da = dash ? ` stroke-dasharray="${dash}"` : "";
+    out.push(`<line x1="${f(x)}" y1="${f(fTop)}" x2="${f(x)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.2"${da}/>`);
+    out.push(`<text x="${f(x)}" y="${f(fTop - 3.2)}" font-size="2" text-anchor="middle" fill="${LABEL}">${tag}</text>`);
+  };
+  for (const mk of marks) {
+    const x = clamp(xAt(mk.positionSec), LEFT, LEFT + traceW);
+    if (mk.kind === "movimento") vline(x, "0.35 0.9", "MF"); // pontilhada
+    else if (mk.kind === "mecanico") vline(x, "", "EM"); // sólida
+    else if (mk.kind === "sonoro") vline(x, "1.6 1", "ES"); // tracejada
+    else {
+      // autozero
       const y = yToco(TOCO_LO);
       out.push(`<path d="M ${f(x - 1.4)} ${f(y)} L ${f(x + 1.4)} ${f(y)} L ${f(x)} ${f(y - 2.6)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
       out.push(`<text x="${f(x + 2)}" y="${f(y - 0.5)}" font-size="2.2" fill="${LABEL}">AZ</text>`);
@@ -171,16 +182,26 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   out.push(`<text x="1" y="${f(tTop + 5)}" font-size="2.6" fill="${LABEL}">TOCO</text>`);
   out.push(`<text x="1" y="${f(tTop + 8)}" font-size="2" fill="${LABEL}">mmHg</text>`);
   const scaleLabel = compressed
-    ? `${mmPerMin.toFixed(1)} mm/min (comprimido) · FHR 30 bpm/cm · TOCO 25 mmHg/cm`
-    : `1 cm/min · FHR 30 bpm/cm · TOCO 25 mmHg/cm`;
+    ? `${mmPerMin.toFixed(1)} mm/min (comprimido) · FHR 30 bpm/cm · TOCO 25 mmHg/cm · eixo em minutos`
+    : `1 cm/min · FHR 30 bpm/cm · TOCO 25 mmHg/cm · eixo em minutos`;
   const legendY = height - 1.5;
-  // legenda de símbolos
   const lx = LEFT + 1;
-  out.push(`<path d="M ${f(lx)} ${f(legendY)} L ${f(lx + 2.8)} ${f(legendY)} L ${f(lx + 1.4)} ${f(legendY - 2.4)} Z" fill="#000"/>`);
-  out.push(`<text x="${f(lx + 4)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">marcação</text>`);
-  out.push(`<path d="M ${f(lx + 20)} ${f(legendY)} L ${f(lx + 22.8)} ${f(legendY)} L ${f(lx + 21.4)} ${f(legendY - 2.4)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
-  out.push(`<text x="${f(lx + 24)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">autozero</text>`);
-  out.push(`<text x="${f(lx + 44)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">${scaleLabel} · eixo em minutos</text>`);
+  // legenda de símbolos: MF (pontilhada), EM (sólida), ES (tracejada), AZ (triângulo)
+  const legItem = (x: number, dash: string, text: string): number => {
+    const da = dash ? ` stroke-dasharray="${dash}"` : "";
+    out.push(`<line x1="${f(x)}" y1="${f(legendY - 2.6)}" x2="${f(x)}" y2="${f(legendY + 0.4)}" stroke="#000" stroke-width="0.25"${da}/>`);
+    out.push(`<text x="${f(x + 1.5)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">${text}</text>`);
+    return x + 1.5 + text.length * 1.25 + 4;
+  };
+  let cx = lx;
+  cx = legItem(cx, "0.35 0.9", "MF = movimento fetal");
+  cx = legItem(cx, "", "EM = est. mecânico");
+  cx = legItem(cx, "1.6 1", "ES = est. sonoro");
+  // autozero (triângulo)
+  out.push(`<path d="M ${f(cx)} ${f(legendY)} L ${f(cx + 2.8)} ${f(legendY)} L ${f(cx + 1.4)} ${f(legendY - 2.4)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
+  out.push(`<text x="${f(cx + 4)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">AZ = autozero</text>`);
+  cx += 4 + 13 * 1.25 + 5;
+  out.push(`<text x="${f(cx)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">${scaleLabel}</text>`);
 
   out.push("</svg>");
   return { svg: out.join(""), mmPerMin, compressed };

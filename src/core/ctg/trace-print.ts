@@ -7,6 +7,7 @@
 import type { CtgTrace } from "./trc";
 import { traceSummary } from "./trc";
 import { renderCtgTrace } from "./trace-svg";
+import { buildMarks, examStartSec, type Stimulus } from "./stimuli";
 
 export interface LaudoPatient {
   nome?: string;
@@ -28,18 +29,25 @@ function field(label: string, value: string | undefined): string {
   return `<span class="fld"><b>${label}:</b> <span class="val">${v}</span></span>`;
 }
 
-export function buildCtgTraceHtml(traces: CtgTrace[], patient: LaudoPatient = {}): string {
+export function buildCtgTraceHtml(
+  traces: CtgTrace[],
+  patient: LaudoPatient = {},
+  stimuli: Stimulus[] = [],
+): string {
   const identBlock =
     `<div class="ident">` +
-    field("Nome", patient.nome) +
+    // Nome sempre em MAIÚSCULO no laudo.
+    field("Nome", patient.nome?.toUpperCase()) +
     field("RG", patient.rg) +
     field("Data", patient.data) +
     field("Hora", patient.hora) +
     `</div>`;
 
+  const examStart = examStartSec(traces);
+
   const sections = traces
     .map((t, i) => {
-      const { svg } = renderCtgTrace(t);
+      const { svg } = renderCtgTrace(t, { marks: buildMarks(t, stimuli, examStart) });
       const last = i === traces.length - 1;
       return `
       <section class="rec"${last ? "" : ' style="page-break-after:always"'}>

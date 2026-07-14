@@ -1,17 +1,30 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { FileUp, Printer, Trash2, HeartPulse } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { FileUp, Printer, Trash2, HeartPulse, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { printHtml } from "@/lib/print";
 import { parseTrc, traceSummary, formatTraceDate, TrcParseError, type CtgTrace } from "@/core/ctg/trc";
 import { renderCtgTraceSvg } from "@/core/ctg/trace-svg";
 import { buildCtgTraceHtml, type LaudoPatient } from "@/core/ctg/trace-print";
+import {
+  buildMarks,
+  examStartSec,
+  parseClock,
+  parseElapsed,
+  formatClock,
+  formatElapsed,
+  STIMULUS_LABEL,
+  type Stimulus,
+  type StimulusKind,
+} from "@/core/ctg/stimuli";
 
 type Failed = { fileName: string; error: string };
+type StimMode = "tempo" | "hora";
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -22,9 +35,15 @@ export default function CardiotocografiaToolPage() {
   const [errors, setErrors] = useState<Failed[]>([]);
   const [busy, setBusy] = useState(false);
   const [patient, setPatient] = useState<LaudoPatient>({ nome: "", rg: "", data: "", hora: "" });
+  const [stimuli, setStimuli] = useState<Stimulus[]>([]);
+  const [stimKind, setStimKind] = useState<StimulusKind>("mecanico");
+  const [stimMode, setStimMode] = useState<StimMode>("tempo");
+  const [stimValue, setStimValue] = useState("");
+  const [stimError, setStimError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  // Enquanto o usuário não editar data/hora, elas são preenchidas a partir do arquivo.
   const dateTimeEdited = useRef(false);
+
+  const examStart = useMemo(() => examStartSec(traces), [traces]);
 
   const handleFiles = useCallback(async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -47,9 +66,6 @@ export default function CardiotocografiaToolPage() {
     });
     setTraces(ok);
     setErrors(bad);
-
-    // Preenche data/hora automaticamente (da 1ª gravação; senão, agora), se o
-    // usuário ainda não as editou manualmente.
     if (!dateTimeEdited.current) {
       const first = ok[0];
       const now = new Date();
@@ -68,12 +84,58 @@ export default function CardiotocografiaToolPage() {
     setErrors([]);
     if (inputRef.current) inputRef.current.value = "";
   };
-  const exportPdf = () => printHtml(buildCtgTraceHtml(traces, patient));
+  const exportPdf = () => printHtml(buildCtgTraceHtml(traces, patient, stimuli));
 
   const setField = (k: keyof LaudoPatient, v: string) => {
     if (k === "data" || k === "hora") dateTimeEdited.current = true;
     setPatient((p) => ({ ...p, [k]: v }));
   };
+
+  const addStimulus = () => {
+    setStimError("");
+    let clockSec: number | null = null;
+    if (stimMode === "hora") {
+      clockSec = parseClock(stimValue);
+      if (clockSec == null) return setStimError("Hora inválida. Use HH:MM (ex.: 13:42).");
+    } else {
+      const elapsed = parseElapsed(stimValue);
+      if (elapsed == null) return setStimError("Tempo inválido. Use mm:ss (ex.: 05:30).");
+      if (examStart == null)
+        return setStimError("Carregue um arquivo (com horário) para usar o tempo decorrido, ou informe a hora.");
+      clockSec = examStart + elapsed;
+    }
+    const id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+    setStimuli((s) => [...s, { id, kind: stimKind, clockSec: clockSec as number }].sort((a, b) => a.clockSec - b.clockSec));
+    setStimValue("");
+  };
+
+  const removeStimulus = (id: string) => setStimuli((s) => s.filter((x) => x.id !== id));
+
+  const Seg = <T extends string>({
+    value,
+    options,
+    onChange,
+  }: {
+    value: T;
+    options: { v: T; label: string }[];
+    onChange: (v: T) => void;
+  }) => (
+    <div className="inline-flex rounded-lg border border-input p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.v}
+          type="button"
+          onClick={() => onChange(o.v)}
+          className={cn(
+            "rounded-md px-3 py-1 text-sm transition-colors",
+            value === o.v ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-5">
@@ -86,9 +148,9 @@ export default function CardiotocografiaToolPage() {
           Abra os arquivos <code className="rounded bg-muted px-1">.trc</code> do monitor fetal Edan
           (F2/F3) e gere o laudo em <strong>uma folha por gravação</strong>, em linha contínua e
           paisagem: <strong>1 cm/min</strong>, FHR a <strong>30 bpm/cm</strong> e TOCO a{" "}
-          <strong>25 mmHg/cm</strong>, com as marcações e autozeros. Em preto e branco, pronto para
-          imprimir ou salvar como PDF. Tudo é processado no seu dispositivo — nenhum arquivo é
-          enviado.
+          <strong>25 mmHg/cm</strong>, com movimentos fetais, autozeros e estímulos. Em preto e
+          branco, pronto para imprimir ou salvar como PDF. Tudo é processado no seu dispositivo —
+          nenhum arquivo é enviado.
         </p>
       </div>
 
@@ -129,6 +191,7 @@ export default function CardiotocografiaToolPage() {
                 value={patient.nome}
                 onChange={(e) => setField("nome", e.target.value)}
                 placeholder="Nome da paciente"
+                className="uppercase"
               />
             </div>
             <div className="space-y-1">
@@ -164,6 +227,83 @@ export default function CardiotocografiaToolPage() {
         </CardContent>
       </Card>
 
+      {/* Estímulos manuais (mecânico / sonoro), por tempo (mm:ss) ou hora (HH:MM). */}
+      <Card>
+        <CardContent className="space-y-3 py-4">
+          <div className="text-sm font-medium">Estímulos</div>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label>Tipo</Label>
+              <Seg
+                value={stimKind}
+                onChange={setStimKind}
+                options={[
+                  { v: "mecanico", label: "Mecânico" },
+                  { v: "sonoro", label: "Sonoro" },
+                ]}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Referência</Label>
+              <Seg
+                value={stimMode}
+                onChange={setStimMode}
+                options={[
+                  { v: "tempo", label: "Tempo (mm:ss)" },
+                  { v: "hora", label: "Hora (HH:MM)" },
+                ]}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="ctg-stim">{stimMode === "tempo" ? "Tempo decorrido" : "Hora"}</Label>
+              <Input
+                id="ctg-stim"
+                value={stimValue}
+                onChange={(e) => setStimValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addStimulus()}
+                placeholder={stimMode === "tempo" ? "05:30" : "13:42"}
+                className="w-28"
+              />
+            </div>
+            <Button type="button" variant="outline" onClick={addStimulus}>
+              <Plus className="h-4 w-4" /> Adicionar
+            </Button>
+          </div>
+          {stimError && <p className="text-xs text-destructive">{stimError}</p>}
+          {stimuli.length > 0 && (
+            <ul className="flex flex-wrap gap-2">
+              {stimuli.map((s) => {
+                const tempo = examStart != null ? formatElapsed(s.clockSec - examStart) : "—";
+                return (
+                  <li
+                    key={s.id}
+                    className="flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs"
+                  >
+                    <span className="font-medium">{STIMULUS_LABEL[s.kind]}</span>
+                    <span className="text-muted-foreground">
+                      tempo {tempo} · hora {formatClock(s.clockSec)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeStimulus(s.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label="Remover"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Informe por <strong>tempo decorrido</strong> (mm:ss desde o início do exame) ou por{" "}
+            <strong>hora de relógio</strong> (HH:MM); os dois são mostrados. Cada estímulo vira uma
+            linha vertical no traçado (sólida = mecânico, tracejada = sonoro).
+          </p>
+        </CardContent>
+      </Card>
+
       {errors.length > 0 && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           {errors.map((f) => (
@@ -181,14 +321,16 @@ export default function CardiotocografiaToolPage() {
               {traceSummary(t)}
               {t.events.length > 0 && (
                 <span className="ml-2 font-normal text-muted-foreground">
-                  · {t.events.filter((e) => e.kind === "marca").length} marcação(ões) ·{" "}
+                  · {t.events.filter((e) => e.kind === "movimento").length} mov. fetal ·{" "}
                   {t.events.filter((e) => e.kind === "autozero").length} autozero(s)
                 </span>
               )}
             </div>
             <div
               className="overflow-x-auto"
-              dangerouslySetInnerHTML={{ __html: renderCtgTraceSvg(t) }}
+              dangerouslySetInnerHTML={{
+                __html: renderCtgTraceSvg(t, { marks: buildMarks(t, stimuli, examStart) }),
+              }}
             />
           </CardContent>
         </Card>

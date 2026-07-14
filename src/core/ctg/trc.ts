@@ -36,10 +36,11 @@ const NO_SIGNAL = 0xff;
 
 // Bloco de eventos: começa em dataOff + 4*N (após os 4 canais de N bytes) e tem
 // `nEvents` registros de 116 bytes. Cada registro: [tipo u32][counter u32]
-// [dia u8][mês u8][ano u16][posição_seg u32]…zeros. Tipo 3 = marcação (evento
-// pressionado no exame); demais (1/4), com posição 0, = autozero do TOCO.
+// [dia u8][mês u8][ano u16][posição_seg u32]…zeros. Tipo 3 = movimento fetal
+// (botão de evento pressionado no exame); demais (1/4), com posição 0, = autozero
+// do TOCO.
 const EVENT_RECORD_SIZE = 116;
-const EVENT_TYPE_MARK = 3;
+const EVENT_TYPE_FETAL_MOVEMENT = 3;
 
 export interface CtgTraceDate {
   day: number;
@@ -56,14 +57,14 @@ export interface CtgTraceStats {
   durationSec: number;
 }
 
-export type CtgEventKind = "marca" | "autozero";
+export type CtgEventKind = "movimento" | "autozero";
 
 export interface CtgEvent {
   /** Posição do evento em segundos a partir do início da gravação. */
   positionSec: number;
-  /** Marcação (botão de evento) ou autozero do TOCO. */
+  /** Movimento fetal (botão de evento) ou autozero do TOCO. */
   kind: CtgEventKind;
-  /** Código de tipo bruto do aparelho (3 = marcação; 1/4 = autozero). */
+  /** Código de tipo bruto do aparelho (3 = movimento fetal; 1/4 = autozero). */
   rawType: number;
 }
 
@@ -183,7 +184,7 @@ export function parseTrc(buffer: ArrayBuffer, fileName = "trace.trc"): CtgTrace 
       events.push({
         positionSec,
         rawType,
-        kind: rawType === EVENT_TYPE_MARK ? "marca" : "autozero",
+        kind: rawType === EVENT_TYPE_FETAL_MOVEMENT ? "movimento" : "autozero",
       });
     }
   }

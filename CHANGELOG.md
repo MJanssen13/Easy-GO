@@ -17,8 +17,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   25 mmHg/cm** na vertical. Preto e branco (grade cinza, faixa 110–160 bpm em
   cinza claro), com **traços finos**. Traçados longos que não caibam em uma folha
   a 1 cm/min são comprimidos e a escala efetiva é anotada.
-- Expõe as **marcações** (botão de evento) e os **autozeros** do TOCO lidos do
-  arquivo, com legenda de símbolos.
+- Expõe os **movimentos fetais** (botão de evento, desenhados como linha
+  pontilhada vertical) e os **autozeros** do TOCO lidos do arquivo, com legenda.
+- **Estímulos** mecânicos e sonoros adicionáveis na plataforma por **tempo
+  decorrido** (mm:ss) ou **hora de relógio** (HH:MM) — as duas formas são
+  exibidas — plotados como linhas verticais (sólida = mecânico, tracejada =
+  sonoro) no instante do estímulo.
+- Nome da paciente impresso em **MAIÚSCULO**; traços ainda mais finos.
 - Campos de identificação do laudo — **Nome, RG, Data e Hora** — mostrados em
   cada folha; **Data e Hora** vêm preenchidas automaticamente do arquivo (ou do
   horário atual) e podem ser editadas.
