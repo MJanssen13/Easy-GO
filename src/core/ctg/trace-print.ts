@@ -1,13 +1,13 @@
 // Monta um documento HTML autocontido (A4 paisagem, preto e branco) com os
 // traçados de cardiotocografia — UMA folha por gravação, em linha contínua e
 // escala real (1 cm/min; FHR 30 bpm/cm; TOCO 25 mmHg/cm) — para imprimir ou
-// exportar em PDF via `printHtml`. Cada folha traz a identificação do laudo
-// (Nome, RG, Data, Hora). Função pura; reutiliza o mesmo SVG (em mm) da prévia.
+// exportar em PDF via `printHtml`. Cada folha traz a identificação (Nome, RG,
+// Data, Hora). Função pura; reutiliza o mesmo SVG (em mm) da prévia.
 
 import type { CtgTrace } from "./trc";
 import { traceSummary } from "./trc";
 import { renderCtgTrace } from "./trace-svg";
-import { buildMarks, examStartSec, type Stimulus } from "./stimuli";
+import { buildMarks, examStartSec, type Stimulus, type TraceMark } from "./stimuli";
 
 export interface LaudoPatient {
   nome?: string;
@@ -29,38 +29,32 @@ function field(label: string, value: string | undefined): string {
   return `<span class="fld"><b>${label}:</b> <span class="val">${v}</span></span>`;
 }
 
-export function buildCtgTraceHtml(
-  traces: CtgTrace[],
-  patient: LaudoPatient = {},
-  stimuli: Stimulus[] = [],
-): string {
-  const identBlock =
+function identBlock(patient: LaudoPatient): string {
+  return (
     `<div class="ident">` +
     // Nome sempre em MAIÚSCULO no laudo.
     field("Nome", patient.nome?.toUpperCase()) +
     field("RG", patient.rg) +
     field("Data", patient.data) +
     field("Hora", patient.hora) +
-    `</div>`;
+    `</div>`
+  );
+}
 
-  const examStart = examStartSec(traces);
-
-  const sections = traces
-    .map((t, i) => {
-      const { svg } = renderCtgTrace(t, { marks: buildMarks(t, stimuli, examStart) });
-      const last = i === traces.length - 1;
-      return `
+function section(trace: CtgTrace, patient: LaudoPatient, marks: TraceMark[], last: boolean): string {
+  const { svg } = renderCtgTrace(trace, { marks });
+  return `
       <section class="rec"${last ? "" : ' style="page-break-after:always"'}>
         <div class="hdr">
           <span class="ttl">Cardiotocografia — monitor fetal Edan</span>
-          ${identBlock}
-          <span class="meta">${escapeHtml(traceSummary(t))}</span>
+          ${identBlock(patient)}
+          <span class="meta">${escapeHtml(traceSummary(trace))}</span>
         </div>
         ${svg}
       </section>`;
-    })
-    .join("");
+}
 
+function document_(sections: string): string {
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -84,4 +78,39 @@ export function buildCtgTraceHtml(
   ${sections}
 </body>
 </html>`;
+}
+
+/** Exame único (ou várias gravações da mesma paciente), com estímulos. */
+export function buildCtgTraceHtml(
+  traces: CtgTrace[],
+  patient: LaudoPatient = {},
+  stimuli: Stimulus[] = [],
+): string {
+  const examStart = examStartSec(traces);
+  const sections = traces
+    .map((t, i) =>
+      section(t, patient, buildMarks(t, stimuli, examStart), i === traces.length - 1),
+    )
+    .join("");
+  return document_(sections);
+}
+
+/** Uma entrada da exportação em lote: um exame com sua própria identificação. */
+export interface BatchEntry {
+  trace: CtgTrace;
+  patient: LaudoPatient;
+}
+
+/**
+ * Exportação em lote: um exame por página, cada um com a sua identificação
+ * (Nome/RG/Data/Hora). Sem estímulos manuais — desenha os eventos do arquivo
+ * (movimentos fetais e autozeros).
+ */
+export function buildCtgBatchHtml(entries: BatchEntry[]): string {
+  const sections = entries
+    .map((e, i) =>
+      section(e.trace, e.patient, buildMarks(e.trace, [], null), i === entries.length - 1),
+    )
+    .join("");
+  return document_(sections);
 }

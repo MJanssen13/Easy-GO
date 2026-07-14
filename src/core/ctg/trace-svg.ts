@@ -33,7 +33,7 @@ const RIGHT = 4;
 const TOP = 6; // rótulos de tempo acima do painel de FHR
 const MM_PER_BPM = 10 / 30; // 1 cm = 30 bpm
 const FHR_H = (FHR_HI - FHR_LO) * MM_PER_BPM; // ≈ 53,3 mm
-const GAP = 6; // entre painéis FHR e TOCO
+const GAP = 10; // 1 cm entre painéis FHR e TOCO (aloja os selos de marca)
 const MM_PER_MMHG = 10 / 25; // 1 cm = 25 mmHg
 const TOCO_H = (TOCO_HI - TOCO_LO) * MM_PER_MMHG; // 40 mm
 const MARK_H = 4; // faixa inferior para marcações/legenda
@@ -153,21 +153,25 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   }
 
   // ---- marcas: movimento fetal, estímulos e autozeros ----
-  // movimento fetal → linha pontilhada vertical; estímulos → linhas verticais
-  // (sólida = mecânico, tracejada = sonoro); autozero → triângulo vazado no TOCO.
+  // A linha indicativa vertical atravessa os dois painéis (pontilhada = movimento
+  // fetal; sólida = estímulo mecânico; tracejada = estímulo sonoro) e, no espaço
+  // de 1 cm entre os gráficos, um selo circular preto com a sigla em branco.
+  // Autozero → triângulo vazado na linha de base do TOCO.
   const marks =
     opts.marks ??
     trace.events.map((e) => ({ positionSec: e.positionSec, kind: e.kind } as TraceMark));
-  const vline = (x: number, dash: string, tag: string) => {
+  const gapCenter = fTop + FHR_H + GAP / 2;
+  const badge = (x: number, dash: string, tag: string) => {
     const da = dash ? ` stroke-dasharray="${dash}"` : "";
     out.push(`<line x1="${f(x)}" y1="${f(fTop)}" x2="${f(x)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.2"${da}/>`);
-    out.push(`<text x="${f(x)}" y="${f(fTop - 3.2)}" font-size="2" text-anchor="middle" fill="${LABEL}">${tag}</text>`);
+    out.push(`<circle cx="${f(x)}" cy="${f(gapCenter)}" r="2.7" fill="#000"/>`);
+    out.push(`<text x="${f(x)}" y="${f(gapCenter)}" font-size="2.3" text-anchor="middle" dominant-baseline="central" fill="#fff">${tag}</text>`);
   };
   for (const mk of marks) {
     const x = clamp(xAt(mk.positionSec), LEFT, LEFT + traceW);
-    if (mk.kind === "movimento") vline(x, "0.35 0.9", "MF"); // pontilhada
-    else if (mk.kind === "mecanico") vline(x, "", "EM"); // sólida
-    else if (mk.kind === "sonoro") vline(x, "1.6 1", "ES"); // tracejada
+    if (mk.kind === "movimento") badge(x, "0.35 0.9", "MF"); // pontilhada
+    else if (mk.kind === "mecanico") badge(x, "", "EM"); // sólida
+    else if (mk.kind === "sonoro") badge(x, "1.6 1", "ES"); // tracejada
     else {
       // autozero
       const y = yToco(TOCO_LO);
@@ -186,17 +190,20 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
     : `1 cm/min · FHR 30 bpm/cm · TOCO 25 mmHg/cm · eixo em minutos`;
   const legendY = height - 1.5;
   const lx = LEFT + 1;
-  // legenda de símbolos: MF (pontilhada), EM (sólida), ES (tracejada), AZ (triângulo)
-  const legItem = (x: number, dash: string, text: string): number => {
+  // legenda: selo circular + linha indicativa por tipo, depois o autozero.
+  const legItem = (x: number, dash: string, tag: string, text: string): number => {
+    const cy = legendY - 0.9;
     const da = dash ? ` stroke-dasharray="${dash}"` : "";
-    out.push(`<line x1="${f(x)}" y1="${f(legendY - 2.6)}" x2="${f(x)}" y2="${f(legendY + 0.4)}" stroke="#000" stroke-width="0.25"${da}/>`);
-    out.push(`<text x="${f(x + 1.5)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">${text}</text>`);
-    return x + 1.5 + text.length * 1.25 + 4;
+    out.push(`<line x1="${f(x)}" y1="${f(cy - 2)}" x2="${f(x)}" y2="${f(cy + 2)}" stroke="#000" stroke-width="0.25"${da}/>`);
+    out.push(`<circle cx="${f(x)}" cy="${f(cy)}" r="1.8" fill="#000"/>`);
+    out.push(`<text x="${f(x)}" y="${f(cy)}" font-size="1.7" text-anchor="middle" dominant-baseline="central" fill="#fff">${tag}</text>`);
+    out.push(`<text x="${f(x + 2.6)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">${text}</text>`);
+    return x + 2.6 + text.length * 1.25 + 4;
   };
   let cx = lx;
-  cx = legItem(cx, "0.35 0.9", "MF = movimento fetal");
-  cx = legItem(cx, "", "EM = est. mecânico");
-  cx = legItem(cx, "1.6 1", "ES = est. sonoro");
+  cx = legItem(cx, "0.35 0.9", "MF", "movimento fetal");
+  cx = legItem(cx, "", "EM", "est. mecânico");
+  cx = legItem(cx, "1.6 1", "ES", "est. sonoro");
   // autozero (triângulo)
   out.push(`<path d="M ${f(cx)} ${f(legendY)} L ${f(cx + 2.8)} ${f(legendY)} L ${f(cx + 1.4)} ${f(legendY - 2.4)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
   out.push(`<text x="${f(cx + 4)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">AZ = autozero</text>`);

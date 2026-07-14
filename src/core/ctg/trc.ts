@@ -8,13 +8,17 @@
 //   0x004  uint32    offset onde começam os dados de amostra (= 1024)
 //   0x00C  uint32    número de canais (= 3)
 //   0x060  UTF-16LE  carimbo AAMMDDHHMM em dígitos ASCII ("2607030147")
+//   0x088  UTF-16LE  ID/identificação digitada no aparelho (pode vir em branco)
 //   0x138  uint8     dia
 //   0x139  uint8     mês
 //   0x13A  uint16    ano
 //   0x144  uint32    número de amostras por canal (N)
+//   0x1C0  uint32    número de registros de evento
 //   0x400  N bytes   canal 0  — FHR2 (2º feto/gemelar; normalmente vazio)
 //   0x400+N          canal 1  — FHR  (frequência cardíaca fetal, bpm)
 //   0x400+2N         canal 2  — TOCO (atividade uterina, unidades relativas)
+//   0x400+3N         canal 3  — MHR (freq. cardíaca materna; normalmente vazio)
+//   0x400+4N         registros de evento (marcações/autozeros), 116 bytes cada
 //
 // Cada amostra é 1 byte com valor direto na unidade do canal. O valor 0xFF é o
 // sentinela de "sem sinal" (perda de contato do transdutor / canal não usado).
@@ -27,6 +31,8 @@ const MAGIC = "trc ";
 const OFF_DATA_PTR = 4;
 const OFF_NCH = 12;
 const OFF_TS = 0x60;
+const OFF_ID = 0x89; // 137 — identificação digitada no aparelho (UTF-16LE, offset ímpar)
+const ID_MAX_CHARS = 32;
 const OFF_DAY = 0x138;
 const OFF_MONTH = 0x139;
 const OFF_YEAR = 0x13a;
@@ -76,6 +82,11 @@ export interface CtgTrace {
   date: CtgTraceDate | null;
   /** Horário de início "HH:MM" extraído do carimbo do arquivo. */
   startTime: string | null;
+  /**
+   * Identificação vinda do arquivo: o ID digitado no aparelho, se houver;
+   * caso contrário o carimbo AAMMDDHHMM. Serve de valor inicial para o RG.
+   */
+  fileId: string;
   /** FHR em bpm; `null` onde houve perda de sinal. */
   fhr: (number | null)[];
   /** TOCO em unidades relativas; `null` onde não há dado. */
@@ -96,6 +107,25 @@ function readAsciiDigits(bytes: Uint8Array, start: number, end: number): string 
     if (c >= 0x30 && c <= 0x39) out += String.fromCharCode(c);
   }
   return out;
+}
+
+/**
+ * Lê uma string UTF-16LE de texto latino (byte alto = 0x00). Para no nulo, no
+ * byte alto não-zero (0xFF é o sentinela de vazio do formato) ou no limite de
+ * caracteres. Ignora caracteres de controle e apara espaços.
+ */
+function readUtf16(bytes: Uint8Array, start: number, maxChars: number): string {
+  let out = "";
+  for (let i = 0; i < maxChars; i++) {
+    const o = start + i * 2;
+    if (o + 1 >= bytes.length) break;
+    const lo = bytes[o];
+    const hi = bytes[o + 1];
+    if (hi !== 0x00) break; // 0xFF (vazio) ou caractere não-latino
+    if (lo === 0x00) break; // nulo
+    if (lo >= 0x20) out += String.fromCharCode(lo);
+  }
+  return out.trim();
 }
 
 function channelToValues(bytes: Uint8Array, start: number, n: number): (number | null)[] {
@@ -158,6 +188,10 @@ export function parseTrc(buffer: ArrayBuffer, fileName = "trace.trc"): CtgTrace 
     startTime = `${digits.slice(6, 8)}:${digits.slice(8, 10)}`;
   }
 
+  // ID do arquivo: o digitado no aparelho tem prioridade; senão, o carimbo.
+  const deviceId = readUtf16(bytes, OFF_ID, ID_MAX_CHARS);
+  const fileId = deviceId || digits;
+
   // Canais: 0 = FHR2, 1 = FHR, 2 = TOCO.
   const ch0 = channelToValues(bytes, dataOff, n);
   const ch1 = channelToValues(bytes, dataOff + n, n);
@@ -196,7 +230,7 @@ export function parseTrc(buffer: ArrayBuffer, fileName = "trace.trc"): CtgTrace 
     durationSec: n / TRC_SAMPLE_RATE_HZ,
   };
 
-  return { fileName, sampleRateHz: TRC_SAMPLE_RATE_HZ, samples: n, date, startTime, fhr, toco, fhr2, events, stats };
+  return { fileName, sampleRateHz: TRC_SAMPLE_RATE_HZ, samples: n, date, startTime, fileId, fhr, toco, fhr2, events, stats };
 }
 
 /** Formata segundos como "Xmin YYs" para exibição. */
