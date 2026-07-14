@@ -10,6 +10,7 @@ const MODULE_THEME: Record<string, string> = {
   psgo: "theme-red",
   oncogineco: "theme-purple",
   "pre-natal": "theme-teal",
+  ferramentas: "theme-slate",
 };
 
 export function ModuleTheme({

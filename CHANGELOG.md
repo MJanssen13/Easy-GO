@@ -5,6 +5,31 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Ferramentas — Cardiotocografia (leitor de .trc do Edan)
+
+- Nova aba **Ferramentas** no painel geral, com o utilitário **Cardiotocografia**.
+- Leitor dos arquivos **`.trc`** dos monitores fetais **Edan (F2/F3)** (formato
+  binário proprietário, decodificado por engenharia reversa): reconstrói os canais
+  **FHR** e **TOCO** (1 amostra/s; `0xFF` = perda de sinal) e extrai data, horário,
+  linha de base e % de perda de sinal. Aceita **vários arquivos** de uma vez.
+- Laudo em **uma folha por gravação**, em **linha contínua** e **paisagem**, na
+  escala física real: **1 cm/min** na horizontal, **FHR a 30 bpm/cm** e **TOCO a
+  25 mmHg/cm** na vertical. Preto e branco (grade cinza, faixa 110–160 bpm em
+  cinza claro), com **traços finos**. Traçados longos que não caibam em uma folha
+  a 1 cm/min são comprimidos e a escala efetiva é anotada.
+- Expõe os **movimentos fetais** (botão de evento, desenhados como linha
+  pontilhada vertical) e os **autozeros** do TOCO lidos do arquivo, com legenda.
+- **Estímulos** mecânicos e sonoros adicionáveis na plataforma por **tempo
+  decorrido** (mm:ss) ou **hora de relógio** (HH:MM) — as duas formas são
+  exibidas — plotados como linhas verticais (sólida = mecânico, tracejada =
+  sonoro) no instante do estímulo.
+- Nome da paciente impresso em **MAIÚSCULO**; traços ainda mais finos.
+- Campos de identificação do laudo — **Nome, RG, Data e Hora** — mostrados em
+  cada folha; **Data e Hora** vêm preenchidas automaticamente do arquivo (ou do
+  horário atual) e podem ser editadas.
+- **Imprimir/exportar em PDF** via diálogo de impressão do navegador.
+- Todo o processamento é **no dispositivo**; nenhum arquivo é enviado.
+
 ### PSGO — Gerador de HPMA e reconhecimento de datas
 
 - **Febre** melhor detalhada nas QPs que a referem (além da própria Febre):
