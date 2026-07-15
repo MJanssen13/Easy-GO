@@ -8,7 +8,7 @@
 // Função pura (sem React); usada tanto na prévia quanto na impressão.
 
 import type { CtgTrace } from "./trc";
-import type { TraceMark } from "./stimuli";
+import type { MarkKind, TraceMark } from "./stimuli";
 
 export interface TraceSvgOptions {
   /** Milímetros por minuto (velocidade do papel). Padrão 10 (= 1 cm/min). */
@@ -153,31 +153,97 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   }
 
   // ---- marcas: movimento fetal, estímulos e autozeros ----
-  // A linha indicativa vertical atravessa os dois painéis (pontilhada = movimento
-  // fetal; sólida = estímulo mecânico; tracejada = estímulo sonoro) e, no espaço
-  // de 1 cm entre os gráficos, um selo circular preto com a sigla em branco.
+  // Cada marca gera uma LINHA indicativa vertical na posição REAL (pontilhada =
+  // movimento fetal; sólida = estímulo mecânico; tracejada = estímulo sonoro),
+  // atravessando os dois painéis. No espaço de 1 cm entre os gráficos vai o SELO
+  // com a sigla. Para não sobrepor os selos quando há muitas marcas próximas
+  // (movimentos ou estímulos em rajada), marcas vizinhas do mesmo tipo são
+  // agrupadas em um único selo com a contagem ("MF ×4"), e os selos restantes são
+  // distribuídos em até duas linhas / deslocados na horizontal para não colidir —
+  // as linhas indicativas permanecem sempre na posição real de cada marca.
   // Autozero → triângulo vazado na linha de base do TOCO.
   const marks =
     opts.marks ??
     trace.events.map((e) => ({ positionSec: e.positionSec, kind: e.kind } as TraceMark));
   const gapCenter = fTop + FHR_H + GAP / 2;
-  const badge = (x: number, dash: string, tag: string) => {
-    const da = dash ? ` stroke-dasharray="${dash}"` : "";
-    out.push(`<line x1="${f(x)}" y1="${f(fTop)}" x2="${f(x)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.2"${da}/>`);
-    out.push(`<circle cx="${f(x)}" cy="${f(gapCenter)}" r="2.7" fill="#000"/>`);
-    out.push(`<text x="${f(x)}" y="${f(gapCenter)}" font-size="2.3" text-anchor="middle" dominant-baseline="central" fill="#fff">${tag}</text>`);
-  };
+
+  const DASH: Partial<Record<MarkKind, string>> = { movimento: "0.35 0.9", mecanico: "", sonoro: "1.6 1" };
+  const TAG: Partial<Record<MarkKind, string>> = { movimento: "MF", mecanico: "EM", sonoro: "ES" };
+
+  // 1) Linhas indicativas (posição real) + autozeros; coleta os selos a posicionar.
+  const badgeMarks: { x: number; kind: MarkKind }[] = [];
   for (const mk of marks) {
     const x = clamp(xAt(mk.positionSec), LEFT, LEFT + traceW);
-    if (mk.kind === "movimento") badge(x, "0.35 0.9", "MF"); // pontilhada
-    else if (mk.kind === "mecanico") badge(x, "", "EM"); // sólida
-    else if (mk.kind === "sonoro") badge(x, "1.6 1", "ES"); // tracejada
-    else {
-      // autozero
+    if (mk.kind === "autozero") {
       const y = yToco(TOCO_LO);
       out.push(`<path d="M ${f(x - 1.4)} ${f(y)} L ${f(x + 1.4)} ${f(y)} L ${f(x)} ${f(y - 2.6)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
       out.push(`<text x="${f(x + 2)}" y="${f(y - 0.5)}" font-size="2.2" fill="${LABEL}">AZ</text>`);
+      continue;
     }
+    const dash = DASH[mk.kind] ?? "";
+    const da = dash ? ` stroke-dasharray="${dash}"` : "";
+    out.push(`<line x1="${f(x)}" y1="${f(fTop)}" x2="${f(x)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.2"${da}/>`);
+    badgeMarks.push({ x, kind: mk.kind });
+  }
+
+  // 2) Agrupa marcas vizinhas do mesmo tipo (cujos selos se sobreporiam) num só selo.
+  const R = 2.4; // raio do selo circular
+  const PAD = 0.7; // folga mínima entre selos
+  const MERGE = 2 * R + PAD; // distância (mm) abaixo da qual selos do mesmo tipo se fundem
+  const FS = 2.2; // corpo do rótulo do selo
+  const CHAR = FS * 0.62; // largura aproximada de caractere (para dimensionar a pílula)
+
+  interface Seal { x: number; kind: MarkKind; count: number; half: number; row: number }
+  const seals: Seal[] = [];
+  for (const kind of ["movimento", "mecanico", "sonoro"] as MarkKind[]) {
+    const xs = badgeMarks.filter((m) => m.kind === kind).map((m) => m.x).sort((a, b) => a - b);
+    for (let i = 0; i < xs.length; ) {
+      let j = i + 1;
+      while (j < xs.length && xs[j] - xs[j - 1] < MERGE) j++;
+      const group = xs.slice(i, j);
+      const cx = group.reduce((a, b) => a + b, 0) / group.length;
+      const count = group.length;
+      const label = count > 1 ? `${TAG[kind]} ×${count}` : TAG[kind]!;
+      const half = count > 1 ? (label.length * CHAR) / 2 + 1.4 : R; // pílula p/ grupos
+      seals.push({ x: cx, kind, count, half, row: 0 });
+      i = j;
+    }
+  }
+
+  // 3) Distribui os selos em até duas linhas, sem sobreposição; empurra na horizontal
+  //    quando ambas as linhas estão ocupadas. As linhas indicativas não se movem.
+  const minX = LEFT;
+  const maxX = LEFT + traceW;
+  const MAX_ROWS = 2;
+  const rowRight: number[] = []; // borda direita ocupada em cada linha
+  seals.sort((a, b) => a.x - b.x);
+  for (const s of seals) {
+    s.x = clamp(s.x, minX + s.half, maxX - s.half);
+    let placed = -1;
+    for (let r = 0; r < Math.min(rowRight.length + 1, MAX_ROWS); r++) {
+      if (s.x - s.half >= (rowRight[r] ?? -Infinity) + PAD) { placed = r; break; }
+    }
+    if (placed === -1) {
+      // Nenhuma linha livre: usa a que libera antes e desloca o selo para a direita.
+      placed = rowRight[0] <= (rowRight[1] ?? Infinity) ? 0 : 1;
+      s.x = clamp(rowRight[placed] + PAD + s.half, minX + s.half, maxX - s.half);
+    }
+    rowRight[placed] = s.x + s.half;
+    s.row = placed;
+  }
+  const twoRows = rowRight.length > 1;
+  const rowOffset = 2.5;
+
+  // 4) Desenha os selos (círculo para marca única; pílula com contagem para grupos).
+  for (const s of seals) {
+    const cy = !twoRows ? gapCenter : gapCenter + (s.row === 0 ? -rowOffset : rowOffset);
+    const label = s.count > 1 ? `${TAG[s.kind]} ×${s.count}` : TAG[s.kind]!;
+    if (s.count > 1) {
+      out.push(`<rect x="${f(s.x - s.half)}" y="${f(cy - R)}" width="${f(2 * s.half)}" height="${f(2 * R)}" rx="${f(R)}" fill="#000"/>`);
+    } else {
+      out.push(`<circle cx="${f(s.x)}" cy="${f(cy)}" r="${f(R)}" fill="#000"/>`);
+    }
+    out.push(`<text x="${f(s.x)}" y="${f(cy)}" font-size="${FS}" text-anchor="middle" dominant-baseline="central" fill="#fff">${label}</text>`);
   }
 
   // ---- rótulos dos painéis, escala e legenda ----

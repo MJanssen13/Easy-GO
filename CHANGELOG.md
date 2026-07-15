@@ -259,6 +259,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   Movimentos fetais e estímulos são desenhados com **linha indicativa vertical**
   e um **selo circular preto com a sigla em branco** (MF/EM/ES) no espaço de
   **1 cm entre os gráficos** (distância aumentada para acomodá-los).
+- **Selos sem sobreposição** quando há muitas marcas próximas: marcas vizinhas do
+  **mesmo tipo** (movimentos ou estímulos em rajada) são **agrupadas em um único
+  selo com a contagem** (ex.: `MF ×4`), e os selos restantes são **distribuídos em
+  até duas linhas** ou deslocados na horizontal para não colidir. As **linhas
+  indicativas** permanecem sempre na **posição real** de cada marca, preservando a
+  informação temporal.
 - **Estímulos** mecânicos e sonoros adicionáveis na plataforma por **tempo
   decorrido** (mm:ss) ou **hora de relógio** (HH:MM) — as duas formas são
   exibidas — plotados como linhas verticais (sólida = mecânico, tracejada =
