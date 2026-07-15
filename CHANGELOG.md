@@ -261,10 +261,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   **1 cm entre os gráficos** (distância aumentada para acomodá-los).
 - **Nome da paciente x ID separados corretamente.** O campo de texto do aparelho
   (0x89) é o **nome da paciente** e passa a preencher o campo **Nome** — antes ia,
-  errado, para o **RG**. O **ID/prontuário** é extraído do **nome do arquivo** (o
-  trecho que não é o carimbo de data/hora) e preenche o **RG**. Ex.:
-  `8a1f7328-20260713185259.trc` com "NAIARA" no arquivo → Nome **NAIARA**, RG
-  **8a1f7328**, data **13/07/2026**, hora **18:52**.
+  errado, para o **RG**. Ex.: arquivo com "NAIARA" → Nome **NAIARA**.
+- **RG/prontuário** só é preenchido a partir do nome do arquivo quando o trecho
+  fora do carimbo de data/hora é **puramente numérico** (ex.:
+  `1247816-20260713185259.trc` → RG **1247816**). Códigos hexadecimais de
+  exportação (ex.: `8a1f7328`) **não** são o prontuário e são ignorados — nesses
+  casos o RG fica em **branco** para digitação.
 - **Data, hora e ID lidos do nome do arquivo**, que é a fonte canônica do aparelho
   — o carimbo interno vira apenas reserva. Reconhece o carimbo `AAAAMMDDHHMMSS`
   com ou sem separadores (`20260714-040418-…` ou `20260713185259`). Corrige

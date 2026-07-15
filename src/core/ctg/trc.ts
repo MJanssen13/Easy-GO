@@ -89,9 +89,10 @@ export interface CtgTrace {
    */
   patientName: string;
   /**
-   * ID/prontuário extraído do NOME do arquivo (o trecho que não é o carimbo de
-   * data/hora). Fica em branco quando não há ID (nunca usa o carimbo de
-   * data/hora nem o nome da paciente). Serve de valor inicial para o **RG**.
+   * ID/prontuário extraído do NOME do arquivo — apenas quando o trecho fora do
+   * carimbo de data/hora é puramente numérico. Fica em branco quando não há ID
+   * numérico (nunca usa o carimbo, o nome da paciente nem códigos hexadecimais de
+   * exportação). Serve de valor inicial para o **RG**.
    */
   fileId: string;
   /** FHR em bpm; `null` onde houve perda de sinal. */
@@ -152,12 +153,16 @@ function median(values: number[]): number | null {
 
 /**
  * Extrai data, horário e ID do NOME do arquivo exportado pelo aparelho. O nome
- * embute um carimbo `AAAAMMDDHHMMSS` (com ou sem separadores) e, opcionalmente,
- * um ID/prontuário em outro trecho. É a forma mais confiável de recuperar
- * data/horário e o ID quando o carimbo interno não os traz. Ex.:
- *   `8a1f7328-20260713185259.trc` → 13/07/2026 18:52, ID `8a1f7328`
+ * embute um carimbo `AAAAMMDDHHMMSS` (com ou sem separadores) e, às vezes, outro
+ * trecho. É a forma mais confiável de recuperar data/horário quando o carimbo
+ * interno não os traz.
+ *
+ * O ID/prontuário só é assumido quando o trecho fora do carimbo é **puramente
+ * numérico** — códigos hexadecimais de exportação (ex.: `8a1f7328`) NÃO são o
+ * prontuário e são ignorados (o RG fica em branco para digitação). Ex.:
+ *   `8a1f7328-20260713185259.trc` → 13/07/2026 18:52, sem ID (8a1f7328 = código de exportação)
+ *   `1247816-20260713185259.trc`  → 13/07/2026 18:52, ID `1247816`
  *   `20260714-040418-.trc`        → 14/07/2026 04:04, sem ID
- *   `20260713185259.trc`          → 13/07/2026 18:52, sem ID
  */
 function parseFileNameStamp(fileName: string): {
   date: CtgTraceDate | null;
@@ -175,14 +180,11 @@ function parseFileNameStamp(fileName: string): {
   const validDate = year >= 2000 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31;
   const validTime = hh <= 23 && mm <= 59;
   if (!validDate || !validTime) return { date: null, startTime: null, id: "" };
-  // O que sobra no nome, fora o carimbo de data/hora, é o ID/prontuário.
+  // O que sobra no nome, fora o carimbo de data/hora, só vira ID se for numérico.
   const idx = m.index ?? 0;
-  const rest = base.slice(0, idx) + base.slice(idx + m[0].length);
-  return {
-    date: { day, month, year },
-    startTime: `${m[4]}:${m[5]}`,
-    id: rest.replace(/[-_\s]+/g, " ").trim(),
-  };
+  const rest = (base.slice(0, idx) + base.slice(idx + m[0].length)).replace(/[-_\s]+/g, " ").trim();
+  const id = /^\d{2,}$/.test(rest) ? rest : "";
+  return { date: { day, month, year }, startTime: `${m[4]}:${m[5]}`, id };
 }
 
 /**
