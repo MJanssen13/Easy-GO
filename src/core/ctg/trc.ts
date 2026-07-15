@@ -83,8 +83,9 @@ export interface CtgTrace {
   /** Horário de início "HH:MM" extraído do carimbo do arquivo. */
   startTime: string | null;
   /**
-   * Identificação vinda do arquivo: o ID digitado no aparelho, se houver;
-   * caso contrário o carimbo AAMMDDHHMM. Serve de valor inicial para o RG.
+   * Identificação vinda do arquivo: o ID digitado no aparelho, se houver; caso
+   * contrário o ID presente no nome do arquivo. Fica em branco quando não há ID
+   * (nunca usa o carimbo de data/hora). Serve de valor inicial para o RG.
    */
   fileId: string;
   /** FHR em bpm; `null` onde houve perda de sinal. */
@@ -144,6 +145,32 @@ function median(values: number[]): number | null {
 }
 
 /**
+ * Extrai data, horário e ID do NOME do arquivo exportado pelo aparelho, no padrão
+ * `AAAAMMDD-HHMMSS-<ID>.trc` (o ID pode vir vazio). É a forma mais confiável de
+ * recuperar data/horário quando o carimbo interno não os traz. Ex.:
+ * `20260714-040418-.trc` → 14/07/2026, 04:04, ID vazio.
+ */
+function parseFileNameStamp(fileName: string): {
+  date: CtgTraceDate | null;
+  startTime: string | null;
+  id: string;
+} {
+  const m = fileName.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(.*?))?\.trc$/i);
+  if (!m) return { date: null, startTime: null, id: "" };
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const hh = Number(m[4]);
+  const mm = Number(m[5]);
+  const date =
+    year >= 2000 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31
+      ? { day, month, year }
+      : null;
+  const startTime = hh <= 23 && mm <= 59 ? `${m[4]}:${m[5]}` : null;
+  return { date, startTime, id: (m[7] ?? "").trim() };
+}
+
+/**
  * Decodifica um arquivo .trc do Edan em um traçado de cardiotocografia.
  * Lança {@link TrcParseError} se a assinatura ou o layout não forem válidos.
  */
@@ -173,24 +200,36 @@ export function parseTrc(buffer: ArrayBuffer, fileName = "trace.trc"): CtgTrace 
     );
   }
 
-  // Data e horário.
-  let date: CtgTraceDate | null = null;
-  const day = bytes[OFF_DAY];
-  const month = bytes[OFF_MONTH];
-  const year = view.getUint16(OFF_YEAR, true);
-  if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
-    date = { day, month, year };
+  // Data e horário. O nome do arquivo exportado pelo aparelho
+  // (AAAAMMDD-HHMMSS-<ID>.trc) é a fonte canônica; o carimbo interno serve de
+  // reserva quando o nome não segue esse padrão.
+  const fromName = parseFileNameStamp(fileName);
+
+  let date: CtgTraceDate | null = fromName.date;
+  if (!date) {
+    const day = bytes[OFF_DAY];
+    const month = bytes[OFF_MONTH];
+    const year = view.getUint16(OFF_YEAR, true);
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+      date = { day, month, year };
+    }
   }
 
-  let startTime: string | null = null;
-  const digits = readAsciiDigits(bytes, OFF_TS, OFF_TS + 44); // "AAMMDDHHMM"
-  if (digits.length >= 10) {
-    startTime = `${digits.slice(6, 8)}:${digits.slice(8, 10)}`;
+  let startTime: string | null = fromName.startTime;
+  if (!startTime) {
+    const digits = readAsciiDigits(bytes, OFF_TS, OFF_TS + 44); // "AAMMDDHHMM"
+    if (digits.length >= 10) {
+      const hh = Number(digits.slice(6, 8));
+      const mm = Number(digits.slice(8, 10));
+      if (hh <= 23 && mm <= 59) startTime = `${digits.slice(6, 8)}:${digits.slice(8, 10)}`;
+    }
   }
 
-  // ID do arquivo: o digitado no aparelho tem prioridade; senão, o carimbo.
+  // ID do arquivo: o digitado no aparelho tem prioridade; senão, o ID presente no
+  // nome do arquivo. Nunca usa o carimbo de data/hora como ID — assim o RG fica em
+  // branco quando não há identificação.
   const deviceId = readUtf16(bytes, OFF_ID, ID_MAX_CHARS);
-  const fileId = deviceId || digits;
+  const fileId = deviceId || fromName.id;
 
   // Canais: 0 = FHR2, 1 = FHR, 2 = TOCO.
   const ch0 = channelToValues(bytes, dataOff, n);

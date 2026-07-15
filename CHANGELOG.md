@@ -259,6 +259,11 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   Movimentos fetais e estímulos são desenhados com **linha indicativa vertical**
   e um **selo circular preto com a sigla em branco** (MF/EM/ES) no espaço de
   **1 cm entre os gráficos** (distância aumentada para acomodá-los).
+- **Data, hora e ID lidos do nome do arquivo** (`AAAAMMDD-HHMMSS-<ID>.trc`), que é
+  a fonte canônica do aparelho — o carimbo interno vira apenas reserva. Corrige
+  gravações cuja **hora não era reconhecida** e o caso em que o **carimbo de
+  data/hora aparecia como RG** no laudo: agora, quando **não há ID**, o RG fica em
+  **branco** (o carimbo nunca é usado como identificação).
 - **Selos sem sobreposição** quando há muitas marcas próximas: marcas vizinhas do
   **mesmo tipo** (movimentos ou estímulos em rajada) são **agrupadas em um único
   selo com a contagem** (ex.: `MF ×4`), e os selos restantes são **distribuídos em
