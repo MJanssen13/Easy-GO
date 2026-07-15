@@ -75,6 +75,7 @@ export default function CardiotocografiaToolPage() {
   const [stimError, setStimError] = useState("");
   const dateTimeEdited = useRef(false);
   const rgEdited = useRef(false);
+  const nomeEdited = useRef(false);
 
   // Modo "lote": uma linha por exame (RG vindo do ID, editável) + nome.
   const [batch, setBatch] = useState<BatchRow[]>([]);
@@ -103,7 +104,7 @@ export default function CardiotocografiaToolPage() {
     });
     setTraces(ok);
     setErrors(bad);
-    setBatch(ok.map((t) => ({ rg: t.fileId, nome: "", selected: true })));
+    setBatch(ok.map((t) => ({ rg: t.fileId, nome: t.patientName, selected: true })));
 
     const first = ok[0];
     const now = new Date();
@@ -115,6 +116,8 @@ export default function CardiotocografiaToolPage() {
       setPatient((p) => ({ ...p, data, hora }));
     }
     if (!rgEdited.current && first) setPatient((p) => ({ ...p, rg: first.fileId }));
+    if (!nomeEdited.current && first?.patientName)
+      setPatient((p) => ({ ...p, nome: first.patientName }));
     setBusy(false);
   }, []);
 
@@ -146,6 +149,7 @@ export default function CardiotocografiaToolPage() {
   const setField = (k: keyof LaudoPatient, v: string) => {
     if (k === "data" || k === "hora") dateTimeEdited.current = true;
     if (k === "rg") rgEdited.current = true;
+    if (k === "nome") nomeEdited.current = true;
     setPatient((p) => ({ ...p, [k]: v }));
   };
 

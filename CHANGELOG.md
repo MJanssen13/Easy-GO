@@ -259,11 +259,18 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   Movimentos fetais e estímulos são desenhados com **linha indicativa vertical**
   e um **selo circular preto com a sigla em branco** (MF/EM/ES) no espaço de
   **1 cm entre os gráficos** (distância aumentada para acomodá-los).
-- **Data, hora e ID lidos do nome do arquivo** (`AAAAMMDD-HHMMSS-<ID>.trc`), que é
-  a fonte canônica do aparelho — o carimbo interno vira apenas reserva. Corrige
+- **Nome da paciente x ID separados corretamente.** O campo de texto do aparelho
+  (0x89) é o **nome da paciente** e passa a preencher o campo **Nome** — antes ia,
+  errado, para o **RG**. O **ID/prontuário** é extraído do **nome do arquivo** (o
+  trecho que não é o carimbo de data/hora) e preenche o **RG**. Ex.:
+  `8a1f7328-20260713185259.trc` com "NAIARA" no arquivo → Nome **NAIARA**, RG
+  **8a1f7328**, data **13/07/2026**, hora **18:52**.
+- **Data, hora e ID lidos do nome do arquivo**, que é a fonte canônica do aparelho
+  — o carimbo interno vira apenas reserva. Reconhece o carimbo `AAAAMMDDHHMMSS`
+  com ou sem separadores (`20260714-040418-…` ou `20260713185259`). Corrige
   gravações cuja **hora não era reconhecida** e o caso em que o **carimbo de
-  data/hora aparecia como RG** no laudo: agora, quando **não há ID**, o RG fica em
-  **branco** (o carimbo nunca é usado como identificação).
+  data/hora aparecia como RG**: agora, quando **não há ID**, o RG fica em
+  **branco** (o carimbo e o nome nunca são usados como identificação).
 - **Selos sem sobreposição** quando há muitas marcas próximas: marcas vizinhas do
   **mesmo tipo** (movimentos ou estímulos em rajada) são **agrupadas em um único
   selo com a contagem** (ex.: `MF ×4`), e os selos restantes são **distribuídos em

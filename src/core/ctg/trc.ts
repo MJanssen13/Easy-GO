@@ -8,7 +8,7 @@
 //   0x004  uint32    offset onde começam os dados de amostra (= 1024)
 //   0x00C  uint32    número de canais (= 3)
 //   0x060  UTF-16LE  carimbo AAMMDDHHMM em dígitos ASCII ("2607030147")
-//   0x088  UTF-16LE  ID/identificação digitada no aparelho (pode vir em branco)
+//   0x088  UTF-16LE  nome/identificação da paciente digitado no aparelho (pode vir em branco)
 //   0x138  uint8     dia
 //   0x139  uint8     mês
 //   0x13A  uint16    ano
@@ -31,8 +31,8 @@ const MAGIC = "trc ";
 const OFF_DATA_PTR = 4;
 const OFF_NCH = 12;
 const OFF_TS = 0x60;
-const OFF_ID = 0x89; // 137 — identificação digitada no aparelho (UTF-16LE, offset ímpar)
-const ID_MAX_CHARS = 32;
+const OFF_NAME = 0x89; // 137 — nome/identificação da paciente digitado no aparelho (UTF-16LE, offset ímpar)
+const NAME_MAX_CHARS = 32;
 const OFF_DAY = 0x138;
 const OFF_MONTH = 0x139;
 const OFF_YEAR = 0x13a;
@@ -83,9 +83,15 @@ export interface CtgTrace {
   /** Horário de início "HH:MM" extraído do carimbo do arquivo. */
   startTime: string | null;
   /**
-   * Identificação vinda do arquivo: o ID digitado no aparelho, se houver; caso
-   * contrário o ID presente no nome do arquivo. Fica em branco quando não há ID
-   * (nunca usa o carimbo de data/hora). Serve de valor inicial para o RG.
+   * Nome/identificação da paciente digitado no aparelho (campo livre do
+   * cabeçalho do exame). Serve de valor inicial para o campo **Nome**. Vazio
+   * quando não foi preenchido no monitor.
+   */
+  patientName: string;
+  /**
+   * ID/prontuário extraído do NOME do arquivo (o trecho que não é o carimbo de
+   * data/hora). Fica em branco quando não há ID (nunca usa o carimbo de
+   * data/hora nem o nome da paciente). Serve de valor inicial para o **RG**.
    */
   fileId: string;
   /** FHR em bpm; `null` onde houve perda de sinal. */
@@ -145,29 +151,38 @@ function median(values: number[]): number | null {
 }
 
 /**
- * Extrai data, horário e ID do NOME do arquivo exportado pelo aparelho, no padrão
- * `AAAAMMDD-HHMMSS-<ID>.trc` (o ID pode vir vazio). É a forma mais confiável de
- * recuperar data/horário quando o carimbo interno não os traz. Ex.:
- * `20260714-040418-.trc` → 14/07/2026, 04:04, ID vazio.
+ * Extrai data, horário e ID do NOME do arquivo exportado pelo aparelho. O nome
+ * embute um carimbo `AAAAMMDDHHMMSS` (com ou sem separadores) e, opcionalmente,
+ * um ID/prontuário em outro trecho. É a forma mais confiável de recuperar
+ * data/horário e o ID quando o carimbo interno não os traz. Ex.:
+ *   `8a1f7328-20260713185259.trc` → 13/07/2026 18:52, ID `8a1f7328`
+ *   `20260714-040418-.trc`        → 14/07/2026 04:04, sem ID
+ *   `20260713185259.trc`          → 13/07/2026 18:52, sem ID
  */
 function parseFileNameStamp(fileName: string): {
   date: CtgTraceDate | null;
   startTime: string | null;
   id: string;
 } {
-  const m = fileName.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(.*?))?\.trc$/i);
+  const base = fileName.replace(/\.trc$/i, "");
+  const m = base.match(/(\d{4})(\d{2})(\d{2})[-_ ]?(\d{2})(\d{2})(\d{2})/);
   if (!m) return { date: null, startTime: null, id: "" };
   const year = Number(m[1]);
   const month = Number(m[2]);
   const day = Number(m[3]);
   const hh = Number(m[4]);
   const mm = Number(m[5]);
-  const date =
-    year >= 2000 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31
-      ? { day, month, year }
-      : null;
-  const startTime = hh <= 23 && mm <= 59 ? `${m[4]}:${m[5]}` : null;
-  return { date, startTime, id: (m[7] ?? "").trim() };
+  const validDate = year >= 2000 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31;
+  const validTime = hh <= 23 && mm <= 59;
+  if (!validDate || !validTime) return { date: null, startTime: null, id: "" };
+  // O que sobra no nome, fora o carimbo de data/hora, é o ID/prontuário.
+  const idx = m.index ?? 0;
+  const rest = base.slice(0, idx) + base.slice(idx + m[0].length);
+  return {
+    date: { day, month, year },
+    startTime: `${m[4]}:${m[5]}`,
+    id: rest.replace(/[-_\s]+/g, " ").trim(),
+  };
 }
 
 /**
@@ -225,11 +240,11 @@ export function parseTrc(buffer: ArrayBuffer, fileName = "trace.trc"): CtgTrace 
     }
   }
 
-  // ID do arquivo: o digitado no aparelho tem prioridade; senão, o ID presente no
-  // nome do arquivo. Nunca usa o carimbo de data/hora como ID — assim o RG fica em
-  // branco quando não há identificação.
-  const deviceId = readUtf16(bytes, OFF_ID, ID_MAX_CHARS);
-  const fileId = deviceId || fromName.id;
+  // Nome da paciente: campo livre digitado no aparelho (cabeçalho do exame).
+  const patientName = readUtf16(bytes, OFF_NAME, NAME_MAX_CHARS);
+  // ID/prontuário: vem do nome do arquivo. Nunca usa o carimbo de data/hora nem o
+  // nome da paciente — assim o RG fica em branco quando não há ID.
+  const fileId = fromName.id;
 
   // Canais: 0 = FHR2, 1 = FHR, 2 = TOCO.
   const ch0 = channelToValues(bytes, dataOff, n);
@@ -269,7 +284,7 @@ export function parseTrc(buffer: ArrayBuffer, fileName = "trace.trc"): CtgTrace 
     durationSec: n / TRC_SAMPLE_RATE_HZ,
   };
 
-  return { fileName, sampleRateHz: TRC_SAMPLE_RATE_HZ, samples: n, date, startTime, fileId, fhr, toco, fhr2, events, stats };
+  return { fileName, sampleRateHz: TRC_SAMPLE_RATE_HZ, samples: n, date, startTime, patientName, fileId, fhr, toco, fhr2, events, stats };
 }
 
 /** Formata segundos como "Xmin YYs" para exibição. */
