@@ -5,6 +5,24 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Módulo de prescrição (receita)
+
+- Nova rota **`/psgo/receita`** (botão "Receita" no quadro do PSGO): gerador de
+  **prescrição médica estruturado**, espelhando o modelo `receitaMedicamento` do
+  e-SUS APS PEC (reimplementado na stack, sem copiar o bundle).
+- **Tipos de receita**: Comum, Especial (controle especial, 2 vias) e
+  Notificações (branca/azul/amarela) — cada uma com seu cabeçalho; os itens são
+  agrupados por tipo no texto final.
+- Por medicamento: **princípio ativo, concentração, forma, via**, e posologia
+  **estruturada** (dose + unidade; frequência por intervalo/vezes ao dia/turnos/
+  uso contínuo/dose única; duração; momento em relação às refeições) que monta a
+  **posologia legível** automaticamente — ou **texto livre**. Ainda: quantidade a
+  dispensar e recomendações.
+- Cabeçalho com paciente/prontuário/idade, prescritor/CRM, estabelecimento
+  (HC-UFTM), cidade e data; saída em MAIÚSCULAS com botão de cópia.
+- **Sem doses fabricadas** (a equipe preenche/valida) e **sem** geração de
+  prescrição digital assinada (validação federal fora do escopo).
+
 ### Ferramentas — Cardiotocografia (leitor de .trc do Edan)
 
 - Nova aba **Ferramentas** no painel geral, com o utilitário **Cardiotocografia**.
