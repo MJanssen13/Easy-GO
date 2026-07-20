@@ -294,6 +294,30 @@ function renderBloco(
   return L.join("\n");
 }
 
+/** Nº de vias a imprimir por tipo (controle especial = 2). */
+export function viasPorTipo(tipo: TipoReceita): number {
+  return tipo === "ESPECIAL" ? 2 : 1;
+}
+
+export interface ReceitaGrupo {
+  tipo: TipoReceita;
+  titulo: string;
+  vias: number;
+  items: PrescricaoItem[];
+}
+
+/** Itens agrupados por tipo de receita (para a impressão estruturada). */
+export function receitaGrupos(items: PrescricaoItem[]): ReceitaGrupo[] {
+  const filled = items.filter((it) => medicamentoLabel(it).trim() || buildPosologia(it).trim());
+  const out: ReceitaGrupo[] = [];
+  for (const t of TIPO_RECEITA_OPTIONS) {
+    const group = filled.filter((it) => it.tipoReceita === t.value);
+    if (group.length)
+      out.push({ tipo: t.value, titulo: t.titulo, vias: viasPorTipo(t.value), items: group });
+  }
+  return out;
+}
+
 export interface ReceitaBloco {
   tipo: TipoReceita;
   titulo: string;

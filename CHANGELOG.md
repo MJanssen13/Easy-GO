@@ -25,9 +25,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   ativo, concentração, forma e unidade de fornecimento; **via** e **unidade de
   dose** são inferidas da forma (editáveis). Só a identidade do produto — **sem
   dose**. (Datalist memoizada para desempenho.)
-- **Impressão/PDF**: botão que imprime a receita em **A4**, uma folha por via
-  (**controle especial = 2 vias**: 1ª farmácia / 2ª paciente), via diálogo de
-  impressão do navegador (iframe isolado; sem enviar dados).
+- **Impressão/PDF** com **layout estruturado** (A4): cabeçalho do estabelecimento
+  e do tipo de receituário, quadro do paciente, itens numerados (medicamento em
+  destaque + posologia + quantidade + observações) e assinatura com cidade/data.
+  Uma folha por via; no **controle especial** (2 vias: 1ª farmácia / 2ª paciente)
+  saem também os quadros de **identificação do comprador/fornecedor**. Via diálogo
+  de impressão do navegador (iframe isolado; nada é enviado).
 - **Sem doses fabricadas** (a equipe preenche/valida) e **sem** geração de
   prescrição digital assinada (validação federal fora do escopo).
 
