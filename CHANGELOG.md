@@ -34,8 +34,8 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   assinatura **"Médico Assistente"** com espaço para carimbo/local/data. Cada via
   **ocupa a folha inteira**. O texto da receita passou a **caixa mista** (como no
   e-SUS). Controle especial acrescenta os quadros de identificação do comprador/
-  fornecedor. Os logos ficam como **selos provisórios** até o envio dos arquivos
-  oficiais (basta preencher o data-URI em `receita-logos`).
+  fornecedor. Os **logos oficiais** (SUS/UFTM/HU-Brasil) são embutidos como
+  **data-URI** no cabeçalho (impressão autocontida).
 - **Sem doses fabricadas** (a equipe preenche/valida) e **sem** geração de
   prescrição digital assinada (validação federal fora do escopo).
 
