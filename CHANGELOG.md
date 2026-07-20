@@ -5,6 +5,71 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Ferramentas — Módulo de prescrição (receita)
+
+- Nova rota **`/ferramentas/receita`** (card "Receita" na aba **Ferramentas**;
+  removida a rota antiga `/psgo/receita` e o botão do quadro do PSGO): gerador de
+  **prescrição médica estruturado**, espelhando o modelo `receitaMedicamento` do
+  e-SUS APS PEC (reimplementado na stack, sem copiar o bundle).
+- **Preenchimento automático** do cabeçalho a partir das **pacientes do PSGO**
+  (nome, prontuário e idade) — seletor "Preencher com paciente".
+- **Tipos de receita**: apenas **Comum** e **Especial** (controle especial),
+  idênticas no layout, mudando só o título ("RECEITUÁRIO" → "RECEITUÁRIO DE
+  CONTROLE ESPECIAL"). Os itens são agrupados por tipo no texto final.
+- **Classificação automática (ANVISA Portaria SVS/MS 344/98 e RDC 471/2021)**: o
+  sistema sugere o tipo de receituário pelo princípio ativo — substâncias de
+  **controle especial (C1)** e **notificação branca (C2/retinoides/talidomida)**
+  → Especial; **antimicrobianos** (retidos em 2 vias) → Especial (2 vias), com
+  selo próprio "Antimicrobiano · 2 vias"; demais → Comum. Medicamentos que exigem
+  **Notificação de Receita A (amarela)** ou **B (azul)** são **sinalizados e
+  bloqueados** para impressão (proibido por lei — usam formulário oficial
+  numerado); os demais seguem para o PDF. Lista curada, **apoio à decisão —
+  validar com a farmácia**.
+- **Busca de medicamento por proximidade**: o campo de busca ranqueia pelo nome
+  mais próximo do termo digitado (igual > começa com > contém, preferindo nomes
+  mais curtos) em vez de listar em ordem alfabética todas as apresentações;
+  navegação por teclado (setas/Enter) e botão **Limpar** para zerar o item.
+- **Frequência "A cada (dia)"** (além de "A cada (h)"), para posologias em dias.
+- **Uso contínuo** saiu da frequência e virou uma **caixa de seleção** própria,
+  que **desativa a duração**.
+- **Turnos com doses diferentes por turno** (ex.: "2 comprimidos pela manhã e 1
+  comprimido à noite"): a dose de cada turno é opcional e aparece na **própria
+  linha da posologia**.
+- **Via pré-selecionada por princípio ativo**: insulinas → **Subcutânea**;
+  benzilpenicilina → **Intramuscular** (editável).
+- Formas **"Pó para suspensão injetável"** passam a ser exibidas (na plataforma e
+  na receita) apenas como **"Suspensão injetável"**.
+- Botão **Imprimir/PDF** sempre visível (barra fixa no topo) e botão de
+  **adicionar medicamento** também abaixo do último item.
+- O seletor **"Preencher com paciente"** é explicitamente **opcional** (dá para
+  digitar os dados manualmente).
+- Por medicamento: **princípio ativo, concentração, forma, via**, e posologia
+  **estruturada** (dose + unidade; frequência por intervalo/vezes ao dia/turnos/
+  uso contínuo/dose única; duração; momento em relação às refeições) que monta a
+  **posologia legível** automaticamente — ou **texto livre**. Ainda: quantidade a
+  dispensar e recomendações.
+- Cabeçalho com **paciente/prontuário/idade, cidade e data** (removidos os campos
+  de prescritor, CRM e estabelecimento); saída em MAIÚSCULAS com botão de cópia.
+- **Catálogo CATMAT completo** (~2,9 mil medicamentos, planilha oficial do
+  Ministério da Saúde): campo de busca por item que pré-preenche princípio
+  ativo, concentração, forma e unidade de fornecimento; **via** e **unidade de
+  dose** são inferidas da forma (editáveis). Só a identidade do produto — **sem
+  dose**. (Datalist memoizada para desempenho.)
+- **Impressão/PDF no modelo do receituário do e-SUS APS** (**A4 paisagem**):
+  **duas vias lado a lado** (1ª retenção na farmácia / 2ª orientação ao
+  paciente), cada via ocupando toda a altura da folha, com faixa de
+  **logos** (SUS/UFTM/HU-Brasil), a legenda "Hospital de Clínicas da
+  Universidade Federal do Triângulo Mineiro — HC-UFTM" e, abaixo, o endereço
+  **"CNES: 2206595, Av. Getúlio Guarita, 130, N.S. Abadia - Uberaba, MG"**;
+  seções **PACIENTE** (nome em **caixa alta**) **/ MEDICAMENTOS** (medicamento em
+  quadro compacto: nome + quantidade/forma + dose·frequência·via, duração e
+  recomendações) e assinatura **"Médico Assistente"** com **local e data por
+  extenso** (ex.: "Uberaba-MG, 20 de Julho de 2026"). A Especial usa o **mesmo
+  layout** da Comum. Os **logos oficiais** são embutidos como **data-URI** no
+  cabeçalho (impressão autocontida).
+- **Sem doses fabricadas** (a equipe preenche/valida) e **sem** geração de
+  prescrição digital assinada (validação federal fora do escopo).
+
 ### Ferramentas — Cardiotocografia (leitor de .trc do Edan)
 
 - Nova aba **Ferramentas** no painel geral, com o utilitário **Cardiotocografia**.
