@@ -271,15 +271,20 @@ export function ReceitaGenerator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [admissionPatientId, patients]);
 
-  // "PRESCREVO: ..." com os medicamentos prescritos (todos os itens preenchidos).
+  // "PRESCREVO: ..." com os medicamentos prescritos, incluindo posologia e
+  // quantidade (ex.: "Amoxicilina 500 mg — Cápsula: 1 cápsula, via oral, a cada
+  // 8 horas, por 7 dias (21 cápsulas)").
   const medsLine = useMemo(
     () =>
       items
-        .map((it) =>
-          it.registroManual
-            ? it.principioAtivo.trim() || it.posologiaManual.trim()
-            : [it.principioAtivo, it.concentracao].map((s) => s.trim()).filter(Boolean).join(" "),
-        )
+        .map((it) => {
+          const nome = medicamentoLabel(it);
+          const pos = buildPosologia(it);
+          const qtd = it.quantidadeReceitada.trim();
+          const base = [nome, pos].filter(Boolean).join(": ");
+          if (!base) return "";
+          return qtd ? `${base} (${qtd})` : base;
+        })
         .filter(Boolean)
         .join("; "),
     [items],
