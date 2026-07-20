@@ -211,6 +211,12 @@ export function ReceitaGenerator({
           : i,
       ),
     );
+  const setTurnoDose = (id: string, turno: string, dose: string) =>
+    setItems((s) =>
+      s.map((i) =>
+        i.id === id ? { ...i, turnoDoses: { ...i.turnoDoses, [turno]: dose } } : i,
+      ),
+    );
 
   // Preenche o cabeçalho com os dados de uma paciente do sistema.
   const fillFromPatient = (id: string) => {
@@ -285,7 +291,7 @@ export function ReceitaGenerator({
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {patients.length > 0 && (
-            <Field label="Preencher com paciente" className="col-span-2 sm:col-span-4">
+            <Field label="Preencher com paciente (opcional)" className="col-span-2 sm:col-span-4">
               <select
                 className={`${selectCls} max-w-none`}
                 defaultValue=""
@@ -299,6 +305,9 @@ export function ReceitaGenerator({
                   </option>
                 ))}
               </select>
+              <p className="text-[11px] text-muted-foreground">
+                Opcional — você também pode digitar os dados manualmente nos campos abaixo.
+              </p>
             </Field>
           )}
           <Field label="Paciente" className="col-span-2">
@@ -532,23 +541,61 @@ export function ReceitaGenerator({
                       </Field>
                     )}
                     {it.tipoFrequencia === "TURNO" && (
-                      <div className="col-span-2 space-y-1">
-                        <Label className="text-xs text-muted-foreground">Turnos</Label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {TURNO_OPTIONS.map((t) => (
-                            <Chip
-                              key={t.value}
-                              active={it.turnos.includes(t.value)}
-                              onClick={() => toggleTurno(it.id, t.value)}
-                            >
-                              {t.value}
-                            </Chip>
-                          ))}
+                      <div className="col-span-2 space-y-2 sm:col-span-4">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Turnos</Label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {TURNO_OPTIONS.map((t) => (
+                              <Chip
+                                key={t.value}
+                                active={it.turnos.includes(t.value)}
+                                onClick={() => toggleTurno(it.id, t.value)}
+                              >
+                                {t.value}
+                              </Chip>
+                            ))}
+                          </div>
                         </div>
+                        {it.turnos.length > 0 && (
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">
+                              Dose por turno (opcional — deixe em branco para usar a dose acima)
+                            </Label>
+                            <div className="flex flex-wrap gap-3">
+                              {TURNO_OPTIONS.filter((t) => it.turnos.includes(t.value)).map((t) => (
+                                <div key={t.value} className="flex items-center gap-1.5">
+                                  <span className="text-xs text-muted-foreground">{t.value}:</span>
+                                  <Input
+                                    className="h-8 w-20"
+                                    value={it.turnoDoses[t.value] ?? ""}
+                                    onChange={(e) => setTurnoDose(it.id, t.value, e.target.value)}
+                                    inputMode="decimal"
+                                    placeholder="dose"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Doses diferentes por turno são detalhadas nas recomendações.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {it.tipoFrequencia !== "CONTINUO" && it.tipoFrequencia !== "UNICA" && (
+                    {it.tipoFrequencia !== "UNICA" && (
+                      <label className="col-span-2 flex items-center gap-2 self-end pb-1 text-sm sm:col-span-4">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-input"
+                          checked={it.usoContinuo}
+                          onChange={(e) => setItem(it.id, { usoContinuo: e.target.checked })}
+                        />
+                        <span>Uso contínuo (sem duração definida)</span>
+                      </label>
+                    )}
+
+                    {!it.usoContinuo && it.tipoFrequencia !== "UNICA" && (
                       <>
                         <Field label="Duração">
                           <Input

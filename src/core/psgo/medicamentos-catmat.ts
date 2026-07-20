@@ -74,14 +74,26 @@ function inferUnidade(forma: string): string {
   return "unidade";
 }
 
-export const CATMAT_MEDS: MedCatmat[] = CATMAT_RAW.map(([pa, conc, forma, fornecimento]) => ({
-  pa,
-  conc,
-  forma,
-  fornecimento,
-  via: inferVia(forma),
-  unidade: inferUnidade(forma),
-}));
+/**
+ * Ajustes de forma para exibição/receita. "Pó para suspensão injetável" é
+ * mostrado apenas como "Suspensão injetável" (na plataforma e na receita).
+ */
+function normalizeForma(forma: string): string {
+  if (/^p[óo] para suspens[ãa]o injet[áa]vel$/i.test(forma.trim())) return "Suspensão injetável";
+  return forma;
+}
+
+export const CATMAT_MEDS: MedCatmat[] = CATMAT_RAW.map(([pa, conc, forma, fornecimento]) => {
+  const f = normalizeForma(forma);
+  return {
+    pa,
+    conc,
+    forma: f,
+    fornecimento,
+    via: inferVia(f),
+    unidade: inferUnidade(f),
+  };
+});
 
 /** Rótulo de exibição/busca: "Dipirona sódica 500 mg — Comprimido". */
 export function medCatmatLabel(m: MedCatmat): string {

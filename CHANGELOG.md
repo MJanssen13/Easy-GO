@@ -30,8 +30,16 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   mais curtos) em vez de listar em ordem alfabética todas as apresentações;
   navegação por teclado (setas/Enter) e botão **Limpar** para zerar o item.
 - **Frequência "A cada (dia)"** (além de "A cada (h)"), para posologias em dias.
+- **Uso contínuo** saiu da frequência e virou uma **caixa de seleção** própria,
+  que **desativa a duração**.
+- **Turnos com doses diferentes por turno** (ex.: 2 comprimidos pela manhã e 1 à
+  noite): a dose de cada turno é opcional e o detalhamento sai nas **recomendações**.
+- Formas **"Pó para suspensão injetável"** passam a ser exibidas (na plataforma e
+  na receita) apenas como **"Suspensão injetável"**.
 - Botão **Imprimir/PDF** sempre visível (barra fixa no topo) e botão de
   **adicionar medicamento** também abaixo do último item.
+- O seletor **"Preencher com paciente"** é explicitamente **opcional** (dá para
+  digitar os dados manualmente).
 - Por medicamento: **princípio ativo, concentração, forma, via**, e posologia
   **estruturada** (dose + unidade; frequência por intervalo/vezes ao dia/turnos/
   uso contínuo/dose única; duração; momento em relação às refeições) que monta a

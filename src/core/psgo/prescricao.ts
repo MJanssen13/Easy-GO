@@ -18,21 +18,15 @@ export const TIPO_RECEITA_OPTIONS: { value: TipoReceita; label: string; titulo: 
   { value: "ESPECIAL", label: "Especial", titulo: "RECEITUÁRIO DE CONTROLE ESPECIAL" },
 ];
 
-// --- Frequência (enum `tipoFrequenciaDose`: INTERVALO/FREQUENCIA/TURNO + único/contínuo) ---
-export type TipoFrequencia =
-  | "INTERVALO"
-  | "INTERVALO_DIAS"
-  | "FREQUENCIA"
-  | "TURNO"
-  | "CONTINUO"
-  | "UNICA";
+// --- Frequência (enum `tipoFrequenciaDose`: INTERVALO/FREQUENCIA/TURNO + único) ---
+// "Uso contínuo" saiu daqui e virou uma flag própria (desativa a duração).
+export type TipoFrequencia = "INTERVALO" | "INTERVALO_DIAS" | "FREQUENCIA" | "TURNO" | "UNICA";
 
 export const TIPO_FREQUENCIA_OPTIONS: { value: TipoFrequencia; label: string }[] = [
   { value: "INTERVALO", label: "A cada (h)" },
   { value: "INTERVALO_DIAS", label: "A cada (dia)" },
   { value: "FREQUENCIA", label: "Vezes/dia" },
   { value: "TURNO", label: "Turnos" },
-  { value: "CONTINUO", label: "Uso contínuo" },
   { value: "UNICA", label: "Dose única" },
 ];
 
@@ -121,6 +115,8 @@ export interface PrescricaoItem {
   intervaloHoras: string; // INTERVALO
   vezesAoDia: string; // FREQUENCIA
   turnos: string[]; // TURNO
+  turnoDoses: Record<string, string>; // TURNO: dose por turno (quando diferentes)
+  usoContinuo: boolean; // desativa a duração
   momento: MomentoRefeicao;
   duracaoQt: string;
   duracaoUnidade: MedidaTempo;
@@ -145,6 +141,8 @@ export function emptyPrescricaoItem(id: string, tipoReceita: TipoReceita = "COMU
     intervaloHoras: "",
     vezesAoDia: "",
     turnos: [],
+    turnoDoses: {},
+    usoContinuo: false,
     momento: "",
     duracaoQt: "",
     duracaoUnidade: "DIA",
@@ -195,22 +193,41 @@ export function frequenciaText(item: PrescricaoItem): string {
       return n ? (n === "1" ? "1 vez ao dia" : `${n} vezes ao dia`) : "";
     }
     case "TURNO": {
-      const t = item.turnos
-        .map((v) => TURNO_OPTIONS.find((o) => o.value === v)?.text.toLowerCase() ?? "")
-        .filter(Boolean);
+      // Nos turnos, a ordem canônica (manhã→tarde→noite) é mais legível.
+      const t = TURNO_OPTIONS.filter((o) => item.turnos.includes(o.value)).map((o) =>
+        o.text.toLowerCase(),
+      );
       return t.length ? joinNat(t) : "";
     }
-    case "CONTINUO":
-      return "uso contínuo";
     case "UNICA":
       return "dose única";
   }
   return "";
 }
 
-/** Duração: "5 dias" (vazio para contínuo/única). */
+/**
+ * Dosagens por turno (quando diferentes): "Manhã: 1 comprimido; À noite: 2
+ * comprimidos" — vai para as recomendações (a posologia estruturada tem só uma
+ * dose). Vazio quando não há doses por turno preenchidas.
+ */
+export function turnoDoseRecomendacao(item: PrescricaoItem): string {
+  if (item.tipoFrequencia !== "TURNO") return "";
+  const turns = TURNO_OPTIONS.filter((o) => item.turnos.includes(o.value));
+  if (!turns.length) return "";
+  const doses = turns.map((o) => (item.turnoDoses[o.value] ?? "").trim());
+  if (doses.every((d) => !d)) return ""; // nenhuma dose por turno → nada a explicar
+  const parts = turns
+    .map((o, i) => {
+      const d = doses[i] || item.qtDose.trim();
+      return d ? `${o.value}: ${d} ${pluralUnidade(item.unidadeDose, d)}` : "";
+    })
+    .filter(Boolean);
+  return parts.join("; ");
+}
+
+/** Duração: "5 dias" (vazio para uso contínuo/dose única). */
 export function duracaoText(item: PrescricaoItem): string {
-  if (item.tipoFrequencia === "CONTINUO" || item.tipoFrequencia === "UNICA") return "";
+  if (item.usoContinuo || item.tipoFrequencia === "UNICA") return "";
   if (!item.duracaoQt.trim()) return "";
   const [sing, plur] = MEDIDA_TEMPO_LABEL[item.duracaoUnidade];
   const n = parseDecimal(item.duracaoQt);
@@ -231,7 +248,7 @@ export function buildPosologia(item: PrescricaoItem): string {
     doseText(item),
     via ? `via ${via.toLowerCase()}` : "",
     frequenciaText(item),
-    dur ? `por ${dur}` : "",
+    item.usoContinuo ? "uso contínuo" : dur ? `por ${dur}` : "",
     momentoText(item),
   ].filter(Boolean);
   return parts.join(", ");
@@ -255,7 +272,8 @@ export function renderPrescricaoItem(item: PrescricaoItem, index: number): strin
   const qt = item.quantidadeReceitada.trim();
   const posQt = [pos, qt ? `Quantidade: ${qt}` : ""].filter(Boolean).join(". ");
   if (posQt) lines.push(`   ${posQt}.`);
-  if (item.recomendacoes.trim()) lines.push(`   Obs: ${item.recomendacoes.trim()}`);
+  const obs = [item.recomendacoes.trim(), turnoDoseRecomendacao(item)].filter(Boolean).join(". ");
+  if (obs) lines.push(`   Obs: ${obs}`);
   return lines.join("\n");
 }
 
