@@ -44,15 +44,27 @@ function injectAutoPrint(html: string): string {
   return html + script;
 }
 
-/** Abre a receita em nova janela/aba que se imprime sozinha. Retorna false se bloqueada. */
+/**
+ * Abre a receita em nova aba que se imprime sozinha. Usa uma **URL `blob:`**
+ * (documento com URL real) em vez de `document.write` em `about:blank`: o
+ * serviço de impressão do Android falha ao rasterizar `about:blank` ("Ocorreu
+ * um problema ao imprimir a página"). Retorna false se o pop-up for bloqueado.
+ */
 function printViaWindow(html: string): boolean {
-  const win = window.open("", "_blank");
-  if (!win) return false;
-  const doc = win.document;
-  doc.open();
-  doc.write(injectAutoPrint(html));
-  doc.close();
-  return true;
+  try {
+    const blob = new Blob([injectAutoPrint(html)], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (!win) {
+      URL.revokeObjectURL(url);
+      return false;
+    }
+    // Revoga depois que a aba já carregou/imprimiu (o script embutido fecha a aba).
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Imprime via iframe oculto (desktop). */

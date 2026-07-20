@@ -47,8 +47,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   na receita) apenas como **"Suspensão injetável"**.
 - **Correção da impressão no celular**: em iOS Safari/Android Chrome o `iframe`
   oculto imprimia a **tela do app**, não a receita. Agora, no mobile, a receita
-  abre em uma **nova aba que se imprime sozinha** (aguarda os logos, imprime e
-  fecha); o desktop segue com o iframe. Vale para todas as impressões (receita,
+  abre em uma **nova aba (URL `blob:`) que se imprime sozinha** (aguarda os logos,
+  imprime e fecha). A URL `blob:` é necessária porque o serviço de impressão do
+  Android falha ao rasterizar `about:blank` ("Ocorreu um problema ao imprimir a
+  página"). O desktop segue com o iframe. Vale para todas as impressões (receita,
   CTG, prontuário/termos do PSGO).
 - Botão **Imprimir/PDF** sempre visível (barra fixa no topo) e botão de
   **adicionar medicamento** também abaixo do último item.
