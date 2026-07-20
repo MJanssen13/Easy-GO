@@ -11,13 +11,21 @@
  *    **não impressa aqui**.
  *  - Lista **C1** (controle especial) e **C2/retinoides/talidomida** (notificação
  *    branca) → **Receituário de Controle Especial** (Especial).
+ *  - **Antimicrobianos** (RDC 471/2021, ex-RDC 20/2011) → receita **retida em 2
+ *    vias**; no modelo de 2 tipos do app usam o mesmo receituário de 2 vias da
+ *    Especial (o título legal correto é "Receita de Antimicrobiano" — validar).
  *  - Demais → **Comum** (padrão seguro; o prescritor confere).
  *
  * Apoio à decisão — lista curada, **validar com a equipe/farmácia**. Não é a
  * relação completa da Portaria 344; itens não listados caem em Comum.
  */
 
-export type ControleClasse = "COMUM" | "ESPECIAL" | "NOTIFICACAO_A" | "NOTIFICACAO_B";
+export type ControleClasse =
+  | "COMUM"
+  | "ANTIMICROBIANO"
+  | "ESPECIAL"
+  | "NOTIFICACAO_A"
+  | "NOTIFICACAO_B";
 
 // keyword (normalizado) → classe. Combinações assumem a mais restritiva.
 const MAP: [string, ControleClasse][] = [
@@ -99,12 +107,68 @@ const MAP: [string, ControleClasse][] = [
   ["acitretina", "ESPECIAL"],
   ["tretinoina", "ESPECIAL"],
   ["talidomida", "ESPECIAL"],
+  // Antimicrobianos (RDC 471/2021, ex-RDC 20/2011): receita retida em 2 vias.
+  // No modelo de 2 tipos do app, usam o mesmo receituário de 2 vias da Especial.
+  ["amoxicilina", "ANTIMICROBIANO"],
+  ["ampicilina", "ANTIMICROBIANO"],
+  ["clavulanato", "ANTIMICROBIANO"],
+  ["sulbactam", "ANTIMICROBIANO"],
+  ["penicilina", "ANTIMICROBIANO"],
+  ["benzilpenicilina", "ANTIMICROBIANO"],
+  ["oxacilina", "ANTIMICROBIANO"],
+  ["cefalexina", "ANTIMICROBIANO"],
+  ["cefadroxil", "ANTIMICROBIANO"],
+  ["cefazolina", "ANTIMICROBIANO"],
+  ["cefuroxima", "ANTIMICROBIANO"],
+  ["cefaclor", "ANTIMICROBIANO"],
+  ["cefixima", "ANTIMICROBIANO"],
+  ["ceftriaxona", "ANTIMICROBIANO"],
+  ["cefotaxima", "ANTIMICROBIANO"],
+  ["ceftazidima", "ANTIMICROBIANO"],
+  ["cefepima", "ANTIMICROBIANO"],
+  ["azitromicina", "ANTIMICROBIANO"],
+  ["claritromicina", "ANTIMICROBIANO"],
+  ["eritromicina", "ANTIMICROBIANO"],
+  ["ciprofloxacino", "ANTIMICROBIANO"],
+  ["levofloxacino", "ANTIMICROBIANO"],
+  ["norfloxacino", "ANTIMICROBIANO"],
+  ["ofloxacino", "ANTIMICROBIANO"],
+  ["moxifloxacino", "ANTIMICROBIANO"],
+  ["gentamicina", "ANTIMICROBIANO"],
+  ["amicacina", "ANTIMICROBIANO"],
+  ["clindamicina", "ANTIMICROBIANO"],
+  ["metronidazol", "ANTIMICROBIANO"],
+  ["sulfametoxazol", "ANTIMICROBIANO"],
+  ["trimetoprima", "ANTIMICROBIANO"],
+  ["nitrofurantoina", "ANTIMICROBIANO"],
+  ["fosfomicina", "ANTIMICROBIANO"],
+  ["doxiciclina", "ANTIMICROBIANO"],
+  ["tetraciclina", "ANTIMICROBIANO"],
+  ["tigeciclina", "ANTIMICROBIANO"],
+  ["vancomicina", "ANTIMICROBIANO"],
+  ["teicoplanina", "ANTIMICROBIANO"],
+  ["linezolida", "ANTIMICROBIANO"],
+  ["daptomicina", "ANTIMICROBIANO"],
+  ["meropenem", "ANTIMICROBIANO"],
+  ["imipenem", "ANTIMICROBIANO"],
+  ["ertapenem", "ANTIMICROBIANO"],
+  ["aztreonam", "ANTIMICROBIANO"],
+  ["piperacilina", "ANTIMICROBIANO"],
+  ["tazobactam", "ANTIMICROBIANO"],
+  ["cloranfenicol", "ANTIMICROBIANO"],
+  ["rifampicina", "ANTIMICROBIANO"],
+  ["isoniazida", "ANTIMICROBIANO"],
+  ["etambutol", "ANTIMICROBIANO"],
+  ["pirazinamida", "ANTIMICROBIANO"],
+  ["fluconazol", "ANTIMICROBIANO"],
+  ["itraconazol", "ANTIMICROBIANO"],
 ];
 
 const RANK: Record<ControleClasse, number> = {
-  NOTIFICACAO_A: 3,
-  NOTIFICACAO_B: 2,
-  ESPECIAL: 1,
+  NOTIFICACAO_A: 4,
+  NOTIFICACAO_B: 3,
+  ESPECIAL: 2,
+  ANTIMICROBIANO: 1,
   COMUM: 0,
 };
 
@@ -155,6 +219,13 @@ export function controleInfo(pa: string): ControleInfo {
       };
     case "ESPECIAL":
       return { classe, label: "Controle especial", bloqueado: false, tipoReceita: "ESPECIAL" };
+    case "ANTIMICROBIANO":
+      return {
+        classe,
+        label: "Antimicrobiano · 2 vias",
+        bloqueado: false,
+        tipoReceita: "ESPECIAL",
+      };
     default:
       return { classe, label: "Comum", bloqueado: false, tipoReceita: "COMUM" };
   }

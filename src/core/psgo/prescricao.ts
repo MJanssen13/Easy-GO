@@ -19,10 +19,17 @@ export const TIPO_RECEITA_OPTIONS: { value: TipoReceita; label: string; titulo: 
 ];
 
 // --- Frequência (enum `tipoFrequenciaDose`: INTERVALO/FREQUENCIA/TURNO + único/contínuo) ---
-export type TipoFrequencia = "INTERVALO" | "FREQUENCIA" | "TURNO" | "CONTINUO" | "UNICA";
+export type TipoFrequencia =
+  | "INTERVALO"
+  | "INTERVALO_DIAS"
+  | "FREQUENCIA"
+  | "TURNO"
+  | "CONTINUO"
+  | "UNICA";
 
 export const TIPO_FREQUENCIA_OPTIONS: { value: TipoFrequencia; label: string }[] = [
   { value: "INTERVALO", label: "A cada (h)" },
+  { value: "INTERVALO_DIAS", label: "A cada (dia)" },
   { value: "FREQUENCIA", label: "Vezes/dia" },
   { value: "TURNO", label: "Turnos" },
   { value: "CONTINUO", label: "Uso contínuo" },
@@ -179,6 +186,10 @@ export function frequenciaText(item: PrescricaoItem): string {
   switch (item.tipoFrequencia) {
     case "INTERVALO":
       return item.intervaloHoras.trim() ? `a cada ${item.intervaloHoras.trim()} horas` : "";
+    case "INTERVALO_DIAS": {
+      const n = item.intervaloHoras.trim();
+      return n ? (n === "1" ? "a cada dia" : `a cada ${n} dias`) : "";
+    }
     case "FREQUENCIA": {
       const n = item.vezesAoDia.trim();
       return n ? (n === "1" ? "1 vez ao dia" : `${n} vezes ao dia`) : "";

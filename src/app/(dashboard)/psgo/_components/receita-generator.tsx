@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
-import { Plus, Trash2, Printer, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Trash2, Printer, AlertTriangle, Eraser, Search } from "lucide-react";
 import {
   emptyPrescricaoItem,
   renderReceita,
@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
-import { CATMAT_MEDS, medCatmatLabel } from "@/core/psgo/medicamentos-catmat";
+import { searchMeds, type MedCatmat } from "@/core/psgo/medicamentos-catmat";
 import { buildReceitaPrintHtml } from "@/core/psgo/receita-print";
 import { printHtml } from "@/lib/print";
 
@@ -89,6 +89,90 @@ function Chip({
   );
 }
 
+/**
+ * Busca de medicamento por proximidade ao nome (CATMAT): o item mais próximo do
+ * termo aparece no topo (não a ordem alfabética de todas as apresentações).
+ */
+function MedCombobox({ onPick }: { onPick: (m: MedCatmat) => void }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const results = useMemo(() => searchMeds(q, 40), [q]);
+
+  useEffect(() => {
+    function onDoc(ev: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(ev.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const choose = (m: MedCatmat) => {
+    onPick(m);
+    setQ("");
+    setOpen(false);
+    setHi(0);
+  };
+
+  return (
+    <div ref={boxRef} className="relative">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-8"
+          value={q}
+          placeholder="digite o nome do medicamento…"
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOpen(true);
+            setHi(0);
+          }}
+          onFocus={() => q.trim() && setOpen(true)}
+          onKeyDown={(e) => {
+            if (!open || results.length === 0) return;
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setHi((h) => Math.min(h + 1, results.length - 1));
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setHi((h) => Math.max(h - 1, 0));
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              choose(results[hi]);
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            }
+          }}
+        />
+      </div>
+      {open && results.length > 0 && (
+        <ul className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-background shadow-md">
+          {results.map((m, i) => (
+            <li key={`${m.pa}|${m.conc}|${m.forma}`}>
+              <button
+                type="button"
+                onMouseEnter={() => setHi(i)}
+                onClick={() => choose(m)}
+                className={`block w-full px-2.5 py-1.5 text-left text-sm ${i === hi ? "bg-muted" : ""}`}
+              >
+                <span className="font-medium">{m.pa}</span>
+                {m.conc ? <span className="text-muted-foreground"> {m.conc}</span> : null}
+                <span className="text-muted-foreground"> · {m.forma}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && q.trim().length >= 2 && results.length === 0 && (
+        <div className="absolute z-30 mt-1 w-full rounded-md border bg-background px-2.5 py-2 text-xs text-muted-foreground shadow-md">
+          Nenhum medicamento encontrado. Você pode preencher manualmente abaixo.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ReceitaGenerator({
   today,
   patients = [],
@@ -111,6 +195,9 @@ export function ReceitaGenerator({
   const removeItem = (id: string) => setItems((s) => s.filter((i) => i.id !== id));
   const setItem = (id: string, patch: Partial<PrescricaoItem>) =>
     setItems((s) => s.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  // Limpa os dados do medicamento (mantém o item na lista).
+  const clearItem = (id: string) =>
+    setItems((s) => s.map((i) => (i.id === id ? emptyPrescricaoItem(i.id) : i)));
   const toggleTurno = (id: string, value: string) =>
     setItems((s) =>
       s.map((i) =>
@@ -137,9 +224,7 @@ export function ReceitaGenerator({
   };
 
   // Preenche o medicamento a partir da lista e sugere o tipo de receita (ANVISA).
-  const pickMed = (id: string, label: string) => {
-    const m = CATMAT_MEDS.find((x) => medCatmatLabel(x) === label);
-    if (!m) return;
+  const pickMed = (id: string, m: MedCatmat) => {
     const info = controleInfo(m.pa);
     setItem(id, {
       principioAtivo: m.pa,
@@ -167,11 +252,11 @@ export function ReceitaGenerator({
 
   return (
     <div className="space-y-4">
-      {/* Ações + aviso */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
+      {/* Ações (sempre visíveis) + aviso */}
+      <div className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <p className="hidden max-w-md text-xs text-muted-foreground sm:block">
           Apoio à documentação — valide medicamento, dose e posologia. O tipo de receituário é
-          sugerido automaticamente (ANVISA Portaria 344/98) e pode ser ajustado.
+          sugerido automaticamente (ANVISA 344/98 e RDC 471/2021) e pode ser ajustado.
         </p>
         <div className="flex items-center gap-2">
           <CopyButton text={text} />
@@ -245,6 +330,11 @@ export function ReceitaGenerator({
         <CardContent className="space-y-4">
           {items.map((it, idx) => {
             const info = controleInfo(it.principioAtivo);
+            const hasMed =
+              it.principioAtivo.trim() ||
+              it.concentracao.trim() ||
+              it.formaFarmaceutica.trim() ||
+              it.posologiaManual.trim();
             return (
               <div
                 key={it.id}
@@ -260,23 +350,37 @@ export function ReceitaGenerator({
                             ? "bg-amber-200 text-amber-900"
                             : info.classe === "ESPECIAL"
                               ? "bg-blue-100 text-blue-800"
-                              : "bg-muted text-muted-foreground"
+                              : info.classe === "ANTIMICROBIANO"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {info.label}
                       </span>
                     )}
                   </div>
-                  {items.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeItem(it.id)}
-                      className="text-destructive"
-                      title="Remover"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {hasMed && (
+                      <button
+                        type="button"
+                        onClick={() => clearItem(it.id)}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        title="Limpar dados deste medicamento"
+                      >
+                        <Eraser className="h-3.5 w-3.5" /> Limpar
+                      </button>
+                    )}
+                    {items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeItem(it.id)}
+                        className="text-destructive"
+                        title="Remover"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {info.bloqueado && (
@@ -304,15 +408,7 @@ export function ReceitaGenerator({
 
                 {/* Busca na lista CATMAT (preenche princípio/concentração/forma) */}
                 <Field label="Buscar medicamento (lista CATMAT)">
-                  <Input
-                    list="catmat-meds"
-                    placeholder="digite e escolha para preencher…"
-                    onChange={(e) => {
-                      pickMed(it.id, e.target.value);
-                      if (CATMAT_MEDS.some((m) => medCatmatLabel(m) === e.target.value))
-                        e.target.value = "";
-                    }}
-                  />
+                  <MedCombobox onPick={(m) => pickMed(it.id, m)} />
                 </Field>
 
                 {/* Medicamento */}
@@ -417,6 +513,15 @@ export function ReceitaGenerator({
                         />
                       </Field>
                     )}
+                    {it.tipoFrequencia === "INTERVALO_DIAS" && (
+                      <Field label="A cada (dias)">
+                        <Input
+                          value={it.intervaloHoras}
+                          onChange={(e) => setItem(it.id, { intervaloHoras: e.target.value })}
+                          inputMode="numeric"
+                        />
+                      </Field>
+                    )}
                     {it.tipoFrequencia === "FREQUENCIA" && (
                       <Field label="Vezes ao dia">
                         <Input
@@ -510,25 +615,16 @@ export function ReceitaGenerator({
               </div>
             );
           })}
+
+          {/* Adicionar também abaixo do último medicamento */}
+          <Button type="button" variant="outline" onClick={addItem} className="w-full">
+            <Plus className="h-4 w-4" /> Adicionar medicamento
+          </Button>
         </CardContent>
       </Card>
-
-      {/* Lista compartilhada para busca de medicamentos (CATMAT) */}
-      <CatmatDatalist />
     </div>
   );
 }
-
-// Datalist do CATMAT (~2,9 mil itens) — memoizada para renderizar só uma vez.
-const CatmatDatalist = memo(function CatmatDatalist() {
-  return (
-    <datalist id="catmat-meds">
-      {CATMAT_MEDS.map((m) => (
-        <option key={`${m.pa}|${m.conc}|${m.forma}`} value={medCatmatLabel(m)} />
-      ))}
-    </datalist>
-  );
-});
 
 // Prévia curta da posologia de um item (usa o mesmo builder do core).
 function buildPreview(it: PrescricaoItem): string {

@@ -16,13 +16,22 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Tipos de receita**: apenas **Comum** e **Especial** (controle especial),
   idênticas no layout, mudando só o título ("RECEITUÁRIO" → "RECEITUÁRIO DE
   CONTROLE ESPECIAL"). Os itens são agrupados por tipo no texto final.
-- **Classificação automática (ANVISA Portaria SVS/MS 344/98)**: o sistema
-  sugere o tipo de receituário pelo princípio ativo — substâncias de **controle
-  especial (C1)** e **notificação branca (C2/retinoides/talidomida)** → Especial;
-  demais → Comum. Medicamentos que exigem **Notificação de Receita A (amarela)**
-  ou **B (azul)** são **sinalizados e bloqueados** para impressão (proibido por
-  lei — usam formulário oficial numerado); os demais seguem para o PDF. Lista
-  curada, **apoio à decisão — validar com a farmácia**.
+- **Classificação automática (ANVISA Portaria SVS/MS 344/98 e RDC 471/2021)**: o
+  sistema sugere o tipo de receituário pelo princípio ativo — substâncias de
+  **controle especial (C1)** e **notificação branca (C2/retinoides/talidomida)**
+  → Especial; **antimicrobianos** (retidos em 2 vias) → Especial (2 vias), com
+  selo próprio "Antimicrobiano · 2 vias"; demais → Comum. Medicamentos que exigem
+  **Notificação de Receita A (amarela)** ou **B (azul)** são **sinalizados e
+  bloqueados** para impressão (proibido por lei — usam formulário oficial
+  numerado); os demais seguem para o PDF. Lista curada, **apoio à decisão —
+  validar com a farmácia**.
+- **Busca de medicamento por proximidade**: o campo de busca ranqueia pelo nome
+  mais próximo do termo digitado (igual > começa com > contém, preferindo nomes
+  mais curtos) em vez de listar em ordem alfabética todas as apresentações;
+  navegação por teclado (setas/Enter) e botão **Limpar** para zerar o item.
+- **Frequência "A cada (dia)"** (além de "A cada (h)"), para posologias em dias.
+- Botão **Imprimir/PDF** sempre visível (barra fixa no topo) e botão de
+  **adicionar medicamento** também abaixo do último item.
 - Por medicamento: **princípio ativo, concentração, forma, via**, e posologia
   **estruturada** (dose + unidade; frequência por intervalo/vezes ao dia/turnos/
   uso contínuo/dose única; duração; momento em relação às refeições) que monta a

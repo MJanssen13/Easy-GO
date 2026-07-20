@@ -87,3 +87,43 @@ export const CATMAT_MEDS: MedCatmat[] = CATMAT_RAW.map(([pa, conc, forma, fornec
 export function medCatmatLabel(m: MedCatmat): string {
   return m.conc ? `${m.pa} ${m.conc} — ${m.forma}` : `${m.pa} — ${m.forma}`;
 }
+
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * Busca por proximidade ao nome digitado (não alfabética): prioriza o princípio
+ * ativo mais próximo do termo (igual > começa com > contém) e prefere os nomes
+ * mais curtos, para o item procurado aparecer no topo em vez de percorrer todas
+ * as apresentações. Todos os termos digitados precisam constar no rótulo.
+ */
+export function searchMeds(query: string, limit = 30): MedCatmat[] {
+  const q = norm(query.trim());
+  if (q.length < 2) return [];
+  const tokens = q.split(/\s+/).filter(Boolean);
+
+  const scored: { m: MedCatmat; score: number }[] = [];
+  for (const m of CATMAT_MEDS) {
+    const pa = norm(m.pa);
+    const label = norm(medCatmatLabel(m));
+    if (!tokens.every((t) => label.includes(t))) continue;
+
+    let score = 0;
+    if (pa === q) score += 1000;
+    else if (pa.startsWith(q)) score += 600;
+    else if (pa.includes(q)) score += 300;
+    if (pa.split(/\s+/).some((w) => w.startsWith(tokens[0]))) score += 120;
+    if (label.startsWith(q)) score += 80;
+    // Preferir nomes mais curtos (mais próximos do termo) e menos apresentações.
+    score -= pa.length * 0.5;
+    score -= label.length * 0.1;
+
+    scored.push({ m, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit).map((s) => s.m);
+}
