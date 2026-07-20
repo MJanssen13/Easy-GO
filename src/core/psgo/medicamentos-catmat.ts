@@ -16,67 +16,168 @@ export interface MedCatmat {
   unidade: string; // unidade de dose inferida da forma
 }
 
+/** Minúsculas sem acentos, para casar formas/princípios com/sem acentuação. */
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
 /**
- * Via de administração inferida da forma farmacêutica — com exceções por
- * princípio ativo: insulinas → Subcutânea; benzilpenicilina → Intramuscular.
+ * Via de administração pré-selecionada a partir da **forma farmacêutica** e do
+ * **princípio ativo**, seguindo as convenções de bula/ANVISA por forma (a via é
+ * sempre editável). Exceções por princípio ativo (via padrão da apresentação):
+ * insulinas → Subcutânea; benzilpenicilina → Intramuscular; heparinas de baixo
+ * peso molecular → Subcutânea.
  */
 function inferVia(forma: string, pa: string): string {
-  const p = pa.toLowerCase();
+  const p = norm(pa);
   if (p.includes("insulina")) return "Subcutânea";
   if (p.includes("benzilpenicilina")) return "Intramuscular";
-  const f = forma.toLowerCase();
-  if (f.includes("vaginal")) return "Vaginal";
-  if (f.includes("oftálm") || f.includes("oftalm") || f.includes("colír") || f.includes("ocular"))
+  if (
+    p.includes("enoxaparina") ||
+    p.includes("dalteparina") ||
+    p.includes("nadroparina") ||
+    p.includes("fondaparinux")
+  )
+    return "Subcutânea";
+
+  const f = norm(forma);
+  // Injetável com rota indicada na própria forma.
+  if (/\bim\b/.test(f) || f.includes("intramuscular")) return "Intramuscular";
+  if (f.includes("intra-ocular") || f.includes("intraocular") || f.includes("intravitre"))
     return "Ocular";
-  if (f.includes("otológ") || f.includes("otolog") || f.includes("auricular") || f.includes("ótic"))
-    return "Otológica";
-  if (f.includes("nasal")) return "Nasal";
-  if (f.includes("retal") || f.includes("supositór") || f.includes("enema")) return "Retal";
-  if (f.includes("inala") || f.includes("aerossol") || f.includes("spray")) return "Inalatória";
-  if (f.includes("transdérm") || f.includes("transderm") || f.includes("adesivo"))
+  // Locais específicos (antes de tópica/inalatória).
+  if (f.includes("vaginal") || f.includes("ovulo")) return "Vaginal";
+  if (f.includes("retal") || f.includes("suposit") || f.includes("enema")) return "Retal";
+  if (f.includes("oftalm") || f.includes("colir") || f.includes("ocular")) return "Ocular";
+  if (f.includes("otolog") || f.includes("auricular") || f.includes("otic")) return "Otológica";
+  if (f.includes("nasal")) return "Nasal"; // inclui aerossol/spray/solução nasal
+  if (
+    f.includes("inala") ||
+    f.includes("nebuliz") ||
+    f.includes("aerossol") ||
+    f.startsWith("aer ") ||
+    f.includes("inalante")
+  )
+    return "Inalatória";
+  if (f.includes("transderm") || f.includes("adesivo") || f.includes("percutane"))
     return "Transdérmica";
   if (f.includes("sublingual")) return "Sublingual";
-  if (f.includes("injet")) return "Intravenosa";
+  // Injetável genérico → intravenosa (default editável).
+  if (
+    f.includes("injet") ||
+    /\binj\b/.test(f) ||
+    /\bamp\b/.test(f) ||
+    f.includes("carpule") ||
+    f.includes("implante")
+  )
+    return "Intravenosa";
+  // Tópicos.
   if (
     f.includes("creme") ||
     f.includes("pomada") ||
     f.includes("gel") ||
-    f.includes("loção") ||
     f.includes("locao") ||
-    f.includes("tópic") ||
     f.includes("topic") ||
-    f.includes("pasta")
+    f.includes("pasta") ||
+    f.includes("xampu") ||
+    f.includes("sabonete") ||
+    f.includes("esmalte") ||
+    f.includes("bastao") ||
+    f.includes("orabase") ||
+    f.includes("emulsao derm")
   )
     return "Tópica";
   return "Oral";
 }
 
-/** Unidade de dose inferida da forma (mapeada às opções do seletor de dose). */
-function inferUnidade(forma: string): string {
-  const f = forma.toLowerCase();
-  if (f.includes("comprimido") || f.includes("drág") || f.includes("drag")) return "comprimido";
-  if (f.includes("cápsula") || f.includes("capsula")) return "cápsula";
-  if (f.includes("injet") || f.includes("ampola")) return "ampola";
-  if (f.includes("creme") || f.includes("pomada") || f.includes("gel") || f.includes("pasta"))
-    return "aplicação";
-  if (f.includes("inala") || f.includes("aerossol") || f.includes("spray")) return "jato";
+/**
+ * Unidade de dose pré-selecionada a partir da forma e do princípio ativo
+ * (mapeada às opções do seletor). Insulinas e heparina → **UI**.
+ */
+function inferUnidade(forma: string, pa: string): string {
+  const p = norm(pa);
+  if (p.includes("insulina") || p.includes("heparina")) return "UI";
+
+  const f = norm(forma);
+  // Aerossol/inalatório/spray → jato (antes de gota, para spray nasal).
   if (
-    f.includes("oftálm") ||
+    f.includes("aerossol") ||
+    f.includes("inala") ||
+    f.includes("nebuliz") ||
+    f.includes("spray") ||
+    f.includes("inalante") ||
+    f.startsWith("aer ")
+  )
+    return "jato";
+  // Gotas (oftálmica/otológica/nasal em solução/suspensão).
+  if (
+    f.includes("colir") ||
     f.includes("oftalm") ||
-    f.includes("colír") ||
+    f.includes("otolog") ||
+    f.includes("otic") ||
     f.includes("nasal") ||
-    f.includes("ótic") ||
-    f.includes("otológ") ||
     f.includes("gota")
   )
     return "gota";
   if (
-    f.includes("solução") ||
+    f.includes("comprimido") ||
+    f.includes("drag") ||
+    f.startsWith("comp") ||
+    f.includes("pastilha") ||
+    f.includes("goma") ||
+    f.includes("tablete")
+  )
+    return "comprimido";
+  if (f.includes("capsula") || /^cap\b/.test(f) || f.startsWith("cap ")) return "cápsula";
+  if (
+    f.includes("suposit") ||
+    f.includes("ovulo") ||
+    f.includes("adesivo") ||
+    f.includes("implante") ||
+    f.includes("intrauterino")
+  )
+    return "unidade";
+  if (
+    f.includes("creme") ||
+    f.includes("pomada") ||
+    f.includes("gel") ||
+    f.includes("locao") ||
+    f.includes("topic") ||
+    f.includes("pasta") ||
+    f.includes("xampu") ||
+    f.includes("sabonete") ||
+    f.includes("emulsao derm") ||
+    f.includes("orabase") ||
+    f.includes("bisnaga")
+  )
+    return "aplicação";
+  if (
+    f.includes("injet") ||
+    /\binj\b/.test(f) ||
+    /\bamp\b/.test(f) ||
+    f.includes("liof") ||
+    f.includes("carpule")
+  )
+    return "ampola";
+  if (
     f.includes("solucao") ||
     f.includes("suspens") ||
-    f.includes("xarope")
+    f.includes("sol oral") ||
+    f.includes("susp oral") ||
+    f.startsWith("sol ") ||
+    f.startsWith("susp ") ||
+    f.includes("xarope") ||
+    f.includes("xpe") ||
+    f.includes("elixir") ||
+    f.includes("tintura") ||
+    f.includes("emulsao") ||
+    f.includes("gelei")
   )
     return "mL";
+  if (f.includes("granulado") || f === "po" || f.startsWith("po ")) return "sachê";
   return "unidade";
 }
 
@@ -97,20 +198,13 @@ export const CATMAT_MEDS: MedCatmat[] = CATMAT_RAW.map(([pa, conc, forma, fornec
     forma: f,
     fornecimento,
     via: inferVia(f, pa),
-    unidade: inferUnidade(f),
+    unidade: inferUnidade(f, pa),
   };
 });
 
 /** Rótulo de exibição/busca: "Dipirona sódica 500 mg — Comprimido". */
 export function medCatmatLabel(m: MedCatmat): string {
   return m.conc ? `${m.pa} ${m.conc} — ${m.forma}` : `${m.pa} — ${m.forma}`;
-}
-
-function norm(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
 }
 
 /**

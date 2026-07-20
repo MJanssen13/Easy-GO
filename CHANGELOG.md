@@ -35,8 +35,14 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Turnos com doses diferentes por turno** (ex.: "2 comprimidos pela manhã e 1
   comprimido à noite"): a dose de cada turno é opcional e aparece na **própria
   linha da posologia**.
-- **Via pré-selecionada por princípio ativo**: insulinas → **Subcutânea**;
-  benzilpenicilina → **Intramuscular** (editável).
+- **Via e unidade de dose pré-selecionadas** conforme a forma farmacêutica e o
+  princípio ativo (convenções de bula/ANVISA por forma; sempre editáveis):
+  comprimido/cápsula → oral; solução/suspensão oral, xarope → mL; injetáveis →
+  ampola/IV; oftálmica/otológica/nasal (gotas) → gota; aerossol/nebulização/
+  inalação → jato; creme/pomada/gel → aplicação; supositório/óvulo/adesivo →
+  unidade. Exceções por princípio ativo: **insulinas → Subcutânea + UI**;
+  **heparina → UI**; **benzilpenicilina → Intramuscular**; heparinas de baixo
+  peso molecular (enoxaparina etc.) → Subcutânea.
 - Formas **"Pó para suspensão injetável"** passam a ser exibidas (na plataforma e
   na receita) apenas como **"Suspensão injetável"**.
 - Botão **Imprimir/PDF** sempre visível (barra fixa no topo) e botão de
