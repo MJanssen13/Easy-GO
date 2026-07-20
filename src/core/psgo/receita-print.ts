@@ -1,8 +1,9 @@
 /**
  * Layout de impressão da receita (A4), inspirado no receituário do e-SUS APS:
  * duas vias lado a lado (1ª retenção na farmácia / 2ª orientação ao paciente),
- * com faixa de logos, cabeçalho institucional, seções EMITENTE / CIDADÃO /
- * MEDICAMENTOS (medicamento em quadro), assinatura e rodapé "Impresso em…".
+ * com faixa de logos + identificação da unidade, seções PACIENTE / MEDICAMENTOS
+ * (medicamento em quadro) e assinatura ("Médico Assistente" + carimbo). Cada via
+ * ocupa a folha inteira.
  *
  * No e-SUS o PDF é gerado no servidor (JasperReports); aqui montamos um HTML
  * autocontido para o diálogo de impressão do navegador (→ PDF).
@@ -19,31 +20,12 @@ import {
 } from "./prescricao";
 import { RECEITA_LOGOS } from "./receita-logos";
 
+const UNIDADE = "Hospital de Clínicas da Universidade Federal do Triângulo Mineiro — HC-UFTM";
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 const e = (s: string) => escapeHtml(s.trim());
-
-const MESES = [
-  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
-];
-function dataExtenso(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? "" : `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
-}
-function agora(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} às ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-// Linhas do bloco institucional (canto superior direito). Ajustável ao serviço.
-const INSTITUICAO = [
-  "MINISTÉRIO DA EDUCAÇÃO",
-  "EBSERH — REDE HU-BRASIL",
-  "UNIVERSIDADE FEDERAL DO TRIÂNGULO MINEIRO",
-];
 
 // Faixa de logos: usa imagens (data-URI) quando disponíveis; senão, um selo.
 function logosHtml(): string {
@@ -74,7 +56,7 @@ function medHtml(it: PrescricaoItem, index: number): string {
   return `<div class="med">
     <div class="med-h">
       <span class="med-n">${index}. ${e(nome) || "___"}</span>
-      <span class="med-q">${qtd ? e(qtd) : "&nbsp;"}${forma ? `<br><span class="med-f">${e(forma)}</span>` : ""}</span>
+      <span class="med-q">${qtd ? e(qtd) : "&nbsp;"}${forma ? `<span class="med-f"> · ${e(forma)}</span>` : ""}</span>
     </div>
     <div class="med-d">${itemDetalhe(it)}</div>
   </div>`;
@@ -89,15 +71,9 @@ function identEspecial(): string {
       <div class="ln">Assinatura do farmacêutico</div></div></div>`;
 }
 
-/** Uma coluna (via) da receita. */
+/** Uma coluna (via) da receita, ocupando a folha inteira. */
 function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "right"): string {
-  const emitente = [
-    e(header.prescritor) + (header.crm.trim() ? ` — CRM ${e(header.crm)}` : ""),
-    e(header.estabelecimento),
-  ]
-    .filter((s) => s.trim())
-    .join("<br>");
-  const cidadao = [
+  const paciente = [
     e(header.paciente) || "&nbsp;",
     [header.prontuario.trim() ? `Prontuário: ${e(header.prontuario)}` : "", header.idade.trim() ? `Idade: ${e(header.idade)}` : ""]
       .filter(Boolean)
@@ -106,68 +82,62 @@ function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "righ
     .filter((s) => s.trim())
     .join("<br>");
   const meds = grupo.items.map((it, i) => medHtml(it, i + 1)).join("");
-  const local = [e(header.cidade), dataExtenso(header.data)].filter(Boolean).join(", ");
 
   return `<div class="col ${lado}">
-    <div class="hdr">
+    <div class="top">
       <div class="logos">${logosHtml()}</div>
-      <div class="inst">${INSTITUICAO.map(e).join("<br>")}${
-        header.estabelecimento.trim() ? `<br>${e(header.estabelecimento)}` : ""
-      }</div>
+      <div class="unidade">${e(UNIDADE)}</div>
     </div>
     <div class="titrow">
       <div class="rec">${e(grupo.titulo)}</div>
       <div class="vias">1ª VIA – RETENÇÃO NA FARMÁCIA OU DROGARIA<br>2ª VIA – ORIENTAÇÃO AO PACIENTE</div>
     </div>
-    <div class="sec"><div class="sec-t">EMITENTE</div><div class="sec-b">${emitente || "&nbsp;"}</div></div>
-    <div class="sec"><div class="sec-t">CIDADÃO</div><div class="sec-b">${cidadao || "&nbsp;"}</div></div>
+    <div class="sec"><div class="sec-t">PACIENTE</div><div class="sec-b">${paciente || "&nbsp;"}</div></div>
     <div class="sec"><div class="sec-t">MEDICAMENTOS</div><div class="meds">${meds}</div></div>
     ${grupo.tipo === "ESPECIAL" ? identEspecial() : ""}
+    <div class="grow"></div>
     <div class="sign">
       <div class="line"></div>
-      <div class="nm">${e(header.prescritor) || "&nbsp;"}</div>
-      ${local ? `<div class="dt">${local}</div>` : ""}
-    </div>
-    <div class="foot">
-      <span>Impresso em ${agora()}${header.prescritor.trim() ? ` por ${e(header.prescritor)}` : ""}.</span>
-      <span>1 / 1</span>
+      <div class="nm">Médico Assistente</div>
+      <div class="carimbo">(Carimbo, local e data)</div>
     </div>
   </div>`;
 }
 
+// Altura útil de uma folha A4 com margem @page de 8 mm (297 − 16 ≈ 281 mm).
 const STYLE = `
   @page { size: A4; margin: 8mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; color: #111; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8pt; line-height: 1.35; }
+  body { margin: 0; color: #111; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8pt; line-height: 1.3; }
   .sheet { display: flex; page-break-after: always; }
   .sheet:last-child { page-break-after: auto; }
-  .col { flex: 1 1 0; min-width: 0; padding: 3mm 4mm; }
+  .col { flex: 1 1 0; min-width: 0; padding: 4mm 5mm; display: flex; flex-direction: column; min-height: 279mm; }
   .col.left { border-right: 1px dashed #999; }
-  .hdr { display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; }
-  .logos { display: flex; align-items: center; gap: 2mm; }
-  .logo { height: 9mm; width: auto; }
-  .logo-ph { display: inline-flex; align-items: center; justify-content: center; height: 8mm; min-width: 12mm; padding: 0 1.5mm; border: 1px solid #99a; border-radius: 2px; font-size: 6.5pt; font-weight: 700; color: #446; }
-  .inst { font-size: 5.8pt; text-align: right; color: #222; line-height: 1.25; }
-  .titrow { display: flex; justify-content: space-between; align-items: flex-end; margin: 2mm 0 1mm; }
+  .top { text-align: center; border-bottom: 1.5px solid #111; padding-bottom: 2mm; margin-bottom: 2mm; }
+  .logos { display: flex; align-items: center; justify-content: center; gap: 4mm; }
+  .logo { height: 11mm; width: auto; }
+  .logo-ph { display: inline-flex; align-items: center; justify-content: center; height: 9mm; min-width: 14mm; padding: 0 1.5mm; border: 1px solid #99a; border-radius: 2px; font-size: 7pt; font-weight: 700; color: #446; }
+  .unidade { margin-top: 1.5mm; font-size: 7.5pt; font-weight: 600; }
+  .titrow { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1mm; }
   .rec { font-size: 11pt; font-weight: 700; }
   .vias { font-size: 5.8pt; text-align: right; color: #333; }
-  .sec { margin-top: 2mm; }
-  .sec-t { font-size: 7pt; font-weight: 700; letter-spacing: .04em; border-bottom: 1px solid #111; padding-bottom: 0.6mm; }
-  .sec-b { padding: 1mm 1mm 0; }
+  .sec { margin-top: 1.5mm; }
+  .sec-t { font-size: 7pt; font-weight: 700; letter-spacing: .04em; border-bottom: 1px solid #111; padding-bottom: 0.5mm; }
+  .sec-b { padding: 0.8mm 1mm 0; }
   .meds { padding-top: 1mm; }
-  .med { border: 1px solid #999; border-radius: 2px; padding: 1.5mm 2mm; margin-bottom: 1.5mm; }
+  .med { border: 1px solid #999; border-radius: 2px; padding: 1mm 1.5mm; margin-bottom: 1mm; }
   .med-h { display: flex; justify-content: space-between; gap: 2mm; }
   .med-n { font-weight: 600; }
   .med-q { text-align: right; white-space: nowrap; }
   .med-f { color: #444; }
-  .med-d { margin-top: 1mm; color: #222; }
-  .ident { padding-top: 1mm; }
-  .ident .ln { border-bottom: 1px solid #ccc; padding: 1.8mm 0 0.4mm; }
-  .sign { text-align: center; margin-top: 8mm; }
-  .sign .line { width: 60%; border-top: 1px solid #111; margin: 0 auto 1mm; }
+  .med-d { margin-top: 0.4mm; color: #222; }
+  .ident { padding-top: 0.8mm; }
+  .ident .ln { border-bottom: 1px solid #ccc; padding: 1.6mm 0 0.3mm; }
+  .grow { flex: 1 1 auto; min-height: 6mm; }
+  .sign { text-align: center; margin-bottom: 4mm; }
+  .sign .line { width: 62%; border-top: 1px solid #111; margin: 0 auto 1mm; }
   .sign .nm { font-weight: 600; }
-  .sign .dt { margin-top: 0.5mm; }
-  .foot { display: flex; justify-content: space-between; font-size: 5.8pt; color: #666; border-top: 1px solid #ddd; margin-top: 6mm; padding-top: 1mm; }
+  .sign .carimbo { margin-top: 6mm; font-size: 7pt; color: #777; }
 `;
 
 /** HTML autocontido da receita para impressão (uma folha por tipo, 2 vias). */
