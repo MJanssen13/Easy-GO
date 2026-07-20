@@ -30,7 +30,10 @@ import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
 import { searchMeds, type MedCatmat } from "@/core/psgo/medicamentos-catmat";
 import { buildReceitaPrintHtml } from "@/core/psgo/receita-print";
-import { printHtml } from "@/lib/print";
+import { printHtml, isMobile } from "@/lib/print";
+
+// jsPDF é pesado e só é usado no mobile → carregado sob demanda (code-split).
+type ReceitaPdfModule = typeof import("@/core/psgo/receita-pdf");
 
 /** Paciente do sistema para preenchimento automático. */
 export interface PacienteLite {
@@ -252,8 +255,25 @@ export function ReceitaGenerator({
   );
   const text = useMemo(() => renderReceita(header, printableItems), [header, printableItems]);
 
+  // Pré-carrega o gerador de PDF no mobile (mantém o clique dentro do gesto).
+  const pdfMod = useRef<ReceitaPdfModule | null>(null);
+  useEffect(() => {
+    if (isMobile()) import("@/core/psgo/receita-pdf").then((m) => (pdfMod.current = m));
+  }, []);
+
+  // No mobile a impressão do navegador falha (imprime a tela / erro no Android);
+  // geramos o PDF direto no dispositivo. No desktop usamos o diálogo de impressão.
   const handlePrint = () => {
-    if (printableItems.length) printHtml(buildReceitaPrintHtml(header, printableItems));
+    if (!printableItems.length) return;
+    if (isMobile()) {
+      if (pdfMod.current) pdfMod.current.downloadReceitaPdf(header, printableItems);
+      else
+        import("@/core/psgo/receita-pdf").then((m) =>
+          m.downloadReceitaPdf(header, printableItems),
+        );
+    } else {
+      printHtml(buildReceitaPrintHtml(header, printableItems));
+    }
   };
 
   return (
