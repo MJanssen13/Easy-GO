@@ -25,12 +25,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   ativo, concentração, forma e unidade de fornecimento; **via** e **unidade de
   dose** são inferidas da forma (editáveis). Só a identidade do produto — **sem
   dose**. (Datalist memoizada para desempenho.)
-- **Impressão/PDF** com **layout estruturado** (A4): cabeçalho do estabelecimento
-  e do tipo de receituário, quadro do paciente, itens numerados (medicamento em
-  destaque + posologia + quantidade + observações) e assinatura com cidade/data.
-  Uma folha por via; no **controle especial** (2 vias: 1ª farmácia / 2ª paciente)
-  saem também os quadros de **identificação do comprador/fornecedor**. Via diálogo
-  de impressão do navegador (iframe isolado; nada é enviado).
+- **Impressão/PDF no modelo do receituário do e-SUS APS** (A4): **duas vias lado
+  a lado** (1ª retenção na farmácia / 2ª orientação ao paciente), com faixa de
+  **logos** (SUS/UFTM/HU-Brasil), cabeçalho institucional, seções **EMITENTE /
+  CIDADÃO / MEDICAMENTOS** (medicamento em quadro: nome + quantidade/forma +
+  dose·frequência·via, duração e recomendações), assinatura e rodapé
+  "Impresso em…". O texto da receita passou a **caixa mista** (como no e-SUS).
+  Controle especial acrescenta os quadros de identificação do comprador/
+  fornecedor. Os logos ficam como **selos provisórios** até o envio dos arquivos
+  oficiais (basta preencher o data-URI em `receita-logos`).
 - **Sem doses fabricadas** (a equipe preenche/valida) e **sem** geração de
   prescrição digital assinada (validação federal fora do escopo).
 

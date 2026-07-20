@@ -169,67 +169,76 @@ function pluralUnidade(unidade: string, qt: string): string {
   return found ? found.plural : unidade;
 }
 
-/** Posologia legível a partir dos campos estruturados (ou o texto manual). */
-export function buildPosologia(item: PrescricaoItem): string {
-  if (item.registroManual) return item.posologiaManual.trim().toUpperCase();
+// Sub-helpers em caixa mista (como no e-SUS), reaproveitados na impressão.
 
-  const parts: string[] = [];
+/** Dose: "1 comprimido" (com plural). */
+export function doseText(item: PrescricaoItem): string {
+  if (!item.qtDose.trim()) return "";
+  return `${item.qtDose.trim()} ${pluralUnidade(item.unidadeDose, item.qtDose)}`;
+}
 
-  // Dose: "1 COMPRIMIDO"
-  if (item.qtDose.trim()) {
-    parts.push(`${item.qtDose.trim()} ${pluralUnidade(item.unidadeDose, item.qtDose).toUpperCase()}`);
-  }
-  // Via: "VIA ORAL"
-  if (item.via.trim()) parts.push(`VIA ${item.via.trim().toUpperCase()}`);
+/** Via (como digitada). */
+export function viaText(item: PrescricaoItem): string {
+  return item.via.trim();
+}
 
-  // Frequência
+/** Frequência: "a cada 6 horas" / "3 vezes ao dia" / turnos / uso contínuo / dose única. */
+export function frequenciaText(item: PrescricaoItem): string {
   switch (item.tipoFrequencia) {
     case "INTERVALO":
-      if (item.intervaloHoras.trim()) parts.push(`A CADA ${item.intervaloHoras.trim()} HORAS`);
-      break;
-    case "FREQUENCIA":
-      if (item.vezesAoDia.trim()) {
-        const n = item.vezesAoDia.trim();
-        parts.push(n === "1" ? "1 VEZ AO DIA" : `${n} VEZES AO DIA`);
-      }
-      break;
+      return item.intervaloHoras.trim() ? `a cada ${item.intervaloHoras.trim()} horas` : "";
+    case "FREQUENCIA": {
+      const n = item.vezesAoDia.trim();
+      return n ? (n === "1" ? "1 vez ao dia" : `${n} vezes ao dia`) : "";
+    }
     case "TURNO": {
       const t = item.turnos
-        .map((v) => TURNO_OPTIONS.find((o) => o.value === v)?.text ?? "")
+        .map((v) => TURNO_OPTIONS.find((o) => o.value === v)?.text.toLowerCase() ?? "")
         .filter(Boolean);
-      if (t.length) parts.push(joinNat(t));
-      break;
+      return t.length ? joinNat(t) : "";
     }
     case "CONTINUO":
-      parts.push("USO CONTÍNUO");
-      break;
+      return "uso contínuo";
     case "UNICA":
-      parts.push("DOSE ÚNICA");
-      break;
+      return "dose única";
   }
+  return "";
+}
 
-  // Duração (não se aplica a contínuo/única)
-  if (
-    item.tipoFrequencia !== "CONTINUO" &&
-    item.tipoFrequencia !== "UNICA" &&
-    item.duracaoQt.trim()
-  ) {
-    const [sing, plur] = MEDIDA_TEMPO_LABEL[item.duracaoUnidade];
-    const n = parseDecimal(item.duracaoQt);
-    parts.push(`POR ${item.duracaoQt.trim()} ${n === 1 ? sing : plur}`);
-  }
+/** Duração: "5 dias" (vazio para contínuo/única). */
+export function duracaoText(item: PrescricaoItem): string {
+  if (item.tipoFrequencia === "CONTINUO" || item.tipoFrequencia === "UNICA") return "";
+  if (!item.duracaoQt.trim()) return "";
+  const [sing, plur] = MEDIDA_TEMPO_LABEL[item.duracaoUnidade];
+  const n = parseDecimal(item.duracaoQt);
+  return `${item.duracaoQt.trim()} ${(n === 1 ? sing : plur).toLowerCase()}`;
+}
 
-  // Momento em relação às refeições
-  if (item.momento) parts.push(MOMENTO_TEXT[item.momento]);
+/** Momento em relação às refeições (caixa mista). */
+export function momentoText(item: PrescricaoItem): string {
+  return item.momento ? MOMENTO_TEXT[item.momento].toLowerCase() : "";
+}
 
+/** Posologia legível (caixa mista) dos campos estruturados ou o texto manual. */
+export function buildPosologia(item: PrescricaoItem): string {
+  if (item.registroManual) return item.posologiaManual.trim();
+  const via = viaText(item);
+  const dur = duracaoText(item);
+  const parts = [
+    doseText(item),
+    via ? `via ${via.toLowerCase()}` : "",
+    frequenciaText(item),
+    dur ? `por ${dur}` : "",
+    momentoText(item),
+  ].filter(Boolean);
   return parts.join(", ");
 }
 
-/** Cabeçalho do medicamento: "DIPIRONA 500 MG — COMPRIMIDO". */
+/** Cabeçalho do medicamento: "Dipirona sódica 500 mg — Comprimido". */
 export function medicamentoLabel(item: PrescricaoItem): string {
-  const pa = item.principioAtivo.trim().toUpperCase();
-  const conc = item.concentracao.trim().toUpperCase();
-  const forma = item.formaFarmaceutica.trim().toUpperCase();
+  const pa = item.principioAtivo.trim();
+  const conc = item.concentracao.trim();
+  const forma = item.formaFarmaceutica.trim();
   const head = [pa, conc].filter(Boolean).join(" ");
   return forma ? `${head} — ${forma}` : head;
 }
@@ -241,9 +250,9 @@ export function renderPrescricaoItem(item: PrescricaoItem, index: number): strin
   lines.push(`${index}) ${med || "___"}`);
   const pos = buildPosologia(item);
   const qt = item.quantidadeReceitada.trim();
-  const posQt = [pos, qt ? `QUANTIDADE: ${qt.toUpperCase()}` : ""].filter(Boolean).join(". ");
+  const posQt = [pos, qt ? `Quantidade: ${qt}` : ""].filter(Boolean).join(". ");
   if (posQt) lines.push(`   ${posQt}.`);
-  if (item.recomendacoes.trim()) lines.push(`   OBS: ${item.recomendacoes.trim().toUpperCase()}`);
+  if (item.recomendacoes.trim()) lines.push(`   Obs: ${item.recomendacoes.trim()}`);
   return lines.join("\n");
 }
 
@@ -273,11 +282,11 @@ function renderBloco(
   const L: string[] = [];
   const meta = TIPO_RECEITA_OPTIONS.find((t) => t.value === tipo)!;
   L.push(`== ${meta.titulo} ==`);
-  if (header.estabelecimento.trim()) L.push(header.estabelecimento.trim().toUpperCase());
+  if (header.estabelecimento.trim()) L.push(header.estabelecimento.trim());
   const pac = [
-    header.paciente.trim() ? `PACIENTE: ${header.paciente.trim().toUpperCase()}` : "",
-    header.prontuario.trim() ? `PRONTUÁRIO: ${header.prontuario.trim().toUpperCase()}` : "",
-    header.idade.trim() ? `IDADE: ${header.idade.trim().toUpperCase()}` : "",
+    header.paciente.trim() ? `Paciente: ${header.paciente.trim()}` : "",
+    header.prontuario.trim() ? `Prontuário: ${header.prontuario.trim()}` : "",
+    header.idade.trim() ? `Idade: ${header.idade.trim()}` : "",
   ]
     .filter(Boolean)
     .join(" — ");
@@ -286,11 +295,11 @@ function renderBloco(
   items.forEach((it, i) => L.push(renderPrescricaoItem(it, i + 1)));
   L.push("");
   const local = [header.cidade.trim(), dateBR(header.data)].filter(Boolean).join(", ");
-  if (local) L.push(local.toUpperCase());
+  if (local) L.push(local);
   const assinatura = [header.prescritor.trim(), header.crm.trim() ? `CRM ${header.crm.trim()}` : ""]
     .filter(Boolean)
     .join(" — ");
-  if (assinatura) L.push(`__________________________________\n${assinatura.toUpperCase()}`);
+  if (assinatura) L.push(`__________________________________\n${assinatura}`);
   return L.join("\n");
 }
 
