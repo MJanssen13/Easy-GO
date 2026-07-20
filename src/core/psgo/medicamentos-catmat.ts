@@ -16,8 +16,14 @@ export interface MedCatmat {
   unidade: string; // unidade de dose inferida da forma
 }
 
-/** Via de administração inferida da forma farmacêutica. */
-function inferVia(forma: string): string {
+/**
+ * Via de administração inferida da forma farmacêutica — com exceções por
+ * princípio ativo: insulinas → Subcutânea; benzilpenicilina → Intramuscular.
+ */
+function inferVia(forma: string, pa: string): string {
+  const p = pa.toLowerCase();
+  if (p.includes("insulina")) return "Subcutânea";
+  if (p.includes("benzilpenicilina")) return "Intramuscular";
   const f = forma.toLowerCase();
   if (f.includes("vaginal")) return "Vaginal";
   if (f.includes("oftálm") || f.includes("oftalm") || f.includes("colír") || f.includes("ocular"))
@@ -90,7 +96,7 @@ export const CATMAT_MEDS: MedCatmat[] = CATMAT_RAW.map(([pa, conc, forma, fornec
     conc,
     forma: f,
     fornecimento,
-    via: inferVia(f),
+    via: inferVia(f, pa),
     unidade: inferUnidade(f),
   };
 });

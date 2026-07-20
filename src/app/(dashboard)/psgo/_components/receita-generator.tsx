@@ -576,7 +576,7 @@ export function ReceitaGenerator({
                               ))}
                             </div>
                             <p className="text-[11px] text-muted-foreground">
-                              Doses diferentes por turno são detalhadas nas recomendações.
+                              As doses por turno aparecem na própria posologia.
                             </p>
                           </div>
                         )}

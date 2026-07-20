@@ -14,7 +14,7 @@ import {
   frequenciaText,
   duracaoText,
   viaText,
-  turnoDoseRecomendacao,
+  turnoDoseText,
   type PrescricaoItem,
   type ReceitaHeader,
   type ReceitaGrupo,
@@ -53,9 +53,17 @@ function itemDetalhe(it: PrescricaoItem): string {
     const rec = it.recomendacoes.trim() ? `<div>Recomendações: ${e(it.recomendacoes)}</div>` : "";
     return `<div>${e(it.posologiaManual)}</div>${rec}`;
   }
-  const linha1 = [doseText(it), frequenciaText(it), viaText(it)].filter(Boolean).map(e).join(" • ");
+  const turnoCombo = turnoDoseText(it);
+  const linha1 = (
+    turnoCombo
+      ? [turnoCombo, viaText(it)]
+      : [doseText(it), frequenciaText(it), viaText(it)]
+  )
+    .filter(Boolean)
+    .map(e)
+    .join(" • ");
   const dur = it.usoContinuo ? "uso contínuo" : duracaoText(it);
-  const rec = [it.recomendacoes.trim(), turnoDoseRecomendacao(it)].filter(Boolean).join(" · ");
+  const rec = it.recomendacoes.trim();
   return `${linha1 ? `<div>${linha1}</div>` : ""}${
     dur ? `<div>${it.usoContinuo ? e(dur) : `Durante ${e(dur)}`}</div>` : ""
   }${rec ? `<div>Recomendações: ${e(rec)}</div>` : ""}`;

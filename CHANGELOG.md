@@ -32,8 +32,11 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Frequência "A cada (dia)"** (além de "A cada (h)"), para posologias em dias.
 - **Uso contínuo** saiu da frequência e virou uma **caixa de seleção** própria,
   que **desativa a duração**.
-- **Turnos com doses diferentes por turno** (ex.: 2 comprimidos pela manhã e 1 à
-  noite): a dose de cada turno é opcional e o detalhamento sai nas **recomendações**.
+- **Turnos com doses diferentes por turno** (ex.: "2 comprimidos pela manhã e 1
+  comprimido à noite"): a dose de cada turno é opcional e aparece na **própria
+  linha da posologia**.
+- **Via pré-selecionada por princípio ativo**: insulinas → **Subcutânea**;
+  benzilpenicilina → **Intramuscular** (editável).
 - Formas **"Pó para suspensão injetável"** passam a ser exibidas (na plataforma e
   na receita) apenas como **"Suspensão injetável"**.
 - Botão **Imprimir/PDF** sempre visível (barra fixa no topo) e botão de
