@@ -1,14 +1,62 @@
 /**
  * Imprime um documento HTML autocontido sem afetar a página atual.
  *
- * Usa um `<iframe>` oculto (mesma origem): evita bloqueadores de pop-up e
- * isola o CSS do app. A impressão só dispara após o `load` do iframe, que
- * aguarda o carregamento das imagens (papel timbrado) — garantindo que os
- * logotipos apareçam no impresso.
+ * - **Desktop**: usa um `<iframe>` oculto (mesma origem) — evita bloqueadores de
+ *   pop-up e isola o CSS do app. A impressão dispara após o `load` do iframe.
+ * - **Mobile** (iOS Safari, Android Chrome): o `iframe.contentWindow.print()`
+ *   imprime a **página do app**, não o iframe. Nesses navegadores abrimos o
+ *   documento em uma **nova janela/aba** que se imprime sozinha (script embutido),
+ *   garantindo que saia a **receita** e não a tela.
  */
 export function printHtml(html: string): void {
   if (typeof window === "undefined") return;
+  if (isMobile()) {
+    if (printViaWindow(html)) return;
+    // Pop-up bloqueado → tenta o iframe como último recurso.
+  }
+  printViaIframe(html);
+}
 
+/** Detecta navegadores móveis (inclui iPadOS, que se anuncia como desktop). */
+function isMobile(): boolean {
+  const ua = navigator.userAgent || "";
+  if (/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|BlackBerry|Opera Mini|IEMobile/i.test(ua))
+    return true;
+  // iPadOS moderno: platform "MacIntel" mas com toque.
+  return navigator.platform === "MacIntel" && (navigator.maxTouchPoints ?? 0) > 1;
+}
+
+/**
+ * Injeta um script que aguarda o carregamento das imagens (papel timbrado),
+ * dispara a impressão e fecha a janela ao terminar (imprimir ou cancelar).
+ */
+function injectAutoPrint(html: string): string {
+  const script =
+    "<script>window.addEventListener('load',function(){" +
+    "var imgs=Array.prototype.slice.call(document.images);" +
+    "Promise.all(imgs.map(function(i){return i.complete?1:new Promise(function(r){i.onload=i.onerror=r;});}))" +
+    ".then(function(){setTimeout(function(){try{window.focus();window.print();}catch(e){}},250);});" +
+    "});" +
+    "window.addEventListener('afterprint',function(){setTimeout(function(){window.close();},100);});" +
+    "<\/script>";
+  if (html.includes("</body>")) return html.replace("</body>", script + "</body>");
+  if (html.includes("</html>")) return html.replace("</html>", script + "</html>");
+  return html + script;
+}
+
+/** Abre a receita em nova janela/aba que se imprime sozinha. Retorna false se bloqueada. */
+function printViaWindow(html: string): boolean {
+  const win = window.open("", "_blank");
+  if (!win) return false;
+  const doc = win.document;
+  doc.open();
+  doc.write(injectAutoPrint(html));
+  doc.close();
+  return true;
+}
+
+/** Imprime via iframe oculto (desktop). */
+function printViaIframe(html: string): void {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";

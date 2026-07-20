@@ -45,6 +45,11 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   peso molecular (enoxaparina etc.) → Subcutânea.
 - Formas **"Pó para suspensão injetável"** passam a ser exibidas (na plataforma e
   na receita) apenas como **"Suspensão injetável"**.
+- **Correção da impressão no celular**: em iOS Safari/Android Chrome o `iframe`
+  oculto imprimia a **tela do app**, não a receita. Agora, no mobile, a receita
+  abre em uma **nova aba que se imprime sozinha** (aguarda os logos, imprime e
+  fecha); o desktop segue com o iframe. Vale para todas as impressões (receita,
+  CTG, prontuário/termos do PSGO).
 - Botão **Imprimir/PDF** sempre visível (barra fixa no topo) e botão de
   **adicionar medicamento** também abaixo do último item.
 - O seletor **"Preencher com paciente"** é explicitamente **opcional** (dá para
