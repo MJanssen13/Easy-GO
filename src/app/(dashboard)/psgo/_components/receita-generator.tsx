@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Pill } from "lucide-react";
+import { Plus, Trash2, Pill, Printer } from "lucide-react";
 import {
   emptyPrescricaoItem,
   renderReceita,
+  receitaBlocos,
   buildPosologia,
   medicamentoLabel,
   TIPO_RECEITA_OPTIONS,
@@ -27,6 +28,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
+import { CATMAT_MEDS, medCatmatLabel } from "@/core/psgo/medicamentos-catmat";
+import { printHtml } from "@/lib/print";
 
 const selectCls =
   "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -110,7 +113,25 @@ export function ReceitaGenerator({ today }: { today: string }) {
       ),
     );
 
+  // Preenche princípio ativo/concentração/forma/via/unidade a partir da lista.
+  const pickMed = (id: string, label: string) => {
+    const m = CATMAT_MEDS.find((x) => medCatmatLabel(x) === label);
+    if (m)
+      setItem(id, {
+        principioAtivo: m.pa,
+        concentracao: m.conc,
+        formaFarmaceutica: m.forma,
+        via: m.via,
+        unidadeDose: m.unidade,
+      });
+  };
+
   const text = useMemo(() => renderReceita(header, items), [header, items]);
+
+  const handlePrint = () => {
+    const blocos = receitaBlocos(header, items);
+    if (blocos.length) printHtml(buildPrintHtml(blocos));
+  };
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_24rem]">
@@ -189,6 +210,19 @@ export function ReceitaGenerator({ today }: { today: string }) {
                     </Chip>
                   ))}
                 </div>
+
+                {/* Busca na lista CATMAT (preenche princípio/concentração/forma) */}
+                <Field label="Buscar medicamento (lista CATMAT)">
+                  <Input
+                    list="catmat-meds"
+                    placeholder="digite e escolha para preencher…"
+                    onChange={(e) => {
+                      pickMed(it.id, e.target.value);
+                      if (CATMAT_MEDS.some((m) => medCatmatLabel(m) === e.target.value))
+                        e.target.value = "";
+                    }}
+                  />
+                </Field>
 
                 {/* Medicamento */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -399,7 +433,18 @@ export function ReceitaGenerator({ today }: { today: string }) {
             <CardTitle className="flex items-center gap-2 text-base">
               <Pill className="h-4 w-4 text-primary" /> Receita
             </CardTitle>
-            <CopyButton text={text} />
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handlePrint}
+                disabled={!text}
+              >
+                <Printer className="h-4 w-4" /> Imprimir / PDF
+              </Button>
+              <CopyButton text={text} />
+            </div>
           </CardHeader>
           <CardContent>
             <pre className="prontuario-text max-h-[70vh] overflow-y-auto text-xs">
@@ -412,6 +457,13 @@ export function ReceitaGenerator({ today }: { today: string }) {
           assinada (código/validação) não é gerada aqui.
         </p>
       </div>
+
+      {/* Lista compartilhada para busca de medicamentos (CATMAT) */}
+      <datalist id="catmat-meds">
+        {CATMAT_MEDS.map((m) => (
+          <option key={medCatmatLabel(m)} value={medCatmatLabel(m)} />
+        ))}
+      </datalist>
     </div>
   );
 }
@@ -422,4 +474,35 @@ function buildPreview(it: PrescricaoItem): string {
   const pos = buildPosologia(it);
   if (!med && !pos) return "Comece pelo princípio ativo.";
   return [med, pos].filter(Boolean).join(" — ") || "—";
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// HTML paginado para impressão: uma folha por via (controle especial = 2 vias).
+function buildPrintHtml(blocos: ReturnType<typeof receitaBlocos>): string {
+  const pages: string[] = [];
+  for (const b of blocos) {
+    for (let via = 1; via <= b.vias; via++) {
+      const viaLabel =
+        b.vias > 1 ? `${via}ª VIA — ${via === 1 ? "FARMÁCIA" : "PACIENTE"}` : "";
+      pages.push(
+        `<div class="page">${viaLabel ? `<div class="via">${viaLabel}</div>` : ""}<pre>${escapeHtml(b.text)}</pre></div>`,
+      );
+    }
+  }
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Receita</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #000; font-family: -apple-system, "Segoe UI", Arial, sans-serif; font-size: 12pt; }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  .via { font-size: 9pt; font-weight: 700; letter-spacing: .06em; color: #333; border-bottom: 1px solid #999; padding-bottom: 3mm; margin-bottom: 6mm; }
+  pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 12pt; line-height: 1.5; margin: 0; }
+</style></head><body>${pages.join("")}</body></html>`;
 }

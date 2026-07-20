@@ -294,14 +294,35 @@ function renderBloco(
   return L.join("\n");
 }
 
-/** Receita completa: agrupa por tipo (comum/especial/notificações). */
-export function renderReceita(header: ReceitaHeader, items: PrescricaoItem[]): string {
+export interface ReceitaBloco {
+  tipo: TipoReceita;
+  titulo: string;
+  text: string;
+  /** Nº de vias a imprimir (controle especial = 2). */
+  vias: number;
+}
+
+/** Blocos da receita, um por tipo preenchido (para prévia e impressão paginada). */
+export function receitaBlocos(header: ReceitaHeader, items: PrescricaoItem[]): ReceitaBloco[] {
   const filled = items.filter((it) => medicamentoLabel(it).trim() || buildPosologia(it).trim());
-  if (!filled.length) return "";
-  const blocos: string[] = [];
+  const out: ReceitaBloco[] = [];
   for (const t of TIPO_RECEITA_OPTIONS) {
     const group = filled.filter((it) => it.tipoReceita === t.value);
-    if (group.length) blocos.push(renderBloco(t.value, header, group));
+    if (group.length) {
+      out.push({
+        tipo: t.value,
+        titulo: t.titulo,
+        text: renderBloco(t.value, header, group),
+        vias: t.value === "ESPECIAL" ? 2 : 1,
+      });
+    }
   }
-  return blocos.join("\n\n----------------------------------------\n\n");
+  return out;
+}
+
+/** Receita completa: agrupa por tipo (comum/especial/notificações). */
+export function renderReceita(header: ReceitaHeader, items: PrescricaoItem[]): string {
+  return receitaBlocos(header, items)
+    .map((b) => b.text)
+    .join("\n\n----------------------------------------\n\n");
 }
