@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, HeartPulse } from "lucide-react";
+import { ArrowRight, HeartPulse, Pill } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Tool {
@@ -11,6 +11,14 @@ interface Tool {
 }
 
 const TOOLS: Tool[] = [
+  {
+    slug: "receita",
+    label: "Receita",
+    short: "Prescrição médica estruturada",
+    description:
+      "Monta a receita (comum ou de controle especial) com busca na lista CATMAT, preenchimento automático a partir das pacientes do PSGO e sugestão do tipo de receituário (ANVISA 344/98). Exporta em PDF (2 vias, A4 paisagem).",
+    icon: Pill,
+  },
   {
     slug: "cardiotocografia",
     label: "Cardiotocografia",

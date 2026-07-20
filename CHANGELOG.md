@@ -5,21 +5,31 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
-### PSGO — Módulo de prescrição (receita)
+### Ferramentas — Módulo de prescrição (receita)
 
-- Nova rota **`/psgo/receita`** (botão "Receita" no quadro do PSGO): gerador de
+- Nova rota **`/ferramentas/receita`** (card "Receita" na aba **Ferramentas**;
+  removida a rota antiga `/psgo/receita` e o botão do quadro do PSGO): gerador de
   **prescrição médica estruturado**, espelhando o modelo `receitaMedicamento` do
   e-SUS APS PEC (reimplementado na stack, sem copiar o bundle).
-- **Tipos de receita**: Comum, Especial (controle especial, 2 vias) e
-  Notificações (branca/azul/amarela) — cada uma com seu cabeçalho; os itens são
-  agrupados por tipo no texto final.
+- **Preenchimento automático** do cabeçalho a partir das **pacientes do PSGO**
+  (nome, prontuário e idade) — seletor "Preencher com paciente".
+- **Tipos de receita**: apenas **Comum** e **Especial** (controle especial),
+  idênticas no layout, mudando só o título ("RECEITUÁRIO" → "RECEITUÁRIO DE
+  CONTROLE ESPECIAL"). Os itens são agrupados por tipo no texto final.
+- **Classificação automática (ANVISA Portaria SVS/MS 344/98)**: o sistema
+  sugere o tipo de receituário pelo princípio ativo — substâncias de **controle
+  especial (C1)** e **notificação branca (C2/retinoides/talidomida)** → Especial;
+  demais → Comum. Medicamentos que exigem **Notificação de Receita A (amarela)**
+  ou **B (azul)** são **sinalizados e bloqueados** para impressão (proibido por
+  lei — usam formulário oficial numerado); os demais seguem para o PDF. Lista
+  curada, **apoio à decisão — validar com a farmácia**.
 - Por medicamento: **princípio ativo, concentração, forma, via**, e posologia
   **estruturada** (dose + unidade; frequência por intervalo/vezes ao dia/turnos/
   uso contínuo/dose única; duração; momento em relação às refeições) que monta a
   **posologia legível** automaticamente — ou **texto livre**. Ainda: quantidade a
   dispensar e recomendações.
-- Cabeçalho com paciente/prontuário/idade, prescritor/CRM, estabelecimento
-  (HC-UFTM), cidade e data; saída em MAIÚSCULAS com botão de cópia.
+- Cabeçalho com **paciente/prontuário/idade, cidade e data** (removidos os campos
+  de prescritor, CRM e estabelecimento); saída em MAIÚSCULAS com botão de cópia.
 - **Catálogo CATMAT completo** (~2,9 mil medicamentos, planilha oficial do
   Ministério da Saúde): campo de busca por item que pré-preenche princípio
   ativo, concentração, forma e unidade de fornecimento; **via** e **unidade de
@@ -28,15 +38,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Impressão/PDF no modelo do receituário do e-SUS APS** (**A4 paisagem**):
   **duas vias lado a lado** (1ª retenção na farmácia / 2ª orientação ao
   paciente), cada via ocupando toda a altura da folha, com faixa de
-  **logos** (SUS/UFTM/HU-Brasil) e a legenda "Hospital de Clínicas da UFTM —
-  HC-UFTM", seções **PACIENTE / MEDICAMENTOS** (medicamento em quadro compacto:
-  nome + quantidade/forma + dose·frequência·via, duração e recomendações) e
-  assinatura **"Médico Assistente"** com **local e data por extenso** (ex.:
-  "Uberaba, 10 de Abril de 2026"). Cada via
-  **ocupa a folha inteira**. O texto da receita passou a **caixa mista** (como no
-  e-SUS). Controle especial acrescenta os quadros de identificação do comprador/
-  fornecedor. Os **logos oficiais** (SUS/UFTM/HU-Brasil) são embutidos como
-  **data-URI** no cabeçalho (impressão autocontida).
+  **logos** (SUS/UFTM/HU-Brasil), a legenda "Hospital de Clínicas da
+  Universidade Federal do Triângulo Mineiro — HC-UFTM" e, abaixo, o endereço
+  **"CNES: 2206595, Av. Getúlio Guarita, 130, N.S. Abadia - Uberaba, MG"**;
+  seções **PACIENTE** (nome em **caixa alta**) **/ MEDICAMENTOS** (medicamento em
+  quadro compacto: nome + quantidade/forma + dose·frequência·via, duração e
+  recomendações) e assinatura **"Médico Assistente"** com **local e data por
+  extenso** (ex.: "Uberaba-MG, 20 de Julho de 2026"). A Especial usa o **mesmo
+  layout** da Comum. Os **logos oficiais** são embutidos como **data-URI** no
+  cabeçalho (impressão autocontida).
 - **Sem doses fabricadas** (a equipe preenche/valida) e **sem** geração de
   prescrição digital assinada (validação federal fora do escopo).
 

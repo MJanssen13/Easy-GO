@@ -10,20 +10,12 @@
  */
 import { parseDecimal } from "@/lib/num";
 
-// --- Tipos de receita (enum `OM` do e-SUS) ---
-export type TipoReceita =
-  | "COMUM"
-  | "ESPECIAL"
-  | "ESPECIAL_BRANCA"
-  | "ESPECIAL_AZUL"
-  | "ESPECIAL_AMARELA";
+// --- Tipos de receita: apenas Comum e Especial (idênticas, só muda o título) ---
+export type TipoReceita = "COMUM" | "ESPECIAL";
 
 export const TIPO_RECEITA_OPTIONS: { value: TipoReceita; label: string; titulo: string }[] = [
   { value: "COMUM", label: "Comum", titulo: "RECEITUÁRIO" },
-  { value: "ESPECIAL", label: "Especial", titulo: "RECEITUÁRIO DE CONTROLE ESPECIAL (2 VIAS)" },
-  { value: "ESPECIAL_BRANCA", label: "Notif. branca", titulo: "NOTIFICAÇÃO DE RECEITA — BRANCA (C1)" },
-  { value: "ESPECIAL_AZUL", label: "Notif. azul", titulo: "NOTIFICAÇÃO DE RECEITA B (AZUL)" },
-  { value: "ESPECIAL_AMARELA", label: "Notif. amarela", titulo: "NOTIFICAÇÃO DE RECEITA A (AMARELA)" },
+  { value: "ESPECIAL", label: "Especial", titulo: "RECEITUÁRIO DE CONTROLE ESPECIAL" },
 ];
 
 // --- Frequência (enum `tipoFrequenciaDose`: INTERVALO/FREQUENCIA/TURNO + único/contínuo) ---
@@ -260,9 +252,6 @@ export interface ReceitaHeader {
   paciente: string;
   prontuario: string;
   idade: string;
-  prescritor: string;
-  crm: string;
-  estabelecimento: string;
   cidade: string;
   data: string; // ISO (yyyy-mm-dd)
 }
@@ -282,9 +271,8 @@ function renderBloco(
   const L: string[] = [];
   const meta = TIPO_RECEITA_OPTIONS.find((t) => t.value === tipo)!;
   L.push(`== ${meta.titulo} ==`);
-  if (header.estabelecimento.trim()) L.push(header.estabelecimento.trim());
   const pac = [
-    header.paciente.trim() ? `Paciente: ${header.paciente.trim()}` : "",
+    header.paciente.trim() ? `Paciente: ${header.paciente.trim().toUpperCase()}` : "",
     header.prontuario.trim() ? `Prontuário: ${header.prontuario.trim()}` : "",
     header.idade.trim() ? `Idade: ${header.idade.trim()}` : "",
   ]
@@ -296,10 +284,7 @@ function renderBloco(
   L.push("");
   const local = [header.cidade.trim(), dateBR(header.data)].filter(Boolean).join(", ");
   if (local) L.push(local);
-  const assinatura = [header.prescritor.trim(), header.crm.trim() ? `CRM ${header.crm.trim()}` : ""]
-    .filter(Boolean)
-    .join(" — ");
-  if (assinatura) L.push(`__________________________________\n${assinatura}`);
+  L.push("__________________________________\nMédico Assistente");
   return L.join("\n");
 }
 

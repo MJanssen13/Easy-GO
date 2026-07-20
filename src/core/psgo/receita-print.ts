@@ -21,6 +21,7 @@ import {
 import { RECEITA_LOGOS } from "./receita-logos";
 
 const UNIDADE = "Hospital de Clínicas da Universidade Federal do Triângulo Mineiro — HC-UFTM";
+const ENDERECO = "CNES: 2206595, Av. Getúlio Guarita, 130, N.S. Abadia - Uberaba, MG";
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -72,19 +73,10 @@ function medHtml(it: PrescricaoItem, index: number): string {
   </div>`;
 }
 
-function identEspecial(): string {
-  return `<div class="sec"><div class="sec-t">IDENTIFICAÇÃO DO COMPRADOR</div>
-      <div class="ident"><div class="ln">Nome:</div><div class="ln">RG / Órgão emissor:</div>
-      <div class="ln">Endereço:</div><div class="ln">Telefone:</div></div></div>
-    <div class="sec"><div class="sec-t">IDENTIFICAÇÃO DO FORNECEDOR</div>
-      <div class="ident"><div class="ln">Data: ___/___/______</div>
-      <div class="ln">Assinatura do farmacêutico</div></div></div>`;
-}
-
 /** Uma coluna (via) da receita, ocupando a folha inteira. */
 function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "right"): string {
   const paciente = [
-    e(header.paciente) || "&nbsp;",
+    e(header.paciente.toUpperCase()) || "&nbsp;",
     [header.prontuario.trim() ? `Prontuário: ${e(header.prontuario)}` : "", header.idade.trim() ? `Idade: ${e(header.idade)}` : ""]
       .filter(Boolean)
       .join(" • "),
@@ -98,6 +90,7 @@ function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "righ
     <div class="top">
       <div class="logos">${logosHtml()}</div>
       <div class="unidade">${e(UNIDADE)}</div>
+      <div class="endereco">${e(ENDERECO)}</div>
     </div>
     <div class="titrow">
       <div class="rec">${e(grupo.titulo)}</div>
@@ -105,7 +98,6 @@ function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "righ
     </div>
     <div class="sec"><div class="sec-t">PACIENTE</div><div class="sec-b">${paciente || "&nbsp;"}</div></div>
     <div class="sec"><div class="sec-t">MEDICAMENTOS</div><div class="meds">${meds}</div></div>
-    ${grupo.tipo === "ESPECIAL" ? identEspecial() : ""}
     <div class="grow"></div>
     <div class="sign">
       <div class="line"></div>
@@ -130,6 +122,7 @@ const STYLE = `
   .logo { height: 11mm; width: auto; }
   .logo-ph { display: inline-flex; align-items: center; justify-content: center; height: 9mm; min-width: 14mm; padding: 0 1.5mm; border: 1px solid #99a; border-radius: 2px; font-size: 7pt; font-weight: 700; color: #446; }
   .unidade { margin-top: 1.5mm; font-size: 7.5pt; font-weight: 600; }
+  .endereco { margin-top: 0.5mm; font-size: 6.5pt; color: #333; }
   .titrow { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1mm; }
   .rec { font-size: 11pt; font-weight: 700; }
   .vias { font-size: 5.8pt; text-align: right; color: #333; }
@@ -143,8 +136,6 @@ const STYLE = `
   .med-q { text-align: right; white-space: nowrap; }
   .med-f { color: #444; }
   .med-d { margin-top: 0.4mm; color: #222; }
-  .ident { padding-top: 0.8mm; }
-  .ident .ln { border-bottom: 1px solid #ccc; padding: 1.6mm 0 0.3mm; }
   .grow { flex: 1 1 auto; min-height: 6mm; }
   .sign { text-align: center; margin-bottom: 4mm; }
   .sign .line { width: 62%; border-top: 1px solid #111; margin: 0 auto 1mm; }

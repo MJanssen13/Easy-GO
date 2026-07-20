@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { Plus, Trash2, Pill, Printer } from "lucide-react";
+import { Plus, Trash2, Printer, AlertTriangle } from "lucide-react";
 import {
   emptyPrescricaoItem,
   renderReceita,
@@ -21,6 +21,7 @@ import {
   type MedidaTempo,
   type MomentoRefeicao,
 } from "@/core/psgo/prescricao";
+import { controleInfo } from "@/core/psgo/receita-controle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,14 @@ import { CopyButton } from "@/components/copy-button";
 import { CATMAT_MEDS, medCatmatLabel } from "@/core/psgo/medicamentos-catmat";
 import { buildReceitaPrintHtml } from "@/core/psgo/receita-print";
 import { printHtml } from "@/lib/print";
+
+/** Paciente do sistema para preenchimento automático. */
+export interface PacienteLite {
+  id: string;
+  name: string;
+  medicalRecordNumber?: string | null;
+  age?: number | null;
+}
 
 const selectCls =
   "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -80,14 +89,17 @@ function Chip({
   );
 }
 
-export function ReceitaGenerator({ today }: { today: string }) {
+export function ReceitaGenerator({
+  today,
+  patients = [],
+}: {
+  today: string;
+  patients?: PacienteLite[];
+}) {
   const [header, setHeader] = useState<ReceitaHeader>({
     paciente: "",
     prontuario: "",
     idade: "",
-    prescritor: "",
-    crm: "",
-    estabelecimento: "HC-UFTM",
     cidade: "Uberaba-MG",
     data: today,
   });
@@ -113,77 +125,148 @@ export function ReceitaGenerator({ today }: { today: string }) {
       ),
     );
 
-  // Preenche princípio ativo/concentração/forma/via/unidade a partir da lista.
-  const pickMed = (id: string, label: string) => {
-    const m = CATMAT_MEDS.find((x) => medCatmatLabel(x) === label);
-    if (m)
-      setItem(id, {
-        principioAtivo: m.pa,
-        concentracao: m.conc,
-        formaFarmaceutica: m.forma,
-        via: m.via,
-        unidadeDose: m.unidade,
-      });
+  // Preenche o cabeçalho com os dados de uma paciente do sistema.
+  const fillFromPatient = (id: string) => {
+    const p = patients.find((x) => x.id === id);
+    if (!p) return;
+    setH({
+      paciente: p.name ?? "",
+      prontuario: p.medicalRecordNumber ?? "",
+      idade: p.age != null ? `${p.age} anos` : "",
+    });
   };
 
-  const text = useMemo(() => renderReceita(header, items), [header, items]);
+  // Preenche o medicamento a partir da lista e sugere o tipo de receita (ANVISA).
+  const pickMed = (id: string, label: string) => {
+    const m = CATMAT_MEDS.find((x) => medCatmatLabel(x) === label);
+    if (!m) return;
+    const info = controleInfo(m.pa);
+    setItem(id, {
+      principioAtivo: m.pa,
+      concentracao: m.conc,
+      formaFarmaceutica: m.forma,
+      via: m.via,
+      unidadeDose: m.unidade,
+      ...(info.tipoReceita ? { tipoReceita: info.tipoReceita } : {}),
+    });
+  };
+
+  const printableItems = useMemo(
+    () => items.filter((it) => !controleInfo(it.principioAtivo).bloqueado),
+    [items],
+  );
+  const blockedItems = useMemo(
+    () => items.filter((it) => controleInfo(it.principioAtivo).bloqueado),
+    [items],
+  );
+  const text = useMemo(() => renderReceita(header, printableItems), [header, printableItems]);
 
   const handlePrint = () => {
-    if (text) printHtml(buildReceitaPrintHtml(header, items));
+    if (printableItems.length) printHtml(buildReceitaPrintHtml(header, printableItems));
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_24rem]">
-      <div className="space-y-4">
-        {/* Cabeçalho */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Identificação</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Field label="Paciente" className="col-span-2 sm:col-span-2">
-              <Input value={header.paciente} onChange={(e) => setH({ paciente: e.target.value })} />
-            </Field>
-            <Field label="Prontuário/RG">
-              <Input value={header.prontuario} onChange={(e) => setH({ prontuario: e.target.value })} />
-            </Field>
-            <Field label="Idade">
-              <Input value={header.idade} onChange={(e) => setH({ idade: e.target.value })} />
-            </Field>
-            <Field label="Prescritor">
-              <Input value={header.prescritor} onChange={(e) => setH({ prescritor: e.target.value })} />
-            </Field>
-            <Field label="CRM">
-              <Input value={header.crm} onChange={(e) => setH({ crm: e.target.value })} />
-            </Field>
-            <Field label="Estabelecimento">
-              <Input
-                value={header.estabelecimento}
-                onChange={(e) => setH({ estabelecimento: e.target.value })}
-              />
-            </Field>
-            <Field label="Cidade">
-              <Input value={header.cidade} onChange={(e) => setH({ cidade: e.target.value })} />
-            </Field>
-            <Field label="Data">
-              <Input type="date" value={header.data} onChange={(e) => setH({ data: e.target.value })} />
-            </Field>
-          </CardContent>
-        </Card>
+    <div className="space-y-4">
+      {/* Ações + aviso */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Apoio à documentação — valide medicamento, dose e posologia. O tipo de receituário é
+          sugerido automaticamente (ANVISA Portaria 344/98) e pode ser ajustado.
+        </p>
+        <div className="flex items-center gap-2">
+          <CopyButton text={text} />
+          <Button type="button" size="sm" onClick={handlePrint} disabled={!printableItems.length}>
+            <Printer className="h-4 w-4" /> Imprimir / PDF
+          </Button>
+        </div>
+      </div>
 
-        {/* Itens */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-            <CardTitle className="text-base">Medicamentos</CardTitle>
-            <Button type="button" size="sm" variant="outline" onClick={addItem}>
-              <Plus className="h-4 w-4" /> Medicamento
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {items.map((it, idx) => (
-              <div key={it.id} className="space-y-3 rounded-md border p-3">
+      {blockedItems.length > 0 && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            {blockedItems.length === 1 ? "1 medicamento exige" : `${blockedItems.length} medicamentos exigem`}{" "}
+            <strong>Notificação de Receita</strong> (A/amarela ou B/azul) e{" "}
+            <strong>não pode ser impresso por aqui</strong> (proibido por lei — use o formulário
+            oficial numerado). Os demais itens seguem para a impressão normalmente.
+          </span>
+        </div>
+      )}
+
+      {/* Identificação */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Identificação</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {patients.length > 0 && (
+            <Field label="Preencher com paciente" className="col-span-2 sm:col-span-4">
+              <select
+                className={`${selectCls} max-w-none`}
+                defaultValue=""
+                onChange={(e) => fillFromPatient(e.target.value)}
+              >
+                <option value="">— selecione uma paciente do PSGO —</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                    {p.medicalRecordNumber ? ` · ${p.medicalRecordNumber}` : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+          <Field label="Paciente" className="col-span-2">
+            <Input value={header.paciente} onChange={(e) => setH({ paciente: e.target.value })} />
+          </Field>
+          <Field label="Prontuário/RG">
+            <Input value={header.prontuario} onChange={(e) => setH({ prontuario: e.target.value })} />
+          </Field>
+          <Field label="Idade">
+            <Input value={header.idade} onChange={(e) => setH({ idade: e.target.value })} />
+          </Field>
+          <Field label="Cidade">
+            <Input value={header.cidade} onChange={(e) => setH({ cidade: e.target.value })} />
+          </Field>
+          <Field label="Data">
+            <Input type="date" value={header.data} onChange={(e) => setH({ data: e.target.value })} />
+          </Field>
+        </CardContent>
+      </Card>
+
+      {/* Itens */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+          <CardTitle className="text-base">Medicamentos</CardTitle>
+          <Button type="button" size="sm" variant="outline" onClick={addItem}>
+            <Plus className="h-4 w-4" /> Medicamento
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {items.map((it, idx) => {
+            const info = controleInfo(it.principioAtivo);
+            return (
+              <div
+                key={it.id}
+                className={`space-y-3 rounded-md border p-3 ${info.bloqueado ? "border-amber-300 bg-amber-50/50" : ""}`}
+              >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-primary">{idx + 1}º medicamento</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-primary">{idx + 1}º medicamento</span>
+                    {it.principioAtivo.trim() && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          info.bloqueado
+                            ? "bg-amber-200 text-amber-900"
+                            : info.classe === "ESPECIAL"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {info.label}
+                      </span>
+                    )}
+                  </div>
                   {items.length > 1 && (
                     <button
                       type="button"
@@ -196,19 +279,28 @@ export function ReceitaGenerator({ today }: { today: string }) {
                   )}
                 </div>
 
-                {/* Tipo de receita */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">Receita:</span>
-                  {TIPO_RECEITA_OPTIONS.map((t) => (
-                    <Chip
-                      key={t.value}
-                      active={it.tipoReceita === t.value}
-                      onClick={() => setItem(it.id, { tipoReceita: t.value as TipoReceita })}
-                    >
-                      {t.label}
-                    </Chip>
-                  ))}
-                </div>
+                {info.bloqueado && (
+                  <p className="flex items-start gap-1.5 text-[11px] text-amber-800">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    {info.aviso}
+                  </p>
+                )}
+
+                {/* Tipo de receita (sugerido pela classificação; editável) */}
+                {!info.bloqueado && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Receita:</span>
+                    {TIPO_RECEITA_OPTIONS.map((t) => (
+                      <Chip
+                        key={t.value}
+                        active={it.tipoReceita === t.value}
+                        onClick={() => setItem(it.id, { tipoReceita: t.value as TipoReceita })}
+                      >
+                        {t.label}
+                      </Chip>
+                    ))}
+                  </div>
+                )}
 
                 {/* Busca na lista CATMAT (preenche princípio/concentração/forma) */}
                 <Field label="Buscar medicamento (lista CATMAT)">
@@ -316,7 +408,6 @@ export function ReceitaGenerator({ today }: { today: string }) {
                       </select>
                     </Field>
 
-                    {/* Campo condicional da frequência */}
                     {it.tipoFrequencia === "INTERVALO" && (
                       <Field label="A cada (horas)">
                         <Input
@@ -352,7 +443,6 @@ export function ReceitaGenerator({ today }: { today: string }) {
                       </div>
                     )}
 
-                    {/* Duração (exceto contínuo/única) */}
                     {it.tipoFrequencia !== "CONTINUO" && it.tipoFrequencia !== "UNICA" && (
                       <>
                         <Field label="Duração">
@@ -384,9 +474,7 @@ export function ReceitaGenerator({ today }: { today: string }) {
                       <select
                         className={selectCls}
                         value={it.momento}
-                        onChange={(e) =>
-                          setItem(it.id, { momento: e.target.value as MomentoRefeicao })
-                        }
+                        onChange={(e) => setItem(it.id, { momento: e.target.value as MomentoRefeicao })}
                       >
                         {MOMENTO_OPTIONS.map((m) => (
                           <option key={m.value} value={m.value}>
@@ -420,42 +508,10 @@ export function ReceitaGenerator({ today }: { today: string }) {
                   {buildPreview(it)}
                 </p>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Prévia */}
-      <div className="lg:sticky lg:top-20 lg:h-fit">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Pill className="h-4 w-4 text-primary" /> Receita
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handlePrint}
-                disabled={!text}
-              >
-                <Printer className="h-4 w-4" /> Imprimir / PDF
-              </Button>
-              <CopyButton text={text} />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <pre className="prontuario-text max-h-[70vh] overflow-y-auto text-xs">
-              {text || "Preencha ao menos um medicamento."}
-            </pre>
-          </CardContent>
-        </Card>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          Apoio à documentação — a equipe valida medicamento, dose e posologia. Prescrição digital
-          assinada (código/validação) não é gerada aqui.
-        </p>
-      </div>
+            );
+          })}
+        </CardContent>
+      </Card>
 
       {/* Lista compartilhada para busca de medicamentos (CATMAT) */}
       <CatmatDatalist />
@@ -481,4 +537,3 @@ function buildPreview(it: PrescricaoItem): string {
   if (!med && !pos) return "Comece pelo princípio ativo.";
   return [med, pos].filter(Boolean).join(" — ") || "—";
 }
-

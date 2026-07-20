@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Siren, Plus, AlertTriangle, Pill } from "lucide-react";
+import { Siren, Plus, AlertTriangle } from "lucide-react";
 import { listPatients, purgeExpiredDischarges } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient } from "@/core/patients/types";
@@ -37,14 +37,9 @@ export default async function PsgoBoard() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/psgo/receita" className={buttonVariants({ variant: "outline" })}>
-            <Pill className="h-4 w-4" /> Receita
-          </Link>
-          <Link href="/psgo/admissao" className={buttonVariants()}>
-            <Plus className="h-4 w-4" /> Nova admissão
-          </Link>
-        </div>
+        <Link href="/psgo/admissao" className={buttonVariants()}>
+          <Plus className="h-4 w-4" /> Nova admissão
+        </Link>
       </div>
 
       {loadError && (
