@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Plus, Trash2, Pill, Printer } from "lucide-react";
 import {
   emptyPrescricaoItem,
@@ -459,14 +459,21 @@ export function ReceitaGenerator({ today }: { today: string }) {
       </div>
 
       {/* Lista compartilhada para busca de medicamentos (CATMAT) */}
-      <datalist id="catmat-meds">
-        {CATMAT_MEDS.map((m) => (
-          <option key={medCatmatLabel(m)} value={medCatmatLabel(m)} />
-        ))}
-      </datalist>
+      <CatmatDatalist />
     </div>
   );
 }
+
+// Datalist do CATMAT (~2,9 mil itens) — memoizada para renderizar só uma vez.
+const CatmatDatalist = memo(function CatmatDatalist() {
+  return (
+    <datalist id="catmat-meds">
+      {CATMAT_MEDS.map((m) => (
+        <option key={`${m.pa}|${m.conc}|${m.forma}`} value={medCatmatLabel(m)} />
+      ))}
+    </datalist>
+  );
+});
 
 // Prévia curta da posologia de um item (usa o mesmo builder do core).
 function buildPreview(it: PrescricaoItem): string {

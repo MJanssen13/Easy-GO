@@ -20,10 +20,11 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   dispensar e recomendações.
 - Cabeçalho com paciente/prontuário/idade, prescritor/CRM, estabelecimento
   (HC-UFTM), cidade e data; saída em MAIÚSCULAS com botão de cópia.
-- **Lista rápida de medicamentos (CATMAT/RENAME)**: campo de busca por item que
-  pré-preenche princípio ativo, concentração, forma, via e unidade de dose —
-  só a identidade do produto, **sem dose**. Lista curável (~55 itens comuns de
-  obstetrícia).
+- **Catálogo CATMAT completo** (~2,9 mil medicamentos, planilha oficial do
+  Ministério da Saúde): campo de busca por item que pré-preenche princípio
+  ativo, concentração, forma e unidade de fornecimento; **via** e **unidade de
+  dose** são inferidas da forma (editáveis). Só a identidade do produto — **sem
+  dose**. (Datalist memoizada para desempenho.)
 - **Impressão/PDF**: botão que imprime a receita em **A4**, uma folha por via
   (**controle especial = 2 vias**: 1ª farmácia / 2ª paciente), via diálogo de
   impressão do navegador (iframe isolado; sem enviar dados).
