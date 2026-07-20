@@ -128,6 +128,10 @@ export interface PsgoForm {
   // conduta
   cd: string;
 
+  // Prescrição (medicamentos prescritos) — preenchida automaticamente pela
+  // ferramenta de Receita ("- PRESCREVO: ..." no prontuário).
+  prescricao: string;
+
   // sorologias
   serologyPasted: string;
   serologyGrid: SerologyGrid;
@@ -204,6 +208,7 @@ export function emptyPsgoForm(date?: string): PsgoForm {
     ctgLaudos: [],
     hd: "",
     cd: "",
+    prescricao: "",
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),
     labs: "",

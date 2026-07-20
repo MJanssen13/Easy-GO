@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info, ChevronDown, ChevronUp, FlaskConical, ExternalLink, Printer } from "lucide-react";
+import { Plus, Trash2, Siren, Info, ChevronDown, ChevronUp, FlaskConical, ExternalLink, Printer, Pill, Check } from "lucide-react";
 import {
   emptyPsgoForm,
   HABITS,
@@ -329,6 +329,33 @@ function LabflowButton() {
   );
 }
 
+/** Indicador discreto do salvamento automático da admissão. */
+function AutoSaveIndicator({
+  state,
+  ready,
+}: {
+  state: "idle" | "saving" | "saved" | "error";
+  ready: boolean;
+}) {
+  if (!ready)
+    return (
+      <span className="text-xs text-muted-foreground">
+        Preencha nome e prontuário para salvar automaticamente
+      </span>
+    );
+  if (state === "saving")
+    return <span className="text-xs text-muted-foreground">Salvando…</span>;
+  if (state === "saved")
+    return (
+      <span className="flex items-center gap-1 text-xs text-emerald-600">
+        <Check className="h-3.5 w-3.5" /> Salvo automaticamente
+      </span>
+    );
+  if (state === "error")
+    return <span className="text-xs text-rose-600">Erro ao salvar — tentando novamente</span>;
+  return null;
+}
+
 export function PsgoGenerator({
   initialForm,
   patientId,
@@ -359,18 +386,67 @@ export function PsgoGenerator({
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
 
+  // ----- Salvamento automático -----
+  // Guarda o id da admissão (criada no 1º save) para os próximos serem update.
+  const currentIdRef = useRef<string | undefined>(patientId);
+  const [savedId, setSavedId] = useState<string | undefined>(patientId);
+  const lastSavedRef = useRef<string>(initialForm ? JSON.stringify(initialForm) : "");
+  const saveChain = useRef<Promise<unknown>>(Promise.resolve());
+  const [autoState, setAutoState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  // Persiste encadeando os saves (nunca concorrentes → sem admissão duplicada).
+  const persist = (f: PsgoForm): Promise<{ ok: boolean; id?: string }> => {
+    const p = saveChain.current.then(async () => {
+      const res = await savePsgoAdmission(f, currentIdRef.current);
+      if (res.error) {
+        setAutoState("error");
+        setSaveMsg({ ok: false, text: res.error });
+        return { ok: false, id: currentIdRef.current };
+      }
+      if (res.patientId) {
+        currentIdRef.current = res.patientId;
+        setSavedId(res.patientId);
+      }
+      lastSavedRef.current = JSON.stringify(f);
+      setAutoState("saved");
+      setSaveMsg(null);
+      return { ok: true, id: currentIdRef.current };
+    });
+    saveChain.current = p.catch(() => {});
+    return p.catch(() => ({ ok: false, id: currentIdRef.current }));
+  };
+
+  // Auto-save: inicia só quando nome E prontuário (RG) estão preenchidos; se não,
+  // aguarda. Debounce de 1,5s após a última alteração.
+  useEffect(() => {
+    if (!form.name.trim() || !form.rg.trim()) return;
+    if (JSON.stringify(form) === lastSavedRef.current) return;
+    const t = setTimeout(() => {
+      setAutoState("saving");
+      persist(form);
+    }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form]);
+
+  // Salvar (explícito): persiste e abre o prontuário da paciente.
   function handleSave() {
     setSaveMsg(null);
     startSaving(async () => {
-      const res = await savePsgoAdmission(form, patientId);
-      if (res.error) {
-        setSaveMsg({ ok: false, text: res.error });
-        return;
-      }
-      if (res.patientId) {
-        router.push(`/psgo/${res.patientId}`);
+      const r = await persist(form);
+      if (r.ok && r.id) {
+        router.push(`/psgo/${r.id}`);
         router.refresh();
       }
+    });
+  }
+
+  // Prescrever: salva a admissão e vai à Receita com a paciente preenchida.
+  function handlePrescribe() {
+    setSaveMsg(null);
+    startSaving(async () => {
+      const r = await persist(form);
+      if (r.ok && r.id) router.push(`/ferramentas/receita?patientId=${r.id}`);
     });
   }
 
@@ -3056,7 +3132,22 @@ export function PsgoGenerator({
               <span className="flex items-center gap-2">
                 <Siren className="h-4 w-4 text-rose-600" /> Prontuário
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <AutoSaveIndicator state={autoState} ready={!!form.name.trim() && !!form.rg.trim()} />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handlePrescribe}
+                  disabled={saving || !form.name.trim()}
+                  title={
+                    !form.name.trim()
+                      ? "Informe o nome para prescrever"
+                      : "Salvar e ir para a Receita"
+                  }
+                >
+                  <Pill className="h-4 w-4" /> Prescrever
+                </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -3064,7 +3155,7 @@ export function PsgoGenerator({
                   disabled={saving || !form.name.trim()}
                   title={!form.name.trim() ? "Informe o nome para salvar" : "Salvar admissão"}
                 >
-                  {saving ? "Salvando…" : patientId ? "Salvar alterações" : "Salvar admissão"}
+                  {saving ? "Salvando…" : (savedId ?? patientId) ? "Salvar alterações" : "Salvar admissão"}
                 </Button>
                 <PsgoTermosButton name={form.name} rg={form.rg} />
                 <CopyButton text={text} />

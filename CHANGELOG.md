@@ -5,6 +5,19 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Salvamento automático e prescrição integrada
+
+- **Salvamento automático** da admissão: assim que **nome e prontuário (RG)**
+  estão preenchidos, a admissão passa a ser salva sozinha (debounce de 1,5s;
+  antes disso aguarda). Um indicador mostra "Salvo automaticamente". Os saves são
+  encadeados para nunca criar admissão duplicada.
+- Novo botão **Prescrever** ao final da admissão: **salva a admissão** e abre a
+  ferramenta de **Receita já com a paciente preenchida** (nome, prontuário, idade).
+- Ao gerar a receita a partir de uma admissão, a linha **"- PRESCREVO: …"** com os
+  medicamentos prescritos é **registrada automaticamente no prontuário** (campo
+  `prescricao`), logo após a conduta. Botão "Registrar na admissão" e link "Voltar
+  à admissão" na receita.
+
 ### Ferramentas — Módulo de prescrição (receita)
 
 - Nova rota **`/ferramentas/receita`** (card "Receita" na aba **Ferramentas**;

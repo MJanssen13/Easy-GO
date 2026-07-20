@@ -9,7 +9,13 @@ import { ReceitaGenerator, type PacienteLite } from "../../psgo/_components/rece
 
 export const metadata: Metadata = { title: "Receita" };
 
-export default async function ReceitaPage() {
+export default async function ReceitaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ patientId?: string }>;
+}) {
+  const { patientId } = await searchParams;
+
   // Pacientes do PSGO para preenchimento automático (best-effort — a ferramenta
   // funciona mesmo sem conexão com o Supabase).
   let patients: PacienteLite[] = [];
@@ -44,7 +50,11 @@ export default async function ReceitaPage() {
         </Link>
       </div>
 
-      <ReceitaGenerator today={toISODateLocal(new Date())} patients={patients} />
+      <ReceitaGenerator
+        today={toISODateLocal(new Date())}
+        patients={patients}
+        admissionPatientId={patientId}
+      />
     </div>
   );
 }

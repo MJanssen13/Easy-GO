@@ -174,6 +174,7 @@ export function patientToPsgoForm(patient: Patient): PsgoForm | null {
     coombsList,
     udiWhich: cs.form.udiWhich ?? "",
     hd: cs.form.hd ?? "",
+    prescricao: cs.form.prescricao ?? "",
     // CTG: admissões antigas guardavam um único laudo (`ctgLaudo`, com `done`).
     ctgLaudos: legacyCtgLaudos(cs.form),
   };

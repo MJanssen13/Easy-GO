@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Printer, AlertTriangle, Eraser, Search } from "lucide-react";
+import Link from "next/link";
+import { Plus, Trash2, Printer, AlertTriangle, Eraser, Search, Check } from "lucide-react";
 import {
   emptyPrescricaoItem,
   renderReceita,
@@ -26,11 +27,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
 import { searchMeds, type MedCatmat } from "@/core/psgo/medicamentos-catmat";
 import { buildReceitaPrintHtml } from "@/core/psgo/receita-print";
 import { printHtml, isMobile } from "@/lib/print";
+import { registrarPrescricaoNaAdmissao } from "@/app/(dashboard)/ferramentas/receita/actions";
 
 // jsPDF é pesado e só é usado no mobile → carregado sob demanda (code-split).
 type ReceitaPdfModule = typeof import("@/core/psgo/receita-pdf");
@@ -179,9 +181,13 @@ function MedCombobox({ onPick }: { onPick: (m: MedCatmat) => void }) {
 export function ReceitaGenerator({
   today,
   patients = [],
+  admissionPatientId,
 }: {
   today: string;
   patients?: PacienteLite[];
+  /** Quando aberto a partir de uma admissão do PSGO: prefixa a paciente e
+   *  registra "- PRESCREVO: ..." no prontuário ao gerar a receita. */
+  admissionPatientId?: string;
 }) {
   const [header, setHeader] = useState<ReceitaHeader>({
     paciente: "",
@@ -255,6 +261,39 @@ export function ReceitaGenerator({
   );
   const text = useMemo(() => renderReceita(header, printableItems), [header, printableItems]);
 
+  // Vindo de uma admissão do PSGO: preenche a paciente automaticamente (1x).
+  const filledRef = useRef(false);
+  useEffect(() => {
+    if (admissionPatientId && !filledRef.current && patients.some((p) => p.id === admissionPatientId)) {
+      fillFromPatient(admissionPatientId);
+      filledRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [admissionPatientId, patients]);
+
+  // "PRESCREVO: ..." com os medicamentos prescritos (todos os itens preenchidos).
+  const medsLine = useMemo(
+    () =>
+      items
+        .map((it) =>
+          it.registroManual
+            ? it.principioAtivo.trim() || it.posologiaManual.trim()
+            : [it.principioAtivo, it.concentracao].map((s) => s.trim()).filter(Boolean).join(" "),
+        )
+        .filter(Boolean)
+        .join("; "),
+    [items],
+  );
+
+  // Registra a prescrição na admissão (linha "- PRESCREVO: ..." no prontuário).
+  const [registrado, setRegistrado] = useState(false);
+  const registrar = () => {
+    if (!admissionPatientId || !medsLine.trim()) return;
+    registrarPrescricaoNaAdmissao(admissionPatientId, medsLine).then((r) => {
+      if (!r.error) setRegistrado(true);
+    });
+  };
+
   // Pré-carrega o gerador de PDF no mobile (mantém o clique dentro do gesto).
   const pdfMod = useRef<ReceitaPdfModule | null>(null);
   useEffect(() => {
@@ -265,6 +304,7 @@ export function ReceitaGenerator({
   // geramos o PDF direto no dispositivo. No desktop usamos o diálogo de impressão.
   const handlePrint = () => {
     if (!printableItems.length) return;
+    registrar(); // registra a prescrição na admissão (se veio de uma)
     if (isMobile()) {
       if (pdfMod.current) pdfMod.current.downloadReceitaPdf(header, printableItems);
       else
@@ -291,6 +331,42 @@ export function ReceitaGenerator({
           </Button>
         </div>
       </div>
+
+      {admissionPatientId && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/30 bg-accent/50 px-3 py-2 text-xs">
+          <span className="text-muted-foreground">
+            {registrado ? (
+              <span className="flex items-center gap-1.5 font-medium text-emerald-700">
+                <Check className="h-4 w-4" /> Prescrição registrada na admissão.
+              </span>
+            ) : (
+              <>
+                Prescrevendo para a admissão de <strong>{header.paciente || "—"}</strong>. Ao imprimir,
+                a linha <strong>“- PRESCREVO: …”</strong> é registrada no prontuário.
+              </>
+            )}
+          </span>
+          <div className="flex items-center gap-2">
+            {!registrado && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={registrar}
+                disabled={!medsLine.trim()}
+              >
+                Registrar na admissão
+              </Button>
+            )}
+            <Link
+              href={`/psgo/${admissionPatientId}`}
+              className={buttonVariants({ variant: registrado ? "default" : "ghost", size: "sm" })}
+            >
+              Voltar à admissão
+            </Link>
+          </div>
+        </div>
+      )}
 
       {blockedItems.length > 0 && (
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">

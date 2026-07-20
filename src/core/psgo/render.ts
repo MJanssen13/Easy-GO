@@ -309,8 +309,12 @@ export function renderPsgo(form: PsgoForm): string {
   // HD — editável (form.hd); em branco, usa a automática (gestação + comorbidades)
   push(1, `HD: ${form.hd.trim() ? form.hd.trim() : psgoHd(form)}`);
 
-  // Conduta
-  push(1, `CD: ${form.cd ? `${form.cd} ` : ""}DISCUTIDO COM PLANTÃO QUE ORIENTA:`);
+  // Conduta (+ prescrição, preenchida pela ferramenta de Receita)
+  {
+    const cdLines = [`CD: ${form.cd ? `${form.cd} ` : ""}DISCUTIDO COM PLANTÃO QUE ORIENTA:`];
+    if (form.prescricao?.trim()) cdLines.push(`- PRESCREVO: ${form.prescricao.trim()}`);
+    push(1, cdLines.join("\n"));
+  }
 
   // Monta o texto aplicando o espaçamento entre blocos.
   const out: string[] = [];
