@@ -104,14 +104,15 @@ function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "righ
   </div>`;
 }
 
-// Altura útil de uma folha A4 com margem @page de 8 mm (297 − 16 ≈ 281 mm).
+// Folha em PAISAGEM (2 vias lado a lado). Altura útil ≈ 210 − 16 = 194 mm; cada
+// via ocupa essa altura por inteiro (assinatura ancorada no rodapé da via).
 const STYLE = `
-  @page { size: A4; margin: 8mm; }
+  @page { size: A4 landscape; margin: 8mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; color: #111; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8pt; line-height: 1.3; }
+  body { margin: 0; color: #111; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8.5pt; line-height: 1.3; }
   .sheet { display: flex; page-break-after: always; }
   .sheet:last-child { page-break-after: auto; }
-  .col { flex: 1 1 0; min-width: 0; padding: 4mm 5mm; display: flex; flex-direction: column; min-height: 279mm; }
+  .col { flex: 1 1 0; min-width: 0; padding: 4mm 6mm; display: flex; flex-direction: column; min-height: 192mm; }
   .col.left { border-right: 1px dashed #999; }
   .top { text-align: center; border-bottom: 1.5px solid #111; padding-bottom: 2mm; margin-bottom: 2mm; }
   .logos { display: flex; align-items: center; justify-content: center; gap: 4mm; }

@@ -25,8 +25,9 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   ativo, concentração, forma e unidade de fornecimento; **via** e **unidade de
   dose** são inferidas da forma (editáveis). Só a identidade do produto — **sem
   dose**. (Datalist memoizada para desempenho.)
-- **Impressão/PDF no modelo do receituário do e-SUS APS** (A4): **duas vias lado
-  a lado** (1ª retenção na farmácia / 2ª orientação ao paciente), com faixa de
+- **Impressão/PDF no modelo do receituário do e-SUS APS** (**A4 paisagem**):
+  **duas vias lado a lado** (1ª retenção na farmácia / 2ª orientação ao
+  paciente), cada via ocupando toda a altura da folha, com faixa de
   **logos** (SUS/UFTM/HU-Brasil) e a legenda "Hospital de Clínicas da UFTM —
   HC-UFTM", seções **PACIENTE / MEDICAMENTOS** (medicamento em quadro compacto:
   nome + quantidade/forma + dose·frequência·via, duração e recomendações) e
