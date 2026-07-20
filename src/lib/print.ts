@@ -18,7 +18,7 @@ export function printHtml(html: string): void {
 }
 
 /** Detecta navegadores móveis (inclui iPadOS, que se anuncia como desktop). */
-function isMobile(): boolean {
+export function isMobile(): boolean {
   const ua = navigator.userAgent || "";
   if (/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|BlackBerry|Opera Mini|IEMobile/i.test(ua))
     return true;

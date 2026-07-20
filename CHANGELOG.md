@@ -45,13 +45,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   peso molecular (enoxaparina etc.) → Subcutânea.
 - Formas **"Pó para suspensão injetável"** passam a ser exibidas (na plataforma e
   na receita) apenas como **"Suspensão injetável"**.
-- **Correção da impressão no celular**: em iOS Safari/Android Chrome o `iframe`
-  oculto imprimia a **tela do app**, não a receita. Agora, no mobile, a receita
-  abre em uma **nova aba (URL `blob:`) que se imprime sozinha** (aguarda os logos,
-  imprime e fecha). A URL `blob:` é necessária porque o serviço de impressão do
-  Android falha ao rasterizar `about:blank` ("Ocorreu um problema ao imprimir a
-  página"). O desktop segue com o iframe. Vale para todas as impressões (receita,
-  CTG, prontuário/termos do PSGO).
+- **Receita no celular gera PDF de verdade**: em iOS/Android a impressão do
+  navegador falhava (imprimia a tela ou dava "Ocorreu um problema ao imprimir").
+  Agora, no mobile, a receita é gerada como **PDF nativo (jsPDF)** direto no
+  dispositivo — texto vetorial, com logos, no mesmo layout (A4 paisagem, 2 vias)
+  — e baixada/aberta pelo aparelho. No desktop segue o diálogo de impressão. O
+  jsPDF é carregado sob demanda (não pesa no carregamento inicial).
 - Botão **Imprimir/PDF** sempre visível (barra fixa no topo) e botão de
   **adicionar medicamento** também abaixo do último item.
 - O seletor **"Preencher com paciente"** é explicitamente **opcional** (dá para
