@@ -31,7 +31,8 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   **logos** (SUS/UFTM/HU-Brasil) e a legenda "Hospital de Clínicas da UFTM —
   HC-UFTM", seções **PACIENTE / MEDICAMENTOS** (medicamento em quadro compacto:
   nome + quantidade/forma + dose·frequência·via, duração e recomendações) e
-  assinatura **"Médico Assistente"** com espaço para carimbo/local/data. Cada via
+  assinatura **"Médico Assistente"** com **local e data por extenso** (ex.:
+  "Uberaba, 10 de Abril de 2026"). Cada via
   **ocupa a folha inteira**. O texto da receita passou a **caixa mista** (como no
   e-SUS). Controle especial acrescenta os quadros de identificação do comprador/
   fornecedor. Os **logos oficiais** (SUS/UFTM/HU-Brasil) são embutidos como

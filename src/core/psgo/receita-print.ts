@@ -27,6 +27,16 @@ function escapeHtml(s: string): string {
 }
 const e = (s: string) => escapeHtml(s.trim());
 
+const MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+/** "10 de Abril de 2026" a partir de uma data ISO. */
+function dataExtenso(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? "" : `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
 // Faixa de logos: usa imagens (data-URI) quando disponíveis; senão, um selo.
 function logosHtml(): string {
   return RECEITA_LOGOS.map((l) =>
@@ -82,6 +92,7 @@ function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "righ
     .filter((s) => s.trim())
     .join("<br>");
   const meds = grupo.items.map((it, i) => medHtml(it, i + 1)).join("");
+  const localData = [e(header.cidade), dataExtenso(header.data)].filter(Boolean).join(", ");
 
   return `<div class="col ${lado}">
     <div class="top">
@@ -99,7 +110,7 @@ function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "righ
     <div class="sign">
       <div class="line"></div>
       <div class="nm">Médico Assistente</div>
-      <div class="carimbo">(Carimbo, local e data)</div>
+      ${localData ? `<div class="dt">${localData}</div>` : ""}
     </div>
   </div>`;
 }
@@ -115,7 +126,7 @@ const STYLE = `
   .col { flex: 1 1 0; min-width: 0; padding: 4mm 6mm; display: flex; flex-direction: column; min-height: 192mm; }
   .col.left { border-right: 1px dashed #999; }
   .top { text-align: center; border-bottom: 1.5px solid #111; padding-bottom: 2mm; margin-bottom: 2mm; }
-  .logos { display: flex; align-items: center; justify-content: center; gap: 4mm; }
+  .logos { display: flex; align-items: center; justify-content: space-evenly; gap: 10mm; padding: 0 4mm; }
   .logo { height: 11mm; width: auto; }
   .logo-ph { display: inline-flex; align-items: center; justify-content: center; height: 9mm; min-width: 14mm; padding: 0 1.5mm; border: 1px solid #99a; border-radius: 2px; font-size: 7pt; font-weight: 700; color: #446; }
   .unidade { margin-top: 1.5mm; font-size: 7.5pt; font-weight: 600; }
@@ -138,7 +149,7 @@ const STYLE = `
   .sign { text-align: center; margin-bottom: 4mm; }
   .sign .line { width: 62%; border-top: 1px solid #111; margin: 0 auto 1mm; }
   .sign .nm { font-weight: 600; }
-  .sign .carimbo { margin-top: 6mm; font-size: 7pt; color: #777; }
+  .sign .dt { margin-top: 1mm; }
 `;
 
 /** HTML autocontido da receita para impressão (uma folha por tipo, 2 vias). */
