@@ -26,12 +26,11 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   para a paciente e o parceiro; carta única **"Acompanhamento de antibioticoterapia"**
   (com 3 doses, indica o intervalo semanal); o parceiro recebe a carta sem o aviso
   de retorno ao PSGO.
-- **Prescrição Hospital Dia**: itens injetáveis (penicilina, ceftriaxona, ferro EV)
-  podem ser enviados para uma **FOLHA DE PRESCRIÇÃO** (Diretoria de Enfermagem),
-  com **uma folha por dose** (ex.: penicilina 3 folhas, noripurum 5); esses itens
-  saem da receita comum. Disponível também na prescrição manual (opção por item).
-- Novos módulos `receita-templates.ts`, `receita-relatorios.ts` e
-  `receita-hospital-dia.ts` em `src/core/psgo/`.
+- **Impressão única**: card "Impressão" com seleção do que sair (receita,
+  documentos do modelo, receita do parceiro) numa **única impressão combinada**,
+  agrupada na ordem paciente → parceiro.
+- Novos módulos `receita-templates.ts` e `receita-relatorios.ts` em
+  `src/core/psgo/`.
 
 ### Ferramentas — Documentos de apoio
 

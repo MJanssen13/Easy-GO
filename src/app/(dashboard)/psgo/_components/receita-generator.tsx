@@ -48,7 +48,6 @@ import {
   type ReceitaDocId,
   type RelatorioData,
 } from "@/core/psgo/receita-relatorios";
-import { HOSPITAL_DIA_STYLE, hospitalDiaSheetsHtml } from "@/core/psgo/receita-hospital-dia";
 
 /** Paciente do sistema para preenchimento automático. */
 export interface PacienteLite {
@@ -67,24 +66,6 @@ const uid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
-
-// Sigla da via para a prescrição hospitalar (FOLHA): "Intramuscular" → "IM".
-const VIA_SIGLA: Record<string, string> = {
-  Oral: "VO",
-  Sublingual: "SL",
-  Retal: "VR",
-  Vaginal: "VV",
-  Intramuscular: "IM",
-  Intravenosa: "EV",
-  Subcutânea: "SC",
-  Tópica: "TÓP",
-  Inalatória: "INAL",
-  Nasal: "NASAL",
-  Ocular: "OCULAR",
-  Otológica: "OTO",
-  Transdérmica: "TD",
-};
-const viaSigla = (via: string) => VIA_SIGLA[via.trim()] ?? via.trim();
 
 function Field({
   label,
@@ -236,12 +217,8 @@ export function ReceitaGenerator({
   const [parceiroNome, setParceiroNome] = useState("");
   const [ig, setIg] = useState(""); // idade gestacional (auto nos relatórios)
   const [numDoses, setNumDoses] = useState("1"); // sífilis: 1 ou 3 doses
-  // Itens enviados à Prescrição Hospital Dia (ids) + nº de folhas (doses).
-  const [hdIds, setHdIds] = useState<string[]>([]);
-  const [hdFolhas, setHdFolhas] = useState("1");
   // Seleção do que imprimir (impressão única e combinada).
   const [printReceita, setPrintReceita] = useState(true);
-  const [printHd, setPrintHd] = useState(true);
   const [printParceiro, setPrintParceiro] = useState(false);
   const activeTemplate = useMemo(
     () => RECEITA_TEMPLATES.find((t) => t.id === activeTemplateId),
@@ -283,30 +260,19 @@ export function ReceitaGenerator({
     setActiveTemplateId(tpl ? id : "");
     setSelectedDocs([]);
     setParceiroNome("");
-    setHdIds([]);
     setPrintReceita(true);
-    setPrintHd(true);
     setPrintParceiro(false);
     if (!tpl) return;
     const tItems = id === "sifilis" ? [buildSifilisPenicilina(numDoses)] : tpl.items;
-    const applied = applyTemplateItems(tItems, uid);
-    setItems(applied);
-    // Auto-seleciona os itens já sinalizados como Hospital Dia no modelo.
-    const hdApplied = applied.filter((_, i) => tItems[i].hospitalDia);
-    if (hdApplied.length) {
-      setHdIds(hdApplied.map((it) => it.id));
-      setHdFolhas(defaultFolhas(hdApplied[0].principioAtivo));
-    }
+    setItems(applyTemplateItems(tItems, uid));
   };
   const toggleDoc = (doc: ReceitaDocId) =>
     setSelectedDocs((s) => (s.includes(doc) ? s.filter((d) => d !== doc) : [...s, doc]));
 
-  // Sífilis: muda o nº de doses e reflete na prescrição (item da penicilina) e no
-  // nº de folhas do Hospital Dia (uma folha por dose).
+  // Sífilis: muda o nº de doses e reflete na prescrição (item da penicilina).
   const changeNumDoses = (n: string) => {
     setNumDoses(n);
     if (activeTemplateId === "sifilis") {
-      setHdFolhas(n); // folhas do H Dia acompanham o nº de doses
       setItems((s) =>
         s.map((it) =>
           it.principioAtivo.includes("Penicilina")
@@ -316,21 +282,6 @@ export function ReceitaGenerator({
       );
     }
   };
-
-  // Hospital Dia: sugere o nº de folhas (doses) a partir do medicamento.
-  const defaultFolhas = (pa: string) => {
-    const n = pa.toLowerCase();
-    if (n.includes("penicilina")) return numDoses;
-    if (n.includes("noripurum") || n.includes("férrico") || n.includes("ferrico") || n.includes("sacarato"))
-      return "5";
-    return "1";
-  };
-  const toggleHd = (id: string, pa: string) =>
-    setHdIds((ids) => {
-      if (ids.includes(id)) return ids.filter((x) => x !== id);
-      if (ids.length === 0) setHdFolhas(defaultFolhas(pa)); // sugere pela 1ª seleção
-      return [...ids, id];
-    });
 
   // Preenche o cabeçalho com os dados de uma paciente do sistema.
   const fillFromPatient = (id: string) => {
@@ -357,10 +308,10 @@ export function ReceitaGenerator({
     });
   };
 
-  // Itens da receita comum: exclui bloqueados e os enviados ao Hospital Dia.
+  // Itens da receita comum: exclui os bloqueados (exigem notificação de receita).
   const printableItems = useMemo(
-    () => items.filter((it) => !controleInfo(it.principioAtivo).bloqueado && !hdIds.includes(it.id)),
-    [items, hdIds],
+    () => items.filter((it) => !controleInfo(it.principioAtivo).bloqueado),
+    [items],
   );
   const blockedItems = useMemo(
     () => items.filter((it) => controleInfo(it.principioAtivo).bloqueado),
@@ -419,29 +370,6 @@ export function ReceitaGenerator({
   });
   const origin = () => (typeof window !== "undefined" ? window.location.origin : "");
 
-  const hdList = items.filter((it) => hdIds.includes(it.id));
-  const nFolhas = Math.max(1, Number(hdFolhas) || 1);
-
-  // Bloco da Prescrição Hospital Dia (FOLHA) dos itens marcados.
-  const hospitalDiaBlock = () => {
-    const docItems = hdList.map((it) => ({
-      prescricao: [
-        [it.principioAtivo, it.concentracao].filter((s) => s.trim()).join(" "),
-        buildPosologia(it),
-      ]
-        .filter(Boolean)
-        .join(" — "),
-      via: viaSigla(it.via),
-    }));
-    return {
-      style: HOSPITAL_DIA_STYLE,
-      sheets: hospitalDiaSheetsHtml(docItems, nFolhas, {
-        paciente: header.paciente,
-        registro: header.prontuario,
-      }),
-    };
-  };
-
   // Impressão única e combinada, agrupada na ordem paciente → parceiro.
   const handleImprimir = () => {
     const lh = letterheadFor(origin());
@@ -449,7 +377,6 @@ export function ReceitaGenerator({
     // --- Paciente ---
     if (printReceita && printableItems.length)
       blocks.push({ style: RECEITA_PRINT_STYLE, sheets: receitaSheetsHtml(header, printableItems) });
-    if (printHd && hdList.length) blocks.push(hospitalDiaBlock());
     if (selectedDocs.length)
       blocks.push({
         style: RECEITA_DOCS_STYLE,
@@ -697,17 +624,6 @@ export function ReceitaGenerator({
                     )}
                   </div>
                 </div>
-
-                <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={hdIds.includes(it.id)}
-                    onChange={() => toggleHd(it.id, it.principioAtivo)}
-                    className="h-3.5 w-3.5"
-                  />
-                  Enviar para a{" "}
-                  <span className="font-medium text-foreground">Prescrição Hospital Dia</span>
-                </label>
 
                 {info.bloqueado && (
                   <p className="flex items-start gap-1.5 text-[11px] text-amber-800">
@@ -1006,29 +922,12 @@ export function ReceitaGenerator({
               <Chip active={printReceita} onClick={() => setPrintReceita((v) => !v)}>
                 Receita
               </Chip>
-              {hdList.length > 0 && (
-                <Chip active={printHd} onClick={() => setPrintHd((v) => !v)}>
-                  Hospital Dia ({nFolhas} folha{nFolhas > 1 ? "s" : ""})
-                </Chip>
-              )}
               {activeTemplate?.documentos?.map((doc) => (
                 <Chip key={doc} active={selectedDocs.includes(doc)} onClick={() => toggleDoc(doc)}>
                   {RECEITA_DOC_LABEL[doc]}
                 </Chip>
               ))}
             </div>
-            {hdList.length > 0 && printHd && (
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <span>Nº de folhas (doses):</span>
-                <Input
-                  type="number"
-                  min={1}
-                  value={hdFolhas}
-                  onChange={(e) => setHdFolhas(e.target.value)}
-                  className="h-8 w-20"
-                />
-              </div>
-            )}
           </div>
 
           {/* Parceiro */}
