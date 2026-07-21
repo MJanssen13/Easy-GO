@@ -84,7 +84,7 @@ function folha(items: HospitalDiaItem[], d: HospitalDiaData): string {
     <tr><td colspan="5" class="c-etapa s8">Embalagem</td></tr>
     <tr>
       <td colspan="7" class="lbl">Nome do Paciente: <span class="val">${esc(d.paciente.toUpperCase())}</span></td>
-      <td colspan="3" class="lbl">Registro Geral <span class="val">${esc(d.registro)}</span></td>
+      <td colspan="3" class="lbl">Registro Geral<br /><span class="val">${esc(d.registro)}</span></td>
       <td colspan="5" class="s8">Leito</td>
       <td colspan="7" class="s8">Posto</td>
       <td colspan="5" class="s8">Código do Posto</td>
@@ -126,12 +126,15 @@ export const HOSPITAL_DIA_STYLE = `
   .c-logo { padding: 2px; }
   .c-logo img { max-height: 14mm; max-width: 28mm; width: auto; object-fit: contain; }
   .c-tec { line-height: 1.05; letter-spacing: .02em; }
-  .c-etapa { text-align: left; }
-  .lbl { text-align: left; font-size: 9pt; }
+  .lbl { font-size: 9pt; }
   .val { font-family: Arial, Helvetica, sans-serif; font-weight: 700; font-size: 9pt; }
-  td.p-txt { text-align: left; }
+  /* Alinhamentos à esquerda (alta especificidade p/ vencer o centro padrão). */
+  table.folha-t td.lbl,
+  table.folha-t td.p-txt,
+  table.folha-t td.c-etapa,
+  table.folha-t tr.linha-data td { text-align: left; }
   tr.corpo td { height: 10mm; }
-  tr.linha-data td { height: 12mm; vertical-align: top; text-align: left; }
+  tr.linha-data td { height: 12mm; vertical-align: top; }
 `;
 
 /** Só as folhas (sem wrapper HTML) — uma folha por dose. Para impressão combinada. */
