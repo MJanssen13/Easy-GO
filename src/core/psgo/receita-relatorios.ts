@@ -63,7 +63,7 @@ function letterhead(lh: LaudoLetterhead): string {
 
 /** Uma folha (timbre repetido a cada quebra de página) com o conteúdo do doc. */
 function frame(lh: LaudoLetterhead, content: string): string {
-  return `<table class="doc"><thead><tr><td>${letterhead(lh)}</td></tr></thead><tbody><tr><td>${content}</td></tr></tbody></table>`;
+  return `<table class="doc"><thead><tr><td>${letterhead(lh)}</td></tr></thead><tbody><tr><td><div class="page-body">${content}</div></td></tr></tbody></table>`;
 }
 
 /** Cabeçalho de identificação (Nome / Prontuário / Idade) do documento. */
@@ -220,14 +220,16 @@ function buildDoc(id: ReceitaDocId, d: RelatorioData): string {
 }
 
 const STYLE = `
-  @page { size: A4; margin: 12mm 14mm; }
+  @page { size: A4 landscape; margin: 10mm 14mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.35; color: #000; }
   table.doc { width: 100%; border-collapse: collapse; page-break-before: always; }
   table.doc:first-child { page-break-before: auto; }
   table.doc > thead > tr > td, table.doc > tbody > tr > td { border: 0; padding: 0; }
-  .letterhead { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 4px 10px; border-bottom: 1.5px solid #000; margin-bottom: 10px; }
+  /* Via única, folha em paisagem — conteúdo centralizado (não espelhado). */
+  .page-body { max-width: 200mm; margin: 0 auto; }
+  .letterhead { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 4px 10px; border-bottom: 1.5px solid #000; margin: 0 auto 10px; max-width: 200mm; }
   .letterhead img { width: auto; object-fit: contain; }
   .lh-sus { height: 40px; } .lh-uftm { height: 46px; } .lh-hubrasil { height: 42px; }
   h1.titulo { text-align: center; font-size: 12pt; margin: 4px 0 14px; letter-spacing: .02em; }
