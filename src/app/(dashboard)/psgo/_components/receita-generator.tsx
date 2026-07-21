@@ -53,6 +53,7 @@ import {
   type ReceitaDocId,
   type RelatorioData,
 } from "@/core/psgo/receita-relatorios";
+import { buildHospitalDiaHtml } from "@/core/psgo/receita-hospital-dia";
 
 // jsPDF é pesado e só é usado no mobile → carregado sob demanda (code-split).
 type ReceitaPdfModule = typeof import("@/core/psgo/receita-pdf");
@@ -223,7 +224,9 @@ export function ReceitaGenerator({
   const [parceiroNome, setParceiroNome] = useState("");
   const [ig, setIg] = useState(""); // idade gestacional (auto nos relatórios)
   const [numDoses, setNumDoses] = useState("1"); // sífilis: 1 ou 3 doses
-  const [curvas, setCurvas] = useState<ReceitaDocId[]>([]); // curvas avulsas (anexo)
+  // Itens marcados p/ a Prescrição Hospital Dia (id → nº de folhas/doses).
+  const [hd, setHd] = useState<Record<string, string>>({});
+  const [hdDiagnostico, setHdDiagnostico] = useState("");
   const activeTemplate = useMemo(
     () => RECEITA_TEMPLATES.find((t) => t.id === activeTemplateId),
     [activeTemplateId],
@@ -270,8 +273,6 @@ export function ReceitaGenerator({
   };
   const toggleDoc = (doc: ReceitaDocId) =>
     setSelectedDocs((s) => (s.includes(doc) ? s.filter((d) => d !== doc) : [...s, doc]));
-  const toggleCurva = (c: ReceitaDocId) =>
-    setCurvas((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]));
 
   // Sífilis: muda o nº de doses e reflete na prescrição (item da penicilina).
   const changeNumDoses = (n: string) => {
@@ -286,6 +287,23 @@ export function ReceitaGenerator({
       );
     }
   };
+
+  // Hospital Dia: sugere o nº de folhas (doses) a partir do medicamento.
+  const defaultFolhas = (pa: string) => {
+    const n = pa.toLowerCase();
+    if (n.includes("penicilina")) return numDoses;
+    if (n.includes("noripurum") || n.includes("férrico") || n.includes("ferrico") || n.includes("sacarato"))
+      return "5";
+    return "1";
+  };
+  const toggleHd = (id: string, pa: string) =>
+    setHd((h) => {
+      const next = { ...h };
+      if (id in next) delete next[id];
+      else next[id] = defaultFolhas(pa);
+      return next;
+    });
+  const setHdFolhas = (id: string, folhas: string) => setHd((h) => ({ ...h, [id]: folhas }));
 
   // Preenche o cabeçalho com os dados de uma paciente do sistema.
   const fillFromPatient = (id: string) => {
@@ -311,9 +329,10 @@ export function ReceitaGenerator({
     });
   };
 
+  // Itens da receita comum: exclui bloqueados e os enviados ao Hospital Dia.
   const printableItems = useMemo(
-    () => items.filter((it) => !controleInfo(it.principioAtivo).bloqueado),
-    [items],
+    () => items.filter((it) => !controleInfo(it.principioAtivo).bloqueado && !(it.id in hd)),
+    [items, hd],
   );
   const blockedItems = useMemo(
     () => items.filter((it) => controleInfo(it.principioAtivo).bloqueado),
@@ -400,12 +419,6 @@ export function ReceitaGenerator({
     printHtml(renderReceitaDocsHtml(selectedDocs, relatorioData(), letterheadFor(origin())));
   };
 
-  // Imprime as curvas avulsas selecionadas (espelhadas na folha).
-  const handlePrintCurvas = () => {
-    if (!curvas.length) return;
-    printHtml(renderReceitaDocsHtml(curvas, relatorioData(), letterheadFor(origin())));
-  };
-
   // Emite a receita do parceiro (DIP/sífilis) + a carta, numa só impressão.
   const handlePrintParceiro = () => {
     if (!activeTemplate?.parceiro) return;
@@ -428,6 +441,25 @@ export function ReceitaGenerator({
       });
     }
     printHtml(renderCombinedPrint(blocks));
+  };
+
+  // Emite a Prescrição Hospital Dia (FOLHA DE PRESCRIÇÃO) — uma folha por dose.
+  const hdList = items.filter((it) => it.id in hd);
+  const handlePrintHospitalDia = () => {
+    if (!hdList.length) return;
+    const docItems = hdList.map((it) => ({
+      prescricao: [medicamentoLabel(it), buildPosologia(it)].filter(Boolean).join(" — "),
+      via: it.via,
+      folhas: Math.max(1, Number(hd[it.id]) || 1),
+    }));
+    printHtml(
+      buildHospitalDiaHtml(docItems, {
+        paciente: header.paciente,
+        registro: header.prontuario,
+        dataBR: header.data ? new Date(`${header.data}T00:00:00`).toLocaleDateString("pt-BR") : "",
+        diagnostico: hdDiagnostico || activeTemplate?.label || "",
+      }),
+    );
   };
 
   return (
@@ -640,34 +672,6 @@ export function ReceitaGenerator({
         </CardContent>
       </Card>
 
-      {/* Curvas (anexo) — sempre disponível; impressão espelhada nas duas metades */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Curvas (anexo)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {(["curva-termica", "curva-pressorica", "curva-glicemica"] as ReceitaDocId[]).map((c) => (
-              <Chip key={c} active={curvas.includes(c)} onClick={() => toggleCurva(c)}>
-                {RECEITA_DOC_LABEL[c]}
-              </Chip>
-            ))}
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handlePrintCurvas}
-            disabled={!curvas.length}
-          >
-            <Printer className="h-4 w-4" /> Imprimir curvas ({curvas.length})
-          </Button>
-          <p className="text-[11px] text-muted-foreground">
-            Folha em paisagem, espelhada nas duas metades (para recortar).
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Itens */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
@@ -731,6 +735,29 @@ export function ReceitaGenerator({
                     )}
                   </div>
                 </div>
+
+                <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={it.id in hd}
+                    onChange={() => toggleHd(it.id, it.principioAtivo)}
+                    className="h-3.5 w-3.5"
+                  />
+                  Enviar para a{" "}
+                  <span className="font-medium text-foreground">Prescrição Hospital Dia</span>
+                  {it.id in hd && (
+                    <span className="inline-flex items-center gap-1">
+                      · folhas (doses):
+                      <Input
+                        type="number"
+                        min={1}
+                        value={hd[it.id]}
+                        onChange={(e) => setHdFolhas(it.id, e.target.value)}
+                        className="h-7 w-16"
+                      />
+                    </span>
+                  )}
+                </label>
 
                 {info.bloqueado && (
                   <p className="flex items-start gap-1.5 text-[11px] text-amber-800">
@@ -1009,6 +1036,40 @@ export function ReceitaGenerator({
           </Button>
         </CardContent>
       </Card>
+
+      {hdList.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Prescrição Hospital Dia</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Folha de prescrição (Diretoria de Enfermagem) para os itens marcados —{" "}
+              <strong>uma folha por dose</strong>. Estes itens não entram na receita comum.
+            </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="Diagnóstico (opcional)" className="min-w-[15rem] flex-1">
+                <Input
+                  value={hdDiagnostico}
+                  onChange={(e) => setHdDiagnostico(e.target.value)}
+                  placeholder={activeTemplate?.label ?? "diagnóstico"}
+                />
+              </Field>
+              <Button type="button" size="sm" onClick={handlePrintHospitalDia}>
+                <Printer className="h-4 w-4" /> Imprimir Hospital Dia
+              </Button>
+            </div>
+            <ul className="list-disc pl-5 text-xs text-muted-foreground">
+              {hdList.map((it) => (
+                <li key={it.id}>
+                  {medicamentoLabel(it) || "medicamento"} — {Math.max(1, Number(hd[it.id]) || 1)}{" "}
+                  folha(s)
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

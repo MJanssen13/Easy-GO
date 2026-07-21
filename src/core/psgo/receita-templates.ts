@@ -200,6 +200,7 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         principioAtivo: "Pirimetamina",
         concentracao: "25 mg",
         formaFarmaceutica: "Comprimido",
+        tipoReceita: "ESPECIAL",
         qtDose: "1",
         tipoFrequencia: "INTERVALO",
         intervaloHoras: "12",

@@ -88,7 +88,7 @@ function ident(d: RelatorioData): string {
   ]
     .filter(Boolean)
     .join(" &nbsp;·&nbsp; ");
-  return `<p class="idf"><b>Paciente:</b> ${esc(d.paciente) || ln(260)}</p>${
+  return `<p class="idf"><b>Paciente:</b> ${esc(d.paciente.toUpperCase()) || ln(260)}</p>${
     linha2 ? `<p class="idf">${linha2}</p>` : ""
   }`;
 }
@@ -142,10 +142,11 @@ function cartaSifilis(d: RelatorioData, withNote: boolean): string {
     { length: nRows },
     (_, i) => `<tr><td>${i + 1}ª dose</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`,
   ).join("");
-  return `<h1 class="titulo">SÍFILIS — SOLICITAÇÃO E ACOMPANHAMENTO</h1>
+  const intervalo = nRows > 1 ? ", com intervalo de uma semana entre elas" : "";
+  return `<h1 class="titulo">ACOMPANHAMENTO DE ANTIBIOTICOTERAPIA</h1>
     ${ident(d)}
     <p class="just">Solicito, para a paciente acima, aplicação de 1 ampola de 1.200.000 UI de
-    Penicilina Benzatina em cada glúteo (totalizando 2.400.000 UI), em ${esc(n)} dose(s).</p>
+    Penicilina Benzatina em cada glúteo (totalizando 2.400.000 UI), em ${esc(n)} dose(s)${intervalo}.</p>
     ${sigCarimbo(d)}
     <table class="curva"><thead><tr><th>Dose</th><th>Data</th><th>Local de aplicação</th><th>Assinatura</th></tr></thead>
     <tbody>${rows}</tbody></table>
