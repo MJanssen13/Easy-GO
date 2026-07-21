@@ -13,14 +13,21 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   do HC-UFTM (DIP, sífilis, toxoplasmose ≤/>16 sem, infecção de FO, dengue,
   síndrome gripal, GECA c/ e s/ diarreia, náuseas/vômitos, constipação, ferro EV,
   DMG). Sem vínculo com a HPMA — a escolha é manual.
-- **Documentos opcionais** por modelo (selecionáveis, imprimir ou não): relatórios,
-  cartas de solicitação/encaminhamento e curvas (térmica, pressórica, glicêmica),
-  com o mesmo papel timbrado do laudo/termos, em **folha paisagem dividida em
-  duas metades** (como a receita, mas sem espelhar — cada metade traz um
-  documento diferente). Rascunhados dos modelos em papel, com os dados clínicos
-  em branco para preenchimento.
-- **DIP**: campo para o **nome do parceiro** e botão para emitir a **receita do
-  parceiro** (Azitromicina 1 g + Ceftriaxona 500 mg IM).
+- **Classificação automática comum/especial**: antibióticos entram como
+  **receituário de controle especial** (2 vias); os demais itens, como comum.
+- **Documentos opcionais** por modelo (selecionáveis): relatórios, cartas de
+  solicitação/encaminhamento e curvas, com o papel timbrado do laudo/termos, em
+  **folha paisagem dividida ao meio** (como a receita). Relatórios/cartas ocupam
+  metades diferentes (dois por folha); **curvas são espelhadas** nas duas metades.
+  Rascunhados dos modelos em papel, com os dados clínicos em branco.
+- **IG (idade gestacional)** preenche automaticamente os relatórios (toxo e DMG).
+- **DIP**: a **receita do parceiro** (Azitromicina 1 g + Ceftriaxona 500 mg IM)
+  sai junto com a **carta de solicitação de aplicação (IM)** numa só impressão.
+- **Sífilis**: seletor de **nº de doses (1 ou 3)** que afeta a receita e a carta,
+  para a paciente e o parceiro; carta única de **solicitação + acompanhamento**
+  (o parceiro recebe a carta sem o aviso de retorno ao PSGO).
+- **Curvas (anexo)** sempre disponíveis (térmica, pressórica, glicêmica),
+  impressas espelhadas.
 - Novos módulos `src/core/psgo/receita-templates.ts` e `receita-relatorios.ts`.
 
 ### PSGO — Salvamento automático e prescrição integrada

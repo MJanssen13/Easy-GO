@@ -118,7 +118,7 @@ function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "righ
 
 // Folha em PAISAGEM (2 vias lado a lado). Altura útil ≈ 210 − 16 = 194 mm; cada
 // via ocupa essa altura por inteiro (assinatura ancorada no rodapé da via).
-const STYLE = `
+export const RECEITA_PRINT_STYLE = `
   @page { size: A4 landscape; margin: 8mm; }
   * { box-sizing: border-box; }
   body { margin: 0; color: #111; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8.5pt; line-height: 1.3; }
@@ -152,14 +152,15 @@ const STYLE = `
   .sign .dt { margin-top: 1mm; }
 `;
 
+/** Só as folhas da receita (sem o wrapper HTML) — reusado na impressão combinada. */
+export function receitaSheetsHtml(header: ReceitaHeader, items: PrescricaoItem[]): string {
+  return receitaGrupos(items)
+    .map((g) => `<div class="sheet">${coluna(header, g, "left")}${coluna(header, g, "right")}</div>`)
+    .join("");
+}
+
 /** HTML autocontido da receita para impressão (uma folha por tipo, 2 vias). */
 export function buildReceitaPrintHtml(header: ReceitaHeader, items: PrescricaoItem[]): string {
-  const grupos = receitaGrupos(items);
-  const sheets = grupos
-    .map(
-      (g) => `<div class="sheet">${coluna(header, g, "left")}${coluna(header, g, "right")}</div>`,
-    )
-    .join("");
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Receita</title>
-<style>${STYLE}</style></head><body>${sheets}</body></html>`;
+<style>${RECEITA_PRINT_STYLE}</style></head><body>${receitaSheetsHtml(header, items)}</body></html>`;
 }

@@ -25,8 +25,9 @@ export interface ReceitaTemplate {
   items: TemplateItem[];
   /** Documentos opcionais sugeridos (o médico escolhe incluir ou não). */
   documentos?: ReceitaDocId[];
-  /** Esquema do parceiro (DIP): gera uma segunda receita em nome dele. */
-  parceiro?: { label: string; items: TemplateItem[] };
+  /** Esquema do parceiro (DIP/sífilis): gera uma segunda receita em nome dele,
+   *  opcionalmente com documentos próprios (ex.: carta de aplicação). */
+  parceiro?: { label: string; items: TemplateItem[]; documentos?: ReceitaDocId[] };
 }
 
 /** Aplica um modelo: gera itens completos com ids novos (todos editáveis). */
@@ -38,11 +39,13 @@ export function applyTemplateItems(
 }
 
 // Parceiro da DIP: Azitromicina 1 g VO DU + Ceftriaxona 500 mg IM DU (clamídia + gonococo).
+// Antibióticos → receituário de controle especial (ESPECIAL).
 const PARCEIRO_DIP: TemplateItem[] = [
   {
     principioAtivo: "Azitromicina",
     concentracao: "500 mg",
     formaFarmaceutica: "Comprimido",
+    tipoReceita: "ESPECIAL",
     qtDose: "2",
     tipoFrequencia: "UNICA",
     quantidadeReceitada: "2 comprimidos",
@@ -53,6 +56,7 @@ const PARCEIRO_DIP: TemplateItem[] = [
     concentracao: "500 mg",
     formaFarmaceutica: "Frasco-ampola",
     via: "Intramuscular",
+    tipoReceita: "ESPECIAL",
     registroManual: true,
     posologiaManual: "Aplicar 500 mg IM, dose única.",
     quantidadeReceitada: "1 ampola",
@@ -64,6 +68,7 @@ const CEFTRIAXONA_IM_DU: TemplateItem = {
   concentracao: "500 mg",
   formaFarmaceutica: "Frasco-ampola",
   via: "Intramuscular",
+  tipoReceita: "ESPECIAL",
   registroManual: true,
   posologiaManual: "Aplicar 500 mg IM, dose única.",
   quantidadeReceitada: "1 ampola",
@@ -73,12 +78,31 @@ const METRONIDAZOL_DIP: TemplateItem = {
   principioAtivo: "Metronidazol",
   concentracao: "250 mg",
   formaFarmaceutica: "Comprimido",
+  tipoReceita: "ESPECIAL",
   qtDose: "2",
   tipoFrequencia: "INTERVALO",
   intervaloHoras: "12",
   duracaoQt: "14",
   quantidadeReceitada: "56 comprimidos",
 };
+
+/** Item da penicilina benzatina (sífilis) conforme o nº de doses (1 ou 3). */
+export function buildSifilisPenicilina(numDoses: string): TemplateItem {
+  const n = (numDoses || "1").trim() || "1";
+  const amp = 2 * (Number(n) || 1);
+  return {
+    principioAtivo: "Penicilina G Benzatina",
+    concentracao: "1.200.000 UI",
+    formaFarmaceutica: "Frasco-ampola",
+    via: "Intramuscular",
+    tipoReceita: "ESPECIAL",
+    registroManual: true,
+    posologiaManual:
+      "Aplicar 1.200.000 UI IM em cada glúteo (total 2.400.000 UI por dose). " +
+      (n === "1" ? "Dose única." : `${n} doses (uma por semana).`),
+    quantidadeReceitada: `${amp} ampolas`,
+  };
+}
 
 const SRO = (qtd: string, posologia: string): TemplateItem => ({
   principioAtivo: "Sais para reidratação oral",
@@ -95,8 +119,8 @@ export const RECEITA_CATEGORIAS = ["Infecções", "Sintomáticos", "Anemia", "Di
 export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
   // ---------------- Infecções ----------------
   {
-    id: "dip-a",
-    label: "DIP — Opção A (doxiciclina)",
+    id: "dip",
+    label: "DIP — Doença Inflamatória Pélvica",
     categoria: "Infecções",
     gestante: "Ambos",
     descricao: "Ceftriaxona IM + Doxiciclina + Metronidazol. Tratar também o parceiro.",
@@ -106,6 +130,7 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         principioAtivo: "Doxiciclina",
         concentracao: "100 mg",
         formaFarmaceutica: "Comprimido",
+        tipoReceita: "ESPECIAL",
         qtDose: "1",
         tipoFrequencia: "INTERVALO",
         intervaloHoras: "12",
@@ -115,48 +140,25 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
       METRONIDAZOL_DIP,
     ],
     documentos: ["carta-aplicacao-im"],
-    parceiro: { label: "Parceiro — Azitromicina 1 g + Ceftriaxona 500 mg IM", items: PARCEIRO_DIP },
-  },
-  {
-    id: "dip-b",
-    label: "DIP — Opção B (azitromicina)",
-    categoria: "Infecções",
-    gestante: "Ambos",
-    descricao: "Ceftriaxona IM + Azitromicina + Metronidazol. Tratar também o parceiro.",
-    items: [
-      CEFTRIAXONA_IM_DU,
-      {
-        principioAtivo: "Azitromicina",
-        concentracao: "500 mg",
-        formaFarmaceutica: "Comprimido",
-        qtDose: "2",
-        tipoFrequencia: "UNICA",
-        quantidadeReceitada: "2 comprimidos",
-        recomendacoes: "Dose única (1 g).",
-      },
-      METRONIDAZOL_DIP,
-    ],
-    documentos: ["carta-aplicacao-im"],
-    parceiro: { label: "Parceiro — Azitromicina 1 g + Ceftriaxona 500 mg IM", items: PARCEIRO_DIP },
+    parceiro: {
+      label: "Parceiro — Azitromicina 1 g + Ceftriaxona 500 mg IM",
+      items: PARCEIRO_DIP,
+      documentos: ["carta-aplicacao-im"],
+    },
   },
   {
     id: "sifilis",
     label: "Sífilis — Penicilina Benzatina",
     categoria: "Infecções",
     gestante: "Ambos",
-    items: [
-      {
-        principioAtivo: "Penicilina G Benzatina",
-        concentracao: "1.200.000 UI",
-        formaFarmaceutica: "Frasco-ampola",
-        via: "Intramuscular",
-        registroManual: true,
-        posologiaManual:
-          "Aplicar 1.200.000 UI IM em cada glúteo (total 2.400.000 UI por dose). Repetir semanalmente conforme estágio (até 3 doses).",
-        quantidadeReceitada: "2 ampolas por dose",
-      },
-    ],
-    documentos: ["carta-penicilina", "acompanhamento-penicilina"],
+    descricao: "Penicilina Benzatina IM — selecione o nº de doses (1 ou 3). Tratar também o parceiro.",
+    items: [buildSifilisPenicilina("1")],
+    documentos: ["carta-sifilis"],
+    parceiro: {
+      label: "Parceiro — Penicilina Benzatina IM",
+      items: [buildSifilisPenicilina("1")],
+      documentos: ["carta-sifilis-parceiro"],
+    },
   },
   {
     id: "toxo-precoce",
@@ -168,6 +170,7 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         principioAtivo: "Espiramicina",
         concentracao: "500 mg (1.500.000 UI)",
         formaFarmaceutica: "Comprimido",
+        tipoReceita: "ESPECIAL",
         qtDose: "2",
         tipoFrequencia: "INTERVALO",
         intervaloHoras: "8",
@@ -207,11 +210,12 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         principioAtivo: "Sulfadiazina",
         concentracao: "500 mg",
         formaFarmaceutica: "Comprimido",
+        tipoReceita: "ESPECIAL",
         qtDose: "2",
         tipoFrequencia: "INTERVALO",
         intervaloHoras: "8",
         usoContinuo: true,
-        quantidadeReceitada: "150 comprimidos",
+        quantidadeReceitada: "180 comprimidos",
       },
     ],
     documentos: ["relatorio-toxo"],
@@ -226,6 +230,7 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         principioAtivo: "Ciprofloxacino",
         concentracao: "500 mg",
         formaFarmaceutica: "Comprimido",
+        tipoReceita: "ESPECIAL",
         qtDose: "1",
         tipoFrequencia: "INTERVALO",
         intervaloHoras: "12",
@@ -236,6 +241,7 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         principioAtivo: "Clindamicina",
         concentracao: "300 mg",
         formaFarmaceutica: "Comprimido",
+        tipoReceita: "ESPECIAL",
         qtDose: "2",
         tipoFrequencia: "INTERVALO",
         intervaloHoras: "6",
@@ -243,6 +249,7 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         quantidadeReceitada: "56 comprimidos",
       },
     ],
+    documentos: ["curva-termica"],
   },
 
   // ---------------- Sintomáticos ----------------

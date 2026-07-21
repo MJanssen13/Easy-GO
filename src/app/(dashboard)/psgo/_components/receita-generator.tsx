@@ -30,7 +30,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
 import { searchMeds, type MedCatmat } from "@/core/psgo/medicamentos-catmat";
-import { buildReceitaPrintHtml } from "@/core/psgo/receita-print";
+import {
+  buildReceitaPrintHtml,
+  receitaSheetsHtml,
+  RECEITA_PRINT_STYLE,
+} from "@/core/psgo/receita-print";
 import { printHtml, isMobile } from "@/lib/print";
 import { registrarPrescricaoNaAdmissao } from "@/app/(dashboard)/ferramentas/receita/actions";
 import { letterheadFor } from "@/core/ctg/laudo";
@@ -38,11 +42,16 @@ import {
   RECEITA_TEMPLATES,
   RECEITA_CATEGORIAS,
   applyTemplateItems,
+  buildSifilisPenicilina,
 } from "@/core/psgo/receita-templates";
 import {
   renderReceitaDocsHtml,
+  receitaDocsSheetsHtml,
+  renderCombinedPrint,
+  RECEITA_DOCS_STYLE,
   RECEITA_DOC_LABEL,
   type ReceitaDocId,
+  type RelatorioData,
 } from "@/core/psgo/receita-relatorios";
 
 // jsPDF é pesado e só é usado no mobile → carregado sob demanda (code-split).
@@ -212,6 +221,9 @@ export function ReceitaGenerator({
   const [activeTemplateId, setActiveTemplateId] = useState<string>("");
   const [selectedDocs, setSelectedDocs] = useState<ReceitaDocId[]>([]);
   const [parceiroNome, setParceiroNome] = useState("");
+  const [ig, setIg] = useState(""); // idade gestacional (auto nos relatórios)
+  const [numDoses, setNumDoses] = useState("1"); // sífilis: 1 ou 3 doses
+  const [curvas, setCurvas] = useState<ReceitaDocId[]>([]); // curvas avulsas (anexo)
   const activeTemplate = useMemo(
     () => RECEITA_TEMPLATES.find((t) => t.id === activeTemplateId),
     [activeTemplateId],
@@ -252,10 +264,28 @@ export function ReceitaGenerator({
     setActiveTemplateId(tpl ? id : "");
     setSelectedDocs([]);
     setParceiroNome("");
-    if (tpl) setItems(applyTemplateItems(tpl.items, uid));
+    if (!tpl) return;
+    const tItems = id === "sifilis" ? [buildSifilisPenicilina(numDoses)] : tpl.items;
+    setItems(applyTemplateItems(tItems, uid));
   };
   const toggleDoc = (doc: ReceitaDocId) =>
     setSelectedDocs((s) => (s.includes(doc) ? s.filter((d) => d !== doc) : [...s, doc]));
+  const toggleCurva = (c: ReceitaDocId) =>
+    setCurvas((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]));
+
+  // Sífilis: muda o nº de doses e reflete na prescrição (item da penicilina).
+  const changeNumDoses = (n: string) => {
+    setNumDoses(n);
+    if (activeTemplateId === "sifilis") {
+      setItems((s) =>
+        s.map((it) =>
+          it.principioAtivo.includes("Penicilina")
+            ? { ...emptyPrescricaoItem(it.id), ...buildSifilisPenicilina(n) }
+            : it,
+        ),
+      );
+    }
+  };
 
   // Preenche o cabeçalho com os dados de uma paciente do sistema.
   const fillFromPatient = (id: string) => {
@@ -351,35 +381,53 @@ export function ReceitaGenerator({
     }
   };
 
-  // Imprime os documentos opcionais selecionados (relatórios/cartas/curvas).
+  // Dados dos documentos (IG e nº de doses preenchidos automaticamente).
+  const relatorioData = (over?: Partial<RelatorioData>): RelatorioData => ({
+    paciente: header.paciente,
+    prontuario: header.prontuario,
+    idade: header.idade,
+    cidade: header.cidade,
+    dataBR: header.data ? new Date(`${header.data}T00:00:00`).toLocaleDateString("pt-BR") : "",
+    ig,
+    numDoses,
+    ...over,
+  });
+  const origin = () => (typeof window !== "undefined" ? window.location.origin : "");
+
+  // Imprime os documentos opcionais do modelo selecionados.
   const handlePrintDocs = () => {
     if (!selectedDocs.length) return;
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const data = {
-      paciente: header.paciente,
-      prontuario: header.prontuario,
-      idade: header.idade,
-      cidade: header.cidade,
-      dataBR: header.data
-        ? new Date(`${header.data}T00:00:00`).toLocaleDateString("pt-BR")
-        : "",
-    };
-    printHtml(renderReceitaDocsHtml(selectedDocs, data, letterheadFor(origin)));
+    printHtml(renderReceitaDocsHtml(selectedDocs, relatorioData(), letterheadFor(origin())));
   };
 
-  // Emite a receita do parceiro (DIP) em uma via própria.
+  // Imprime as curvas avulsas selecionadas (espelhadas na folha).
+  const handlePrintCurvas = () => {
+    if (!curvas.length) return;
+    printHtml(renderReceitaDocsHtml(curvas, relatorioData(), letterheadFor(origin())));
+  };
+
+  // Emite a receita do parceiro (DIP/sífilis) + a carta, numa só impressão.
   const handlePrintParceiro = () => {
     if (!activeTemplate?.parceiro) return;
     const nome = parceiroNome.trim() || `Parceiro de ${header.paciente.trim()}`.trim();
     const parceiroHeader: ReceitaHeader = { ...header, paciente: nome, prontuario: "", idade: "" };
-    const parceiroItems = applyTemplateItems(activeTemplate.parceiro.items, uid);
-    if (isMobile()) {
-      import("@/core/psgo/receita-pdf").then((m) =>
-        m.downloadReceitaPdf(parceiroHeader, parceiroItems),
-      );
-    } else {
-      printHtml(buildReceitaPrintHtml(parceiroHeader, parceiroItems));
+    const pItems =
+      activeTemplate.id === "sifilis"
+        ? [buildSifilisPenicilina(numDoses)]
+        : activeTemplate.parceiro.items;
+    const parceiroItems = applyTemplateItems(pItems, uid);
+    const blocks = [
+      { style: RECEITA_PRINT_STYLE, sheets: receitaSheetsHtml(parceiroHeader, parceiroItems) },
+    ];
+    const pdocs = activeTemplate.parceiro.documentos ?? [];
+    if (pdocs.length) {
+      const data = relatorioData({ paciente: nome, prontuario: "", idade: "" });
+      blocks.push({
+        style: RECEITA_DOCS_STYLE,
+        sheets: receitaDocsSheetsHtml(pdocs, data, letterheadFor(origin())),
+      });
     }
+    printHtml(renderCombinedPrint(blocks));
   };
 
   return (
@@ -487,6 +535,13 @@ export function ReceitaGenerator({
           <Field label="Data">
             <Input type="date" value={header.data} onChange={(e) => setH({ data: e.target.value })} />
           </Field>
+          <Field label="Idade gestacional (IG)">
+            <Input
+              value={ig}
+              onChange={(e) => setIg(e.target.value)}
+              placeholder="ex.: 24 sem — preenche os relatórios"
+            />
+          </Field>
         </CardContent>
       </Card>
 
@@ -518,6 +573,19 @@ export function ReceitaGenerator({
                 "Aplicar um modelo substitui os medicamentos abaixo — que continuam editáveis."}
             </p>
           </Field>
+
+          {activeTemplateId === "sifilis" && (
+            <Field label="Nº de doses (afeta a receita da paciente e do parceiro)">
+              <select
+                className={selectCls}
+                value={numDoses}
+                onChange={(e) => changeNumDoses(e.target.value)}
+              >
+                <option value="1">Dose única</option>
+                <option value="3">3 doses (1 por semana)</option>
+              </select>
+            </Field>
+          )}
 
           {activeTemplate?.documentos?.length ? (
             <div className="rounded-md border bg-muted/30 p-3">
@@ -569,6 +637,34 @@ export function ReceitaGenerator({
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Curvas (anexo) — sempre disponível; impressão espelhada nas duas metades */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Curvas (anexo)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {(["curva-termica", "curva-pressorica", "curva-glicemica"] as ReceitaDocId[]).map((c) => (
+              <Chip key={c} active={curvas.includes(c)} onClick={() => toggleCurva(c)}>
+                {RECEITA_DOC_LABEL[c]}
+              </Chip>
+            ))}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handlePrintCurvas}
+            disabled={!curvas.length}
+          >
+            <Printer className="h-4 w-4" /> Imprimir curvas ({curvas.length})
+          </Button>
+          <p className="text-[11px] text-muted-foreground">
+            Folha em paisagem, espelhada nas duas metades (para recortar).
+          </p>
         </CardContent>
       </Card>
 
