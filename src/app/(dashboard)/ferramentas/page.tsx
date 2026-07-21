@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, HeartPulse, Pill } from "lucide-react";
+import { ArrowRight, HeartPulse, Pill, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Tool {
@@ -18,6 +18,14 @@ const TOOLS: Tool[] = [
     description:
       "Monta a receita (comum ou de controle especial) com busca na lista CATMAT, preenchimento automático a partir das pacientes do PSGO e sugestão do tipo de receituário (ANVISA 344/98). Exporta em PDF (2 vias, A4 paisagem).",
     icon: Pill,
+  },
+  {
+    slug: "documentos",
+    label: "Documentos de apoio",
+    short: "Curvas, relatórios e cartas",
+    description:
+      "Gera curvas (térmica, pressórica, glicêmica), relatórios e cartas de solicitação/encaminhamento para impressão, no papel timbrado do HC-UFTM. Os mesmos documentos continuam disponíveis dentro da Receita quando pertinentes.",
+    icon: FileText,
   },
   {
     slug: "cardiotocografia",

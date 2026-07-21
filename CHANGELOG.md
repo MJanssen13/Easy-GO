@@ -5,6 +5,41 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Receita — Modelos por situação/patologia
+
+- Novo seletor **"Modelo por situação"** no gerador de receita: aplica um modelo
+  **pré-preenchido** de medicamentos (todos editáveis), agrupados por categoria
+  (Infecções, Sintomáticos, Anemia, Diabetes). 14 modelos a partir das receitas
+  do HC-UFTM (DIP, sífilis, toxoplasmose ≤/>16 sem, infecção de FO, dengue,
+  síndrome gripal, GECA c/ e s/ diarreia, náuseas/vômitos, constipação, ferro EV,
+  DMG). Sem vínculo com a HPMA — a escolha é manual.
+- **Classificação automática comum/especial**: antibióticos entram como
+  **receituário de controle especial** (2 vias); os demais itens, como comum.
+- **Documentos opcionais** por modelo (selecionáveis): relatórios, cartas e curvas,
+  com o papel timbrado do HC-UFTM, em **folha paisagem dividida ao meio** (como a
+  receita). Relatórios/cartas ocupam metades diferentes (dois por folha); **curvas
+  são espelhadas** nas duas metades. O nome do paciente/parceiro sai em CAIXA ALTA.
+- **IG (idade gestacional)** preenche automaticamente os relatórios (toxo e DMG).
+- **DIP**: a **receita do parceiro** (Azitromicina 1 g + Ceftriaxona 500 mg IM)
+  sai junto com a **carta de solicitação de aplicação (IM)** numa só impressão.
+- **Sífilis**: seletor de **nº de doses (1 ou 3)** que afeta a receita e a carta,
+  para a paciente e o parceiro; carta única **"Acompanhamento de antibioticoterapia"**
+  (com 3 doses, indica o intervalo semanal); o parceiro recebe a carta sem o aviso
+  de retorno ao PSGO.
+- **Prescrição Hospital Dia**: itens injetáveis (penicilina, ceftriaxona, ferro EV)
+  podem ser enviados para uma **FOLHA DE PRESCRIÇÃO** (Diretoria de Enfermagem),
+  com **uma folha por dose** (ex.: penicilina 3 folhas, noripurum 5); esses itens
+  saem da receita comum. Disponível também na prescrição manual (opção por item).
+- Novos módulos `receita-templates.ts`, `receita-relatorios.ts` e
+  `receita-hospital-dia.ts` em `src/core/psgo/`.
+
+### Ferramentas — Documentos de apoio
+
+- Novo card **"Documentos de apoio"** (`/ferramentas/documentos`): gera as **curvas**
+  (térmica, pressórica, glicêmica — espelhadas), **relatórios** e **cartas** de forma
+  avulsa. Os mesmos documentos continuam disponíveis dentro da **Receita** quando
+  pertinentes ao modelo.
+
 ### PSGO — Salvamento automático e prescrição integrada
 
 - **Salvamento automático** da admissão: assim que **nome e prontuário (RG)**
