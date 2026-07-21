@@ -38,6 +38,23 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   (térmica, pressórica, glicêmica — espelhadas), **relatórios** e **cartas** de forma
   avulsa. Os mesmos documentos continuam disponíveis dentro da **Receita** quando
   pertinentes ao modelo.
+### Pré-Natal — Nova sessão (gerador de consulta)
+
+- Nova rota **`/pre-natal`** com o gerador de consulta do **ambulatório de
+  pré-natal** (modelo HC-UFTM): formulário estruturado → texto pronto para o
+  prontuário, à maneira do PSGO (gerador *stateless*, não armazena dados).
+- **Reaproveita a lógica de domínio do PSGO** (sem duplicar): paridade (GPA),
+  datação DUM/USG (ACOG CO-700), comorbidades/IMC, medicamentos, tipo
+  sanguíneo/Coombs, sorologias (quadro + colagem), exames de imagem (USG com
+  percentis Hadlock/FMF) e laboratoriais.
+- **Específico do pré-natal** (`src/core/prenatal/`): **cartão de vacinas**
+  (Hepatite B, dT, dTpa, Influenza, COVID-19, VSR — Caderneta da Gestante),
+  bloco **CONTEXTO** (movimentação fetal + queixas mamárias/leucorreia/TGI-TGU),
+  **exame físico** da caderneta (tireoide, mamas, abdome gravídico com AU/CA/BCF,
+  inspeção vulvar, especular e toque) e campo **VCE** (rótulo a confirmar).
+- **HD automática**: "GESTAÇÃO DE {IG} ({método})" + comorbidades e
+  sinalizadores (adolescente < 18, pré-natal irregular). Apoio à decisão —
+  validar com a equipe.
 
 ### PSGO — Salvamento automático e prescrição integrada
 

@@ -1,0 +1,157 @@
+/**
+ * Modelo do formulário de consulta de PRÉ-NATAL (ambulatório). Reaproveita os
+ * tipos de domínio puros do PSGO (paridade, medicamentos, datação, sorologias,
+ * exames de imagem) e acrescenta o que é específico do pré-natal: cartão de
+ * vacinas, bloco CONTEXTO e o exame físico da caderneta (com AU/CA/BCF).
+ *
+ * Assim como o PSGO, é um GERADOR sem estado — monta o texto do prontuário e não
+ * persiste dados.
+ */
+import type { PriorPregnancy } from "@/core/psgo/parity";
+import type { MedicationUse } from "@/core/psgo/medications";
+import type { DatingPreference } from "@/core/psgo/dating";
+import type { SerologyGrid } from "@/core/psgo/serology";
+import { emptySerologyGrid } from "@/core/psgo/serology";
+import type { ImagingExam } from "@/core/psgo/imaging";
+import type { CoombsEntry } from "@/core/psgo/types";
+import type { PrenatalVitals, PrenatalExamState } from "./exam";
+import { emptyPrenatalExam } from "./exam";
+import type { VaccineCard } from "./vaccines";
+import { emptyVaccineCard } from "./vaccines";
+import type { ContextState } from "./context";
+import { emptyContext } from "./context";
+
+export interface PrenatalForm {
+  date: string; // data da consulta (ISO)
+
+  // identificação
+  name: string;
+  socialName: string;
+  rg: string;
+  age: string;
+  origin: string;
+
+  // acompanhamento pré-natal
+  prenatalPlace: string;
+  prenatalCount: string;
+  prenatalIrregular: boolean;
+
+  // paridade (GPA)
+  priorPregnancies: PriorPregnancy[];
+
+  // datação (a IG por USG vem do quadro de exames de imagem)
+  lmp: string;
+  lmpUncertain: boolean;
+  datingPreference: DatingPreference;
+
+  // tipo sanguíneo / coombs indireto
+  bloodType: string;
+  coombsList: CoombsEntry[];
+
+  // comorbidades / medicamentos / cirurgias / alergias / hábitos
+  comorbidities: string[];
+  comorbiditiesOther: string;
+  medications: MedicationUse[];
+  medicationsOther: string;
+  medicationsPast: string;
+  surgeries: string;
+  surgeriesDenied: boolean;
+  allergies: string;
+  allergiesDenied: boolean;
+  habits: string[];
+  habitsOther: string;
+  udiWhich: string;
+
+  // cartão de vacinas
+  vaccines: VaccineCard;
+
+  /**
+   * VCE — campo do modelo mantido como texto livre (rótulo a confirmar com a
+   * equipe). Fica em branco por padrão, como no modelo em .docx.
+   */
+  vce: string;
+
+  // sorologias
+  serologyPasted: string;
+  serologyGrid: SerologyGrid;
+
+  // contexto da consulta (anamnese dirigida)
+  context: ContextState;
+
+  // exame físico
+  weight: string;
+  height: string;
+  vitals: PrenatalVitals;
+  exam: PrenatalExamState;
+
+  // laboratoriais / imagem
+  labs: string;
+  imagingExams: ImagingExam[];
+  otherImaging: string;
+
+  // hipótese diagnóstica (vazia = HD automática)
+  hd: string;
+
+  // conduta
+  cd: string;
+}
+
+function todayISO(): string {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Formulário vazio. `date` pode ser passada (calculada no servidor) para evitar
+ * divergência de hidratação; sem ela usa a data local de hoje.
+ */
+export function emptyPrenatalForm(date?: string): PrenatalForm {
+  return {
+    date: date ?? todayISO(),
+    name: "",
+    socialName: "",
+    rg: "",
+    age: "",
+    origin: "",
+    prenatalPlace: "",
+    prenatalCount: "",
+    prenatalIrregular: false,
+    priorPregnancies: [],
+    lmp: "",
+    lmpUncertain: false,
+    datingPreference: "auto",
+    bloodType: "",
+    coombsList: [],
+    comorbidities: [],
+    comorbiditiesOther: "",
+    medications: [],
+    medicationsOther: "",
+    medicationsPast: "",
+    surgeries: "",
+    surgeriesDenied: false,
+    allergies: "",
+    allergiesDenied: false,
+    habits: [],
+    habitsOther: "",
+    udiWhich: "",
+    vaccines: emptyVaccineCard(),
+    vce: "",
+    serologyPasted: "",
+    serologyGrid: emptySerologyGrid(),
+    context: emptyContext(),
+    weight: "",
+    height: "",
+    vitals: {},
+    exam: emptyPrenatalExam(),
+    labs: "",
+    imagingExams: [],
+    otherImaging: "",
+    hd: "",
+    cd: "",
+  };
+}
+
+export type { PrenatalVitals, PrenatalExamState } from "./exam";
+export type { VaccineCard } from "./vaccines";
+export type { ContextState } from "./context";
