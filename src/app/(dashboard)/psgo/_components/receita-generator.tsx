@@ -33,6 +33,17 @@ import { searchMeds, type MedCatmat } from "@/core/psgo/medicamentos-catmat";
 import { buildReceitaPrintHtml } from "@/core/psgo/receita-print";
 import { printHtml, isMobile } from "@/lib/print";
 import { registrarPrescricaoNaAdmissao } from "@/app/(dashboard)/ferramentas/receita/actions";
+import { letterheadFor } from "@/core/ctg/laudo";
+import {
+  RECEITA_TEMPLATES,
+  RECEITA_CATEGORIAS,
+  applyTemplateItems,
+} from "@/core/psgo/receita-templates";
+import {
+  renderReceitaDocsHtml,
+  RECEITA_DOC_LABEL,
+  type ReceitaDocId,
+} from "@/core/psgo/receita-relatorios";
 
 // jsPDF é pesado e só é usado no mobile → carregado sob demanda (code-split).
 type ReceitaPdfModule = typeof import("@/core/psgo/receita-pdf");
@@ -197,6 +208,14 @@ export function ReceitaGenerator({
     data: today,
   });
   const [items, setItems] = useState<PrescricaoItem[]>([emptyPrescricaoItem(uid())]);
+  // Modelo por situação (opcional): preenche os itens; documentos são opcionais.
+  const [activeTemplateId, setActiveTemplateId] = useState<string>("");
+  const [selectedDocs, setSelectedDocs] = useState<ReceitaDocId[]>([]);
+  const [parceiroNome, setParceiroNome] = useState("");
+  const activeTemplate = useMemo(
+    () => RECEITA_TEMPLATES.find((t) => t.id === activeTemplateId),
+    [activeTemplateId],
+  );
 
   const setH = (patch: Partial<ReceitaHeader>) => setHeader((h) => ({ ...h, ...patch }));
   const addItem = () =>
@@ -226,6 +245,17 @@ export function ReceitaGenerator({
         i.id === id ? { ...i, turnoDoses: { ...i.turnoDoses, [turno]: dose } } : i,
       ),
     );
+
+  // Aplica um modelo por situação: substitui os itens (todos ficam editáveis).
+  const applyTemplate = (id: string) => {
+    const tpl = RECEITA_TEMPLATES.find((t) => t.id === id);
+    setActiveTemplateId(tpl ? id : "");
+    setSelectedDocs([]);
+    setParceiroNome("");
+    if (tpl) setItems(applyTemplateItems(tpl.items, uid));
+  };
+  const toggleDoc = (doc: ReceitaDocId) =>
+    setSelectedDocs((s) => (s.includes(doc) ? s.filter((d) => d !== doc) : [...s, doc]));
 
   // Preenche o cabeçalho com os dados de uma paciente do sistema.
   const fillFromPatient = (id: string) => {
@@ -318,6 +348,37 @@ export function ReceitaGenerator({
         );
     } else {
       printHtml(buildReceitaPrintHtml(header, printableItems));
+    }
+  };
+
+  // Imprime os documentos opcionais selecionados (relatórios/cartas/curvas).
+  const handlePrintDocs = () => {
+    if (!selectedDocs.length) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const data = {
+      paciente: header.paciente,
+      prontuario: header.prontuario,
+      idade: header.idade,
+      cidade: header.cidade,
+      dataBR: header.data
+        ? new Date(`${header.data}T00:00:00`).toLocaleDateString("pt-BR")
+        : "",
+    };
+    printHtml(renderReceitaDocsHtml(selectedDocs, data, letterheadFor(origin)));
+  };
+
+  // Emite a receita do parceiro (DIP) em uma via própria.
+  const handlePrintParceiro = () => {
+    if (!activeTemplate?.parceiro) return;
+    const nome = parceiroNome.trim() || `Parceiro de ${header.paciente.trim()}`.trim();
+    const parceiroHeader: ReceitaHeader = { ...header, paciente: nome, prontuario: "", idade: "" };
+    const parceiroItems = applyTemplateItems(activeTemplate.parceiro.items, uid);
+    if (isMobile()) {
+      import("@/core/psgo/receita-pdf").then((m) =>
+        m.downloadReceitaPdf(parceiroHeader, parceiroItems),
+      );
+    } else {
+      printHtml(buildReceitaPrintHtml(parceiroHeader, parceiroItems));
     }
   };
 
@@ -426,6 +487,88 @@ export function ReceitaGenerator({
           <Field label="Data">
             <Input type="date" value={header.data} onChange={(e) => setH({ data: e.target.value })} />
           </Field>
+        </CardContent>
+      </Card>
+
+      {/* Modelo por situação (opcional) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Modelo por situação</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Field label="Escolha um modelo — preenche os medicamentos (todos editáveis)">
+            <select
+              className={`${selectCls} max-w-none`}
+              value={activeTemplateId}
+              onChange={(e) => applyTemplate(e.target.value)}
+            >
+              <option value="">— nenhum (prescrição manual) —</option>
+              {RECEITA_CATEGORIAS.map((cat) => (
+                <optgroup key={cat} label={cat}>
+                  {RECEITA_TEMPLATES.filter((t) => t.categoria === cat).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              {activeTemplate?.descricao ??
+                "Aplicar um modelo substitui os medicamentos abaixo — que continuam editáveis."}
+            </p>
+          </Field>
+
+          {activeTemplate?.documentos?.length ? (
+            <div className="rounded-md border bg-muted/30 p-3">
+              <p className="mb-2 text-xs font-medium">
+                Documentos do modelo — selecione o que imprimir junto (opcional)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {activeTemplate.documentos.map((doc) => (
+                  <Chip
+                    key={doc}
+                    active={selectedDocs.includes(doc)}
+                    onClick={() => toggleDoc(doc)}
+                  >
+                    {RECEITA_DOC_LABEL[doc]}
+                  </Chip>
+                ))}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={handlePrintDocs}
+                disabled={!selectedDocs.length}
+              >
+                <Printer className="h-4 w-4" /> Imprimir documentos ({selectedDocs.length})
+              </Button>
+            </div>
+          ) : null}
+
+          {activeTemplate?.parceiro && (
+            <div className="rounded-md border bg-muted/30 p-3">
+              <p className="mb-2 text-xs font-medium">
+                Receita do parceiro — {activeTemplate.parceiro.label}
+              </p>
+              <div className="flex flex-wrap items-end gap-2">
+                <Field label="Nome do parceiro (opcional)" className="min-w-[15rem] flex-1">
+                  <Input
+                    value={parceiroNome}
+                    onChange={(e) => setParceiroNome(e.target.value)}
+                    placeholder={
+                      header.paciente ? `Parceiro de ${header.paciente}` : "nome do parceiro"
+                    }
+                  />
+                </Field>
+                <Button type="button" size="sm" variant="outline" onClick={handlePrintParceiro}>
+                  <Printer className="h-4 w-4" /> Imprimir receita do parceiro
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

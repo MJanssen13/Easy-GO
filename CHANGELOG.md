@@ -5,6 +5,22 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Receita — Modelos por situação/patologia
+
+- Novo seletor **"Modelo por situação"** no gerador de receita: aplica um modelo
+  **pré-preenchido** de medicamentos (todos editáveis), agrupados por categoria
+  (Infecções, Sintomáticos, Anemia, Diabetes). 14 modelos a partir das receitas
+  do HC-UFTM (DIP, sífilis, toxoplasmose ≤/>16 sem, infecção de FO, dengue,
+  síndrome gripal, GECA c/ e s/ diarreia, náuseas/vômitos, constipação, ferro EV,
+  DMG). Sem vínculo com a HPMA — a escolha é manual.
+- **Documentos opcionais** por modelo (selecionáveis, imprimir ou não): relatórios,
+  cartas de solicitação/encaminhamento e curvas (térmica, pressórica, glicêmica),
+  com o mesmo papel timbrado do laudo/termos. Rascunhados dos modelos em papel,
+  com os dados clínicos em branco para preenchimento.
+- **DIP**: campo para o **nome do parceiro** e botão para emitir a **receita do
+  parceiro** (Azitromicina 1 g + Ceftriaxona 500 mg IM).
+- Novos módulos `src/core/psgo/receita-templates.ts` e `receita-relatorios.ts`.
+
 ### PSGO — Salvamento automático e prescrição integrada
 
 - **Salvamento automático** da admissão: assim que **nome e prontuário (RG)**
