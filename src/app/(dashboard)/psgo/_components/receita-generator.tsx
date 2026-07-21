@@ -267,9 +267,17 @@ export function ReceitaGenerator({
     setActiveTemplateId(tpl ? id : "");
     setSelectedDocs([]);
     setParceiroNome("");
+    setHdIds([]);
     if (!tpl) return;
     const tItems = id === "sifilis" ? [buildSifilisPenicilina(numDoses)] : tpl.items;
-    setItems(applyTemplateItems(tItems, uid));
+    const applied = applyTemplateItems(tItems, uid);
+    setItems(applied);
+    // Auto-seleciona os itens já sinalizados como Hospital Dia no modelo.
+    const hdApplied = applied.filter((_, i) => tItems[i].hospitalDia);
+    if (hdApplied.length) {
+      setHdIds(hdApplied.map((it) => it.id));
+      setHdFolhas(defaultFolhas(hdApplied[0].principioAtivo));
+    }
   };
   const toggleDoc = (doc: ReceitaDocId) =>
     setSelectedDocs((s) => (s.includes(doc) ? s.filter((d) => d !== doc) : [...s, doc]));
@@ -450,30 +458,20 @@ export function ReceitaGenerator({
       via: it.via,
     }));
     printHtml(
-      buildHospitalDiaHtml(
-        docItems,
-        Math.max(1, Number(hdFolhas) || 1),
-        { paciente: header.paciente, registro: header.prontuario },
-        letterheadFor(origin()),
-      ),
+      buildHospitalDiaHtml(docItems, Math.max(1, Number(hdFolhas) || 1), {
+        paciente: header.paciente,
+        registro: header.prontuario,
+      }),
     );
   };
 
   return (
     <div className="space-y-4">
-      {/* Ações (sempre visíveis) + aviso */}
-      <div className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <p className="hidden max-w-md text-xs text-muted-foreground sm:block">
-          Apoio à documentação — valide medicamento, dose e posologia. O tipo de receituário é
-          sugerido automaticamente (ANVISA 344/98 e RDC 471/2021) e pode ser ajustado.
-        </p>
-        <div className="flex items-center gap-2">
-          <CopyButton text={text} />
-          <Button type="button" size="sm" onClick={handlePrint} disabled={!printableItems.length}>
-            <Printer className="h-4 w-4" /> Imprimir / PDF
-          </Button>
-        </div>
-      </div>
+      {/* Aviso (as ações de impressão ficam no card "Impressão", ao final) */}
+      <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        Apoio à documentação — valide medicamento, dose e posologia. O tipo de receituário é
+        sugerido automaticamente (ANVISA 344/98 e RDC 471/2021) e pode ser ajustado.
+      </p>
 
       {admissionPatientId && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/30 bg-accent/50 px-3 py-2 text-xs">
@@ -614,57 +612,6 @@ export function ReceitaGenerator({
                 <option value="3">3 doses (1 por semana)</option>
               </select>
             </Field>
-          )}
-
-          {activeTemplate?.documentos?.length ? (
-            <div className="rounded-md border bg-muted/30 p-3">
-              <p className="mb-2 text-xs font-medium">
-                Documentos do modelo — selecione o que imprimir junto (opcional)
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {activeTemplate.documentos.map((doc) => (
-                  <Chip
-                    key={doc}
-                    active={selectedDocs.includes(doc)}
-                    onClick={() => toggleDoc(doc)}
-                  >
-                    {RECEITA_DOC_LABEL[doc]}
-                  </Chip>
-                ))}
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="mt-3"
-                onClick={handlePrintDocs}
-                disabled={!selectedDocs.length}
-              >
-                <Printer className="h-4 w-4" /> Imprimir documentos ({selectedDocs.length})
-              </Button>
-            </div>
-          ) : null}
-
-          {activeTemplate?.parceiro && (
-            <div className="rounded-md border bg-muted/30 p-3">
-              <p className="mb-2 text-xs font-medium">
-                Receita do parceiro — {activeTemplate.parceiro.label}
-              </p>
-              <div className="flex flex-wrap items-end gap-2">
-                <Field label="Nome do parceiro (opcional)" className="min-w-[15rem] flex-1">
-                  <Input
-                    value={parceiroNome}
-                    onChange={(e) => setParceiroNome(e.target.value)}
-                    placeholder={
-                      header.paciente ? `Parceiro de ${header.paciente}` : "nome do parceiro"
-                    }
-                  />
-                </Field>
-                <Button type="button" size="sm" variant="outline" onClick={handlePrintParceiro}>
-                  <Printer className="h-4 w-4" /> Imprimir receita do parceiro
-                </Button>
-              </div>
-            </div>
           )}
         </CardContent>
       </Card>
@@ -1022,39 +969,98 @@ export function ReceitaGenerator({
         </CardContent>
       </Card>
 
-      {hdList.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Prescrição Hospital Dia</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Folha de prescrição (Diretoria de Enfermagem) para os itens marcados —{" "}
-              <strong>uma folha por dose</strong>. Estes itens não entram na receita comum.
-            </p>
-            <div className="flex flex-wrap items-end gap-2">
-              <Field label="Nº de folhas (doses/aplicações)" className="w-44">
-                <Input
-                  type="number"
-                  min={1}
-                  value={hdFolhas}
-                  onChange={(e) => setHdFolhas(e.target.value)}
-                />
-              </Field>
-              <Button type="button" size="sm" onClick={handlePrintHospitalDia}>
-                <Printer className="h-4 w-4" /> Imprimir Hospital Dia
+      {/* Impressão — todas as ações de saída, centralizadas */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-center text-base">Impressão</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Receita */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <CopyButton text={text} />
+            <Button type="button" onClick={handlePrint} disabled={!printableItems.length}>
+              <Printer className="h-4 w-4" /> Imprimir / PDF
+            </Button>
+          </div>
+
+          {/* Documentos do modelo */}
+          {activeTemplate?.documentos?.length ? (
+            <div className="space-y-2 border-t pt-4 text-center">
+              <p className="text-xs font-medium">Documentos do modelo</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {activeTemplate.documentos.map((doc) => (
+                  <Chip
+                    key={doc}
+                    active={selectedDocs.includes(doc)}
+                    onClick={() => toggleDoc(doc)}
+                  >
+                    {RECEITA_DOC_LABEL[doc]}
+                  </Chip>
+                ))}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handlePrintDocs}
+                disabled={!selectedDocs.length}
+              >
+                <Printer className="h-4 w-4" /> Imprimir documentos ({selectedDocs.length})
               </Button>
             </div>
-            <ul className="list-disc pl-5 text-xs text-muted-foreground">
-              {hdList.map((it, i) => (
-                <li key={it.id}>
-                  {i + 1}- {medicamentoLabel(it) || "medicamento"} · {it.via}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+          ) : null}
+
+          {/* Receita do parceiro */}
+          {activeTemplate?.parceiro && (
+            <div className="space-y-2 border-t pt-4 text-center">
+              <p className="text-xs font-medium">
+                Receita do parceiro — {activeTemplate.parceiro.label}
+              </p>
+              <div className="flex flex-wrap items-end justify-center gap-2">
+                <Field label="Nome do parceiro (opcional)" className="min-w-[15rem]">
+                  <Input
+                    value={parceiroNome}
+                    onChange={(e) => setParceiroNome(e.target.value)}
+                    placeholder={
+                      header.paciente ? `Parceiro de ${header.paciente}` : "nome do parceiro"
+                    }
+                  />
+                </Field>
+                <Button type="button" size="sm" variant="outline" onClick={handlePrintParceiro}>
+                  <Printer className="h-4 w-4" /> Imprimir receita do parceiro
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Prescrição Hospital Dia */}
+          {hdList.length > 0 && (
+            <div className="space-y-2 border-t pt-4 text-center">
+              <p className="text-xs font-medium">Prescrição Hospital Dia — uma folha por dose</p>
+              <ul className="mx-auto inline-block list-disc pl-5 text-left text-xs text-muted-foreground">
+                {hdList.map((it, i) => (
+                  <li key={it.id}>
+                    {i + 1}- {medicamentoLabel(it) || "medicamento"} · {it.via}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap items-end justify-center gap-2">
+                <Field label="Nº de folhas (doses)" className="w-40">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={hdFolhas}
+                    onChange={(e) => setHdFolhas(e.target.value)}
+                  />
+                </Field>
+                <Button type="button" size="sm" variant="outline" onClick={handlePrintHospitalDia}>
+                  <Printer className="h-4 w-4" /> Imprimir Hospital Dia
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

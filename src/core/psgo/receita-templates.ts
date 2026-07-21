@@ -13,7 +13,10 @@ import { emptyPrescricaoItem, type PrescricaoItem } from "./prescricao";
 import type { ReceitaDocId } from "./receita-relatorios";
 
 /** Sobrescritas de um item do modelo (o `id` é gerado ao aplicar). */
-export type TemplateItem = Partial<Omit<PrescricaoItem, "id">>;
+export type TemplateItem = Partial<Omit<PrescricaoItem, "id">> & {
+  /** Item realizado no Hospital Dia — auto-selecionado ao aplicar o modelo. */
+  hospitalDia?: boolean;
+};
 
 export interface ReceitaTemplate {
   id: string;
@@ -69,6 +72,7 @@ const CEFTRIAXONA_IM_DU: TemplateItem = {
   formaFarmaceutica: "Frasco-ampola",
   via: "Intramuscular",
   tipoReceita: "ESPECIAL",
+  hospitalDia: true,
   registroManual: true,
   posologiaManual: "Aplicar 500 mg IM, dose única.",
   quantidadeReceitada: "1 ampola",
@@ -96,6 +100,7 @@ export function buildSifilisPenicilina(numDoses: string): TemplateItem {
     formaFarmaceutica: "Frasco-ampola",
     via: "Intramuscular",
     tipoReceita: "ESPECIAL",
+    hospitalDia: true,
     registroManual: true,
     posologiaManual:
       "Aplicar 1.200.000 UI IM em cada glúteo (total 2.400.000 UI por dose). " +
@@ -480,6 +485,7 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         principioAtivo: "Prometazina",
         concentracao: "25 mg",
         formaFarmaceutica: "Comprimido",
+        hospitalDia: true,
         registroManual: true,
         posologiaManual: "Tomar 1 comprimido VO 30 minutos antes da infusão do Noripurum.",
         quantidadeReceitada: "1 caixa",
@@ -490,6 +496,7 @@ export const RECEITA_TEMPLATES: ReceitaTemplate[] = [
         formaFarmaceutica: "Ampola",
         via: "Intravenosa",
         unidadeDose: "ampola",
+        hospitalDia: true,
         registroManual: true,
         posologiaManual:
           "Diluir 2 ampolas em 250 mL de SF 0,9% e infundir EV em 1 hora, a cada 3 dias, até completar 10 ampolas (5 aplicações).",
