@@ -174,7 +174,7 @@ export function renderPrenatal(form: PrenatalForm): string {
   push(1, ...medsBlock);
 
   // Cartão de vacinas (a IG resolve "pendente" vs. em branco das vacinas com janela)
-  push(1, ...renderVaccineCard(form.vaccines, dating.gaWeeks));
+  push(1, ...renderVaccineCard(form.vaccines, dating.gaWeeks, form.vaccinesOther));
 
   // VCE (colpocitologia oncótica / Papanicolau) — um ou mais resultados
   const vce = (form.vceList ?? [])

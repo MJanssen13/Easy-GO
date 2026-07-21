@@ -1,55 +1,70 @@
 /**
- * Cartão de vacinas da gestante (MODELO DE PRÉ-NATAL) — Caderneta da Gestante (MS)
- * / PNI. Cada vacina tem um comportamento próprio:
+ * Cartão de vacinas da gestante — Caderneta da Gestante (MS) / PNI.
  *
- * - Esquema (Hep B / dT): status (imune, completo, incompleto, desconhecido,
- *   reforço). Quando falta esquema, abre campos de data das doses; dose sem data
- *   sai "PENDENTE". Hep B = 3 doses; dT incompleto = 2 doses (a 3ª é a dTpa),
- *   desconhecido/reforço = 3.
- * - Com janela (dTpa 20–36 sem / VSR 28–36 sem): um campo de data. Feita → data;
- *   dentro da janela e sem data → PENDENTE; antes da janela → em branco (o rótulo
- *   sempre sai no prontuário).
- * - Dose única (Influenza / COVID-19): um campo de data.
+ * A lista suspensa dos esquemas (Hep B / dT) reflete a SITUAÇÃO NA DESCOBERTA
+ * DA GESTAÇÃO (pré-gestacional). Conforme o status, abre-se o nº de campos de
+ * data das doses a completar na gestação (dose sem data → "PENDENTE"); o texto
+ * do prontuário registra o que havia antes da gestação.
+ *
+ * - Hep B: imune/3 doses (0 campos); 1 dose (2 campos); 2 doses (1 campo);
+ *   desconhecido/revacinação (3 campos).
+ * - dT: 3 doses (0); 1 dose (2); 2 doses (0 — a 3ª é a dTpa); desconhecido (2).
+ *   Sem opção "imune" nem "reforço".
+ * - dTpa (20–36 sem) e VSR (28–36 sem): um campo de data; na janela e sem data →
+ *   PENDENTE, antes da janela → em branco (o rótulo sempre sai).
+ * - Influenza e COVID-19: um campo de data.
  *
  * Apoio à decisão — validar com a caderneta e o calendário vigente.
  */
 
 export type VaccineKind = "scheme" | "timed" | "single";
 
+export interface SchemeStatusOption {
+  value: string;
+  label: string;
+  /** Texto do prontuário (prefixo do que havia antes da gestação). */
+  text: string;
+  /** Nº de campos de data (doses a completar na gestação). */
+  fields: number;
+  /** Doses feitas antes (para numerar as próximas: prior+1 … prior+fields). */
+  prior: number;
+}
+
+const HEPB_STATUSES: SchemeStatusOption[] = [
+  { value: "", label: "—", text: "", fields: 0, prior: 0 },
+  { value: "imune", label: "Imune ou 3 doses", text: "IMUNE/ESQUEMA COMPLETO PRÉ-GESTACIONAL", fields: 0, prior: 3 },
+  { value: "1dose", label: "1 dose", text: "1 DOSE PRÉ-GESTACIONAL", fields: 2, prior: 1 },
+  { value: "2doses", label: "2 doses", text: "2 DOSES PRÉ-GESTACIONAL", fields: 1, prior: 2 },
+  { value: "desconhecido", label: "Desconhecido ou revacinação", text: "DESCONHECIDO/REVACINAÇÃO", fields: 3, prior: 0 },
+];
+
+const DT_STATUSES: SchemeStatusOption[] = [
+  { value: "", label: "—", text: "", fields: 0, prior: 0 },
+  { value: "3doses", label: "3 doses", text: "IMUNE/ESQUEMA COMPLETO PRÉ-GESTACIONAL", fields: 0, prior: 3 },
+  { value: "1dose", label: "1 dose", text: "1 DOSE PRÉ-GESTACIONAL", fields: 2, prior: 1 },
+  { value: "2doses", label: "2 doses", text: "2 DOSES PRÉ-GESTACIONAL", fields: 0, prior: 2 },
+  { value: "desconhecido", label: "Desconhecido", text: "DESCONHECIDO", fields: 2, prior: 0 },
+];
+
 export interface PrenatalVaccineDef {
   id: string;
   label: string;
   kind: VaccineKind;
-  /** Esquema: nº de doses quando desconhecido/reforço (Hep B/dT = 3). */
-  doses?: number;
-  /** Esquema: nº de doses quando "incompleto" (dT = 2; Hep B = 3). */
-  incompleteDoses?: number;
+  /** Opções de status (esquemas Hep B / dT). */
+  schemeStatuses?: SchemeStatusOption[];
   /** Com janela: IG (semanas) a partir da qual a dose é devida (dTpa=20, VSR=28). */
   dueFromWeeks?: number;
   description?: string;
 }
 
 export const PRENATAL_VACCINES: PrenatalVaccineDef[] = [
-  { id: "hepb", label: "HEP B", kind: "scheme", doses: 3, incompleteDoses: 3, description: "Hepatite B — 3 doses" },
-  { id: "dt", label: "DT", kind: "scheme", doses: 3, incompleteDoses: 2, description: "Dupla adulto — incompleto abre 2 (a 3ª é a dTpa)" },
+  { id: "hepb", label: "HEP B", kind: "scheme", schemeStatuses: HEPB_STATUSES, description: "situação pré-gestacional" },
+  { id: "dt", label: "DT", kind: "scheme", schemeStatuses: DT_STATUSES, description: "situação pré-gestacional (3ª dose = dTpa)" },
   { id: "dtpa", label: "DTPA", kind: "timed", dueFromWeeks: 20, description: "20–36 sem, a cada gestação" },
-  { id: "influenza", label: "INFLUENZA", kind: "single", description: "Dose anual (qualquer IG)" },
-  { id: "covid", label: "COVID", kind: "single", description: "Esquema vigente (qualquer IG)" },
+  { id: "influenza", label: "INFLUENZA", kind: "single", description: "dose anual (qualquer IG)" },
+  { id: "covid", label: "COVID", kind: "single", description: "esquema vigente (qualquer IG)" },
   { id: "vsr", label: "VSR", kind: "timed", dueFromWeeks: 28, description: "28–36 sem" },
 ];
-
-/** Status dos esquemas (Hep B / dT). O vazio deixa o rótulo em branco. */
-export const SCHEME_STATUSES: string[] = [
-  "",
-  "IMUNE",
-  "ESQUEMA COMPLETO",
-  "INCOMPLETO",
-  "DESCONHECIDO",
-  "REFORÇO",
-];
-
-/** Status que exigem registrar o esquema (abrem campos de data das doses). */
-const SCHEME_NEEDS_DOSES = new Set(["INCOMPLETO", "DESCONHECIDO", "REFORÇO"]);
 
 export interface VaccineEntry {
   /** Esquema (scheme): status escolhido. */
@@ -72,10 +87,13 @@ export function emptyVaccineCard(): VaccineCard {
   return card;
 }
 
-/** Quantas doses o esquema deve registrar para o status atual (0 = sem campos). */
+export function schemeStatusOption(def: PrenatalVaccineDef, status: string): SchemeStatusOption | undefined {
+  return def.schemeStatuses?.find((o) => o.value === status);
+}
+
+/** Quantos campos de data o esquema deve abrir para o status atual (0 = nenhum). */
 export function schemeDoseCount(def: PrenatalVaccineDef, status: string): number {
-  if (def.kind !== "scheme" || !SCHEME_NEEDS_DOSES.has(status)) return 0;
-  return status === "INCOMPLETO" ? (def.incompleteDoses ?? def.doses ?? 3) : (def.doses ?? 3);
+  return schemeStatusOption(def, status)?.fields ?? 0;
 }
 
 function dateBR(iso?: string): string {
@@ -89,33 +107,35 @@ function dateBR(iso?: string): string {
 /** Valor de uma vacina no prontuário (sem o rótulo). `gaWeeks` = IG resolvida. */
 export function vaccineValue(def: PrenatalVaccineDef, entry: VaccineEntry, gaWeeks: number | null): string {
   if (def.kind === "scheme") {
-    const n = schemeDoseCount(def, entry.status);
-    if (n === 0) return entry.status;
-    const doses = Array.from({ length: n }, (_, i) => {
+    const opt = schemeStatusOption(def, entry.status);
+    if (!opt || opt.value === "") return "";
+    if (opt.fields === 0) return opt.text;
+    const doses = Array.from({ length: opt.fields }, (_, i) => {
+      const ord = opt.prior + i + 1;
       const d = entry.doses[i]?.trim();
-      return `${i + 1}ª ${d ? dateBR(d) : "PENDENTE"}`;
+      return `${ord}ª ${d ? dateBR(d) : "PENDENTE"}`;
     });
-    return `${entry.status} - ${doses.join(", ")}`;
+    return `${opt.text} - ${doses.join(", ")}`;
   }
   // timed / single
   const d = entry.date?.trim();
   if (d) return dateBR(d);
   if (def.kind === "timed") {
     const due = def.dueFromWeeks ?? 0;
-    // Dentro/depois da janela e sem data → PENDENTE; antes da janela → em branco.
     if (gaWeeks != null && gaWeeks >= due) return "PENDENTE";
     return "";
   }
-  return ""; // single sem data → em branco
+  return "";
 }
 
-/** Linhas "- HEP B: …" do cartão de vacinas (mantém o rótulo mesmo em branco). */
-export function renderVaccineCard(card: VaccineCard, gaWeeks: number | null): string[] {
+/** Linhas "- HEP B: …" do cartão (mantém o rótulo mesmo em branco); + OUTRAS. */
+export function renderVaccineCard(card: VaccineCard, gaWeeks: number | null, other = ""): string[] {
   const lines = ["CARTÃO DE VACINAS:"];
   for (const def of PRENATAL_VACCINES) {
     const entry = card[def.id] ?? emptyVaccineEntry();
     const value = vaccineValue(def, entry, gaWeeks);
     lines.push(`- ${def.label}:${value ? ` ${value}` : ""}`);
   }
+  if (other.trim()) lines.push(`- OUTRAS: ${other.trim()}`);
   return lines;
 }

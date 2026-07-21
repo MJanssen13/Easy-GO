@@ -77,6 +77,8 @@ export interface PrenatalForm {
 
   // cartão de vacinas
   vaccines: VaccineCard;
+  /** Outras vacinas (texto livre), abaixo do cartão. */
+  vaccinesOther: string;
 
   /** VCE — colpocitologia oncótica (Papanicolau); permite mais de um resultado. */
   vceList: VceEntry[];
@@ -154,6 +156,7 @@ export function emptyPrenatalForm(date?: string): PrenatalForm {
     habitsOther: "",
     udiWhich: "",
     vaccines: emptyVaccineCard(),
+    vaccinesOther: "",
     vceList: [],
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),

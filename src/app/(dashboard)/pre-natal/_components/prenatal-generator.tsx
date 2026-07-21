@@ -26,16 +26,11 @@ import {
 } from "@/core/prenatal/exam";
 import {
   PRENATAL_VACCINES,
-  SCHEME_STATUSES,
   schemeDoseCount,
+  schemeStatusOption,
   type VaccineEntry,
 } from "@/core/prenatal/vaccines";
-import {
-  trimesterOf,
-  routineExamsFor,
-  trimesterLabel,
-  routineExamsRequestLine,
-} from "@/core/prenatal/routine-exams";
+import { trimesterOf, routineExamsFor, trimesterLabel } from "@/core/prenatal/routine-exams";
 import {
   PRIOR_TYPE_LABELS,
   NO_COMPLICATIONS_LABEL,
@@ -1289,20 +1284,22 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         >
           {PRENATAL_VACCINES.map((v) => {
             const entry = form.vaccines[v.id];
+            const opt = v.kind === "scheme" ? schemeStatusOption(v, entry.status) : undefined;
             const doseCount = v.kind === "scheme" ? schemeDoseCount(v, entry.status) : 0;
+            const prior = opt?.prior ?? 0;
             return (
               <div key={v.id} className="space-y-1.5 rounded-md border p-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="w-24 text-sm font-semibold">{v.label}</span>
                   {v.kind === "scheme" ? (
                     <select
-                      className={`${selectClass} h-8 w-44`}
+                      className={`${selectClass} h-8 w-56`}
                       value={entry.status}
                       onChange={(e) => updateVaccine(v.id, { status: e.target.value })}
                     >
-                      {SCHEME_STATUSES.map((s) => (
-                        <option key={s || "vazio"} value={s}>
-                          {s || "—"}
+                      {(v.schemeStatuses ?? []).map((s) => (
+                        <option key={s.value || "vazio"} value={s.value}>
+                          {s.label}
                         </option>
                       ))}
                     </select>
@@ -1324,7 +1321,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                   <div className="flex flex-wrap items-center gap-2 pl-24">
                     {Array.from({ length: doseCount }, (_, i) => (
                       <div key={i} className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">{i + 1}ª</span>
+                        <span className="text-xs text-muted-foreground">{prior + i + 1}ª dose</span>
                         <DateBRInput
                           className="h-8 w-28"
                           value={entry.doses[i] ?? ""}
@@ -1338,6 +1335,15 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
               </div>
             );
           })}
+          <div className="space-y-1 border-t pt-2">
+            <Label className="text-xs">Outras vacinas</Label>
+            <Textarea
+              rows={2}
+              placeholder="Ex.: Febre amarela (pré-gestacional); Hepatite A…"
+              value={form.vaccinesOther}
+              onChange={(e) => update({ vaccinesOther: e.target.value })}
+            />
+          </div>
         </Section>
 
         {/* VCE — colpocitologia oncótica (Papanicolau); permite mais de um */}
@@ -1896,17 +1902,6 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                   </li>
                 ))}
               </ul>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const line = routineExamsRequestLine(trimester);
-                  update({ cd: form.cd.trim() ? `${form.cd.trim()}\n${line}` : line });
-                }}
-              >
-                <Plus className="h-4 w-4" /> Copiar sugestão para conduta
-              </Button>
               <p className="text-[10px] text-muted-foreground">
                 Fonte: MS (Pré-Natal de Baixo Risco) / Febrasgo — sugestões (inclui USG), validar com o protocolo do serviço.
               </p>

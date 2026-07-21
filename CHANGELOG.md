@@ -103,6 +103,17 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   uterina do CLAP) ficam para inserir a partir da tabela — não fabricadas.
 - **Mamas** e **inspeção vulvar** ganharam a opção **"não realizado"** e foram
   movidas para o **exame ginecológico e obstétrico**.
+- **Vacinas por situação pré-gestacional**: a lista suspensa de Hep B e dT reflete
+  a situação na descoberta da gestação e abre os campos de dose conforme o status
+  (Hep B: 1 dose → 2 campos, 2 doses → 1, desconhecido → 3; dT: 1 dose → 2, 2
+  doses → 0, desconhecido → 2; sem "imune"/"reforço"). O prontuário registra o que
+  havia antes ("1 DOSE PRÉ-GESTACIONAL…") e as doses da gestação (sem data →
+  PENDENTE). Nova **caixa "Outras vacinas"**.
+- **Gráficos com as curvas oficiais** (transcritas das tabelas enviadas, com
+  fonte — não fabricadas): **IMC × IG pela curva de Atalah** (MS/SISVAN; classifica
+  baixo peso/adequado/sobrepeso/obesidade por semana) e **altura uterina × IG com
+  P10/P90** (Freire et al., RBGO 2006). Dados em `src/core/prenatal/ms-curves.ts`.
+- Removido o botão **"copiar sugestão para conduta"** da seção de sugestões.
 
 ### PSGO — Salvamento automático e prescrição integrada
 

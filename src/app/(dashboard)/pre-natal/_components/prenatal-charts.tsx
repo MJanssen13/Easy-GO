@@ -1,19 +1,17 @@
 "use client";
 
 /**
- * Gráficos de apoio do pré-natal:
- *  - IMC: faixas de classificação (OMS/MS: < 18,5 baixo peso; 18,5–24,9 adequado;
- *    25–29,9 sobrepeso; ≥ 30 obesidade) com o IMC atual marcado.
- *  - Altura uterina × IG: linha de referência da regra prática (AU em cm ≈ IG em
- *    semanas, de ~20 a ~34 sem — MS/Febrasgo) e o ponto medido.
+ * Gráficos do pré-natal, com as curvas oficiais/publicadas (ver `ms-curves.ts`):
+ *  - IMC × IG: curva de Atalah (MS/SISVAN) — faixas baixo peso/adequado/
+ *    sobrepeso/obesidade por semana gestacional, com o IMC atual plotado.
+ *  - Altura uterina × IG: percentis 10 e 90 (Freire et al., RBGO 2006), com a
+ *    AU medida plotada.
  *
- * Apoio à decisão — validar. A curva gestacional de IMC (Atalah) e a curva de
- * altura uterina P10/P90 (CLAP, usada na Caderneta da Gestante do MS) devem ser
- * inseridas a partir da tabela oficial; não são reproduzidas aqui para não
- * fabricar coeficientes.
+ * Apoio à decisão — validar.
  */
 import {
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -23,90 +21,87 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { parseDecimal } from "@/lib/num";
+import { ATALAH_IMC, AU_PERCENTILES, classifyAtalah } from "@/core/prenatal/ms-curves";
 
-const IMC_ZONES = [
-  { label: "Baixo peso", from: 12, to: 18.5, color: "#93c5fd" },
-  { label: "Adequado", from: 18.5, to: 25, color: "#86efac" },
-  { label: "Sobrepeso", from: 25, to: 30, color: "#fde047" },
-  { label: "Obesidade", from: 30, to: 40, color: "#fca5a5" },
-];
-const IMC_MIN = 12;
-const IMC_MAX = 40;
+const IMC_TOP = 36;
+const imcData = ATALAH_IMC.map((r) => ({
+  wk: r.wk,
+  bp: r.aLow, // baixo peso: 0 → aLow
+  a: Math.round((r.sLow - r.aLow) * 10) / 10, // adequado
+  s: Math.round((r.o - r.sLow) * 10) / 10, // sobrepeso
+  ob: Math.round((IMC_TOP - r.o) * 10) / 10, // obesidade (até o topo)
+}));
 
-function imcCategory(imc: number): string {
-  if (imc < 18.5) return "baixo peso";
-  if (imc < 25) return "adequado";
-  if (imc < 30) return "sobrepeso";
-  return "obesidade";
-}
+const auData = AU_PERCENTILES.map((r) => ({
+  wk: r.wk,
+  p10: r.p10,
+  band: Math.round((r.p90 - r.p10) * 10) / 10,
+  p90: r.p90,
+}));
 
-function ImcChart({ imc }: { imc: number }) {
-  const pct = (v: number) => `${((Math.min(Math.max(v, IMC_MIN), IMC_MAX) - IMC_MIN) / (IMC_MAX - IMC_MIN)) * 100}%`;
+function ImcChart({ imc, gaWeeks }: { imc: number; gaWeeks: number | null }) {
+  const cat = classifyAtalah(imc, gaWeeks);
+  const inRange = gaWeeks != null && gaWeeks >= 6 && gaWeeks <= 42;
   return (
     <div className="rounded-lg border p-3">
       <div className="flex items-baseline justify-between">
-        <span className="text-xs font-semibold">IMC atual</span>
+        <span className="text-xs font-semibold">IMC × IG (Atalah)</span>
         <span className="text-sm font-bold tabular-nums">
-          {imc} <span className="text-xs font-normal text-muted-foreground">kg/m² ({imcCategory(imc)})</span>
+          {imc}
+          <span className="text-xs font-normal text-muted-foreground"> kg/m²{cat ? ` · ${cat}` : ""}</span>
         </span>
       </div>
-      <div className="relative mt-2 h-4 w-full overflow-hidden rounded-full">
-        {IMC_ZONES.map((z) => (
-          <div
-            key={z.label}
-            className="absolute top-0 h-full"
-            style={{ left: pct(z.from), width: `${((z.to - z.from) / (IMC_MAX - IMC_MIN)) * 100}%`, background: z.color }}
-            title={`${z.label} (${z.from}–${z.to})`}
-          />
-        ))}
-        <div
-          className="absolute top-[-2px] h-[20px] w-[2px] bg-foreground"
-          style={{ left: pct(imc) }}
-          aria-label={`IMC ${imc}`}
-        />
+      <div className="mt-1 h-[160px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={imcData} margin={{ top: 6, right: 8, bottom: 0, left: -22 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="wk" type="number" domain={[6, 42]} tick={{ fontSize: 10 }} tickCount={7} />
+            <YAxis domain={[16, IMC_TOP]} tick={{ fontSize: 10 }} allowDataOverflow />
+            <Tooltip contentStyle={{ fontSize: 11 }} labelFormatter={(l) => `${l} sem`} />
+            <Area dataKey="bp" stackId="z" stroke="none" fill="#bfdbfe" fillOpacity={0.7} name="baixo peso" isAnimationActive={false} />
+            <Area dataKey="a" stackId="z" stroke="none" fill="#bbf7d0" fillOpacity={0.7} name="adequado" isAnimationActive={false} />
+            <Area dataKey="s" stackId="z" stroke="none" fill="#fef08a" fillOpacity={0.7} name="sobrepeso" isAnimationActive={false} />
+            <Area dataKey="ob" stackId="z" stroke="none" fill="#fecaca" fillOpacity={0.7} name="obesidade" isAnimationActive={false} />
+            {inRange && <ReferenceDot x={Math.round(gaWeeks!)} y={imc} r={5} fill="#1e293b" stroke="#fff" strokeWidth={1.5} />}
+          </ComposedChart>
+        </ResponsiveContainer>
       </div>
-      <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
-        <span>18,5</span>
-        <span>25</span>
-        <span>30</span>
-      </div>
-      <p className="mt-1 text-[10px] text-muted-foreground">Faixas OMS/MS · validar (curva de IMC gestacional de Atalah a inserir).</p>
+      <p className="text-[10px] text-muted-foreground">
+        Faixas: baixo peso / adequado / sobrepeso / obesidade. Fonte: MS/SISVAN (Atalah 1997) · validar.
+        {!inRange && " Informe a IG (6–42 sem) para plotar o ponto."}
+      </p>
     </div>
   );
 }
 
-function AuChart({ au, gaWeeks }: { au: number; gaWeeks: number }) {
-  // Linha de referência da regra prática (AU ≈ IG entre 20 e 34 sem).
-  const ref = [];
-  for (let wk = 20; wk <= 34; wk++) ref.push({ ga: wk, au: wk });
+function AuChart({ au, gaWeeks }: { au: number; gaWeeks: number | null }) {
+  const inRange = gaWeeks != null && gaWeeks >= 13 && gaWeeks <= 39;
   return (
     <div className="rounded-lg border p-3">
       <div className="flex items-baseline justify-between">
         <span className="text-xs font-semibold">Altura uterina × IG</span>
         <span className="text-sm font-bold tabular-nums">
-          {au} <span className="text-xs font-normal text-muted-foreground">cm · {gaWeeks} sem</span>
+          {au} <span className="text-xs font-normal text-muted-foreground">cm{gaWeeks != null ? ` · ${gaWeeks} sem` : ""}</span>
         </span>
       </div>
-      <div className="mt-1 h-[150px] w-full">
+      <div className="mt-1 h-[160px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={ref} margin={{ top: 6, right: 8, bottom: 0, left: -24 }}>
+          <ComposedChart data={auData} margin={{ top: 6, right: 8, bottom: 0, left: -22 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="ga" type="number" domain={[12, 40]} tick={{ fontSize: 10 }} tickCount={8} />
+            <XAxis dataKey="wk" type="number" domain={[13, 40]} tick={{ fontSize: 10 }} tickCount={7} />
             <YAxis domain={[0, 40]} tick={{ fontSize: 10 }} />
-            <Tooltip
-              formatter={(v: number | string) => [`${v} cm`, "AU ≈ IG"]}
-              labelFormatter={(l) => `${l} sem`}
-              contentStyle={{ fontSize: 11 }}
-            />
-            <Line dataKey="au" dot={false} stroke="#0d9488" strokeWidth={2} isAnimationActive={false} />
-            {gaWeeks >= 12 && gaWeeks <= 40 && (
-              <ReferenceDot x={gaWeeks} y={au} r={5} fill="#e11d48" stroke="#fff" strokeWidth={1} />
-            )}
-          </LineChart>
+            <Tooltip contentStyle={{ fontSize: 11 }} labelFormatter={(l) => `${l} sem`} />
+            <Area dataKey="p10" stackId="b" stroke="none" fill="transparent" isAnimationActive={false} />
+            <Area dataKey="band" stackId="b" stroke="none" fill="#99f6e4" fillOpacity={0.6} name="P10–P90" isAnimationActive={false} />
+            <Line dataKey="p10" dot={false} stroke="#0d9488" strokeWidth={1.5} name="P10" isAnimationActive={false} />
+            <Line dataKey="p90" dot={false} stroke="#0d9488" strokeWidth={1.5} name="P90" isAnimationActive={false} />
+            {inRange && <ReferenceDot x={Math.round(gaWeeks!)} y={au} r={5} fill="#e11d48" stroke="#fff" strokeWidth={1.5} />}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
       <p className="text-[10px] text-muted-foreground">
-        Referência: regra prática AU≈IG (20–34 sem, MS/Febrasgo) · validar (curva P10/P90 do CLAP a inserir).
+        Banda P10–P90 (baixo risco). Fonte: Freire et al., RBGO 2006 · validar.
+        {!inRange && " Ponto plotado entre 13–39 sem."}
       </p>
     </div>
   );
@@ -129,12 +124,12 @@ export function PrenatalCharts({
   const auNum = parseDecimal(au);
 
   const showImc = imc != null;
-  const showAu = auNum != null && auNum > 0 && gaWeeks != null;
+  const showAu = auNum != null && auNum > 0;
   if (!showImc && !showAu) return null;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {showImc && <ImcChart imc={imc} />}
+      {showImc && <ImcChart imc={imc} gaWeeks={gaWeeks} />}
       {showAu && <AuChart au={auNum} gaWeeks={gaWeeks} />}
     </div>
   );
