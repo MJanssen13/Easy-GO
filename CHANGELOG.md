@@ -66,6 +66,19 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   - **IMC pré-gestacional + ganho de peso** (IOM 2009): classifica o IMC
     pré-gestacional, mostra a meta de ganho e compara o ganho atual com o
     esperado para a IG; a linha entra no exame físico do prontuário.
+- **Exame físico e ginecológico/obstétrico do PSGO reaproveitados**: além dos
+  sistemas do modelo (geral, tireoide, mamas, inspeção vulvar, MMII), o abdome
+  gravídico, o exame especular e o toque vaginal agora usam o **exame clicável**
+  do PSGO (`gyneco-exam`) — mesma notação obstétrica compartilhada.
+- **HPMA adaptada do PSGO, sem o gerador** (a pedido): a seção "HPMA / Contexto"
+  traz só a **revisão dirigida** (perguntas sempre respondidas: sangramento,
+  secreção, hábitos intestinal/urinário, contrações e movimentação fetal —
+  `REVISION_QUESTIONS`) e um campo livre de **queixas atuais**. O bloco CONTEXTO
+  do prontuário é montado a partir delas.
+- **Exames de imagem junto com a datação** (como no PSGO): o quadro de USG passou
+  para a seção de datação, com **listas suspensas** (apresentação, inserção e
+  grau placentário) e percentis Hadlock; os **USGs que não datam têm a IG
+  preenchida automaticamente** pela datação resolvida.
 
 ### PSGO — Salvamento automático e prescrição integrada
 

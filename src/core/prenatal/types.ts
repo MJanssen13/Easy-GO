@@ -14,12 +14,12 @@ import type { SerologyGrid } from "@/core/psgo/serology";
 import { emptySerologyGrid } from "@/core/psgo/serology";
 import type { ImagingExam } from "@/core/psgo/imaging";
 import type { CoombsEntry } from "@/core/psgo/types";
+import type { GynecoState } from "@/core/psgo/gyneco-exam";
+import { emptyGynecoState } from "@/core/psgo/gyneco-exam";
 import type { PrenatalVitals, PrenatalExamState } from "./exam";
 import { emptyPrenatalExam } from "./exam";
 import type { VaccineCard } from "./vaccines";
 import { emptyVaccineCard } from "./vaccines";
-import type { ContextState } from "./context";
-import { emptyContext } from "./context";
 
 export interface PrenatalForm {
   date: string; // data da consulta (ISO)
@@ -74,8 +74,11 @@ export interface PrenatalForm {
   serologyPasted: string;
   serologyGrid: SerologyGrid;
 
-  // contexto da consulta (anamnese dirigida)
-  context: ContextState;
+  // contexto da consulta (HPMA adaptada do PSGO: revisão dirigida + queixas atuais)
+  /** Valores da revisão dirigida (chaves `rev.<id>` e sub-campos). */
+  revision: Record<string, string>;
+  /** Queixas atuais (texto livre). */
+  currentComplaints: string;
 
   // exame físico
   weight: string;
@@ -84,6 +87,8 @@ export interface PrenatalForm {
   height: string;
   vitals: PrenatalVitals;
   exam: PrenatalExamState;
+  /** Exame ginecológico/obstétrico clicável (abdome, toque, especular) — reuso do PSGO. */
+  gyneco: GynecoState;
 
   // laboratoriais / imagem
   labs: string;
@@ -141,12 +146,14 @@ export function emptyPrenatalForm(date?: string): PrenatalForm {
     vceDate: "",
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),
-    context: emptyContext(),
+    revision: {},
+    currentComplaints: "",
     weight: "",
     prePregnancyWeight: "",
     height: "",
     vitals: {},
     exam: emptyPrenatalExam(),
+    gyneco: emptyGynecoState(),
     labs: "",
     imagingExams: [],
     otherImaging: "",
@@ -157,4 +164,3 @@ export function emptyPrenatalForm(date?: string): PrenatalForm {
 
 export type { PrenatalVitals, PrenatalExamState } from "./exam";
 export type { VaccineCard } from "./vaccines";
-export type { ContextState } from "./context";

@@ -13,11 +13,12 @@ import { autoComorbidities, classifyBmi } from "@/core/psgo/comorbidities";
 import { formatCurrentMedication, formatPastMedication } from "@/core/psgo/medications";
 import { renderSerologies } from "@/core/psgo/serology";
 import { renderImaging } from "@/core/psgo/imaging";
+import { renderGyneco } from "@/core/psgo/gyneco-exam";
 import { sortDatedText } from "@/core/psgo/dated-lines";
 import { parseDecimal } from "@/lib/num";
 import { PRENATAL_EXAM_SYSTEMS, buildPrenatalExamLine } from "./exam";
 import { renderVaccineCard } from "./vaccines";
-import { renderContext } from "./context";
+import { renderPrenatalContext } from "./context";
 import { assessWeightGain } from "./weight-gain";
 
 function dateBR(iso?: string | null): string {
@@ -186,8 +187,8 @@ export function renderPrenatal(form: PrenatalForm): string {
   if (serologies.trim()) seroBlock.push(serologies);
   push(2, ...seroBlock);
 
-  // Contexto da consulta
-  push(2, `CONTEXTO: ${renderContext(form.context)}`);
+  // Contexto da consulta (HPMA adaptada: revisão dirigida + queixas atuais)
+  push(2, `CONTEXTO: ${renderPrenatalContext(form.revision, form.currentComplaints)}`);
 
   // Exame físico
   const examBlock = [
@@ -202,9 +203,24 @@ export function renderPrenatal(form: PrenatalForm): string {
     gaWeeks: dating.gaWeeks,
   });
   if (weightGain) examBlock.push(weightGain.summaryLine);
-  for (const s of PRENATAL_EXAM_SYSTEMS) {
-    examBlock.push(buildPrenatalExamLine(s, form.exam[s.id], form.vitals));
-  }
+  // Sistemas por id (para intercalar o exame ginecológico/obstétrico na ordem do modelo).
+  const sysDef = (id: string) => PRENATAL_EXAM_SYSTEMS.find((s) => s.id === id)!;
+  const sysLine = (id: string) => buildPrenatalExamLine(sysDef(id), form.exam[id], form.vitals);
+  // Exame ginecológico/obstétrico clicável (reuso do PSGO): [ABD, TOQUE, ESPECULAR].
+  const [abdLine, toqueLine, especularLine] = renderGyneco(form.gyneco, form.vitals, true);
+  // Ordem do modelo: geral, tireoide, ACV, AR, mamas, ABDOME, vulva, especular, toque, MMII.
+  examBlock.push(
+    sysLine("geral"),
+    sysLine("tireoide"),
+    sysLine("acv"),
+    sysLine("ar"),
+    sysLine("mamas"),
+    abdLine,
+    sysLine("vulva"),
+    especularLine,
+    toqueLine,
+    sysLine("mmii"),
+  );
   push(2, ...examBlock);
 
   // Laboratoriais (linhas datadas "-(dd/mm/aa): …" em ordem cronológica)

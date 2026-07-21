@@ -16,11 +16,8 @@ import {
   type PrenatalForm,
 } from "@/core/prenatal/types";
 import { renderPrenatal, prenatalHd } from "@/core/prenatal/render";
-import {
-  PRENATAL_EXAM_SYSTEMS,
-  prenatalNormalLine,
-  type PrenatalExamMode,
-} from "@/core/prenatal/exam";
+import { renderPrenatalContext } from "@/core/prenatal/context";
+import { PRENATAL_EXAM_SYSTEMS, prenatalNormalLine } from "@/core/prenatal/exam";
 import { PRENATAL_VACCINES, VACCINE_STATUSES } from "@/core/prenatal/vaccines";
 import { vaccineRecommendations, type VaccineRecStatus } from "@/core/prenatal/vaccine-schedule";
 import {
@@ -49,8 +46,45 @@ import {
   withAutoGa,
   refFromISO,
 } from "@/core/psgo/dating";
-import { renderImagingExam, imagingWarnings, type ImagingExam } from "@/core/psgo/imaging";
+import { renderImagingExam, imagingWarnings, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
 import { HABITS, type CoombsEntry } from "@/core/psgo/types";
+import {
+  abdFieldsFor,
+  toqueFieldsFor,
+  ESP_FIELDS,
+  ABD_DU_DETALHE_KEY,
+  TOQUE_DOR_OPTIONS,
+  TOQUE_DOR_INDOLOR_KEY,
+  SEC_LOCAL_KEY,
+  SEC_LOCAL_OPTIONS,
+  SEC_ODOR_KEY,
+  SEC_ODOR_OPTIONS,
+  SEC_GRUMOS_KEY,
+  SEC_GRUMOS_OPTIONS,
+  SEC_COR_KEY,
+  SEC_COR_OPTIONS,
+  secHasCharacteristics,
+  ESP_SANGRAMENTO_KEY,
+  ESP_SANGRAMENTO_QTD_KEY,
+  ESP_SANGRAMENTO_OPTIONS,
+  ESP_SANGRAMENTO_QTD_OPTIONS,
+  ESP_SANGRAMENTO_OE_KEY,
+  ESP_SANGRAMENTO_OE_OPTIONS,
+  ESP_SAIDA_COLO_KEY,
+  ESP_SAIDA_COLO_OPTIONS,
+  ESP_SAIDA_COLO_TIPO_KEY,
+  ESP_SAIDA_COLO_TIPO_OPTIONS,
+  ESP_AMNIOSURE_KEY,
+  ESP_CRISTALIZACAO_KEY,
+  TEST_OPTIONS,
+  type GyField,
+} from "@/core/psgo/gyneco-exam";
+import { REVISION_QUESTIONS, type RevSub } from "@/core/psgo/hpma";
+import {
+  PRESENTATION_OPTIONS,
+  PLACENTA_SITE_OPTIONS,
+  PLACENTA_GRADE_OPTIONS,
+} from "@/core/prenatal/imaging-options";
 import { parseDecimal } from "@/lib/num";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -274,6 +308,10 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
   const bmi = classifyBmi(parseDecimal(form.weight), parseDecimal(form.height));
   const cesareanText = formatCesareans(form.priorPregnancies);
   const autoHd = useMemo(() => prenatalHd(form), [form]);
+  const contextPreview = useMemo(
+    () => renderPrenatalContext(form.revision, form.currentComplaints),
+    [form.revision, form.currentComplaints],
+  );
 
   // IG resolvida (semanas) → recomendações de vacina e rotina de exames por trimestre.
   const gaWeeks = useMemo(
@@ -439,20 +477,123 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
     update({ imagingExams: [target, ...form.imagingExams.filter((e) => e.id !== id)] });
   }
 
-  // Contexto — atualização de uma queixa
-  function updateComplaint(
-    key: "breast" | "leucorrhea" | "giGu" | "other",
-    patch: Partial<{ deny: boolean; text: string }>,
-  ) {
-    update({ context: { ...form.context, [key]: { ...form.context[key], ...patch } } });
+  // Exame ginecológico/obstétrico (reuso do PSGO)
+  function setGyneco(patch: Partial<PrenatalForm["gyneco"]>) {
+    update({ gyneco: { ...form.gyneco, ...patch } });
+  }
+  function setGynecoValue(fieldId: string, label: string) {
+    update({ gyneco: { ...form.gyneco, values: { ...form.gyneco.values, [fieldId]: label } } });
+  }
+  // Dor ao toque (multi): "Indolor" é exclusivo dos demais.
+  function toggleDor(key: string) {
+    setForm((f) => {
+      const cur = f.gyneco.values;
+      const on = cur[key] === "1";
+      const next = { ...cur };
+      if (key === TOQUE_DOR_INDOLOR_KEY) {
+        for (const op of TOQUE_DOR_OPTIONS) next[op.key] = "";
+        next[TOQUE_DOR_INDOLOR_KEY] = on ? "" : "1";
+      } else {
+        next[key] = on ? "" : "1";
+        if (!on) next[TOQUE_DOR_INDOLOR_KEY] = "";
+      }
+      return { ...f, gyneco: { ...f.gyneco, values: next } };
+    });
   }
 
-  const COMPLAINTS: { key: "breast" | "leucorrhea" | "giGu" | "other"; label: string }[] = [
-    { key: "breast", label: "Queixas mamárias" },
-    { key: "leucorrhea", label: "Leucorreia patológica" },
-    { key: "giGu", label: "Queixas de TGI/TGU" },
-    { key: "other", label: "Outras queixas" },
-  ];
+  // Revisão dirigida (HPMA adaptada) — valores por chave `rev.<id>`.
+  function setRevVal(key: string, value: string) {
+    update({ revision: { ...form.revision, [key]: value } });
+  }
+
+  const gyField = (field: GyField) => (
+    <div key={field.id} className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{field.label}</Label>
+      {field.render === "select" ? (
+        <select
+          className={`${selectClass} h-8 w-40`}
+          value={form.gyneco.values[field.id] ?? field.options[0].label}
+          onChange={(e) => setGynecoValue(field.id, e.target.value)}
+        >
+          {field.options.map((op) => (
+            <option key={op.label} value={op.label}>
+              {op.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {field.options.map((op) => (
+            <Chip
+              key={op.label}
+              active={form.gyneco.values[field.id] === op.label}
+              onClick={() => setGynecoValue(field.id, op.label)}
+            >
+              {op.label}
+            </Chip>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+  const gyChipRow = (label: string, fieldId: string, options: { label: string }[]) => (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((op) => (
+          <Chip
+            key={op.label}
+            active={form.gyneco.values[fieldId] === op.label}
+            onClick={() => setGynecoValue(fieldId, op.label)}
+          >
+            {op.label}
+          </Chip>
+        ))}
+      </div>
+    </div>
+  );
+  const gyTestToggle = (label: string, fieldId: string) => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-24 text-xs text-muted-foreground">{label}</span>
+      {TEST_OPTIONS.map((t) => (
+        <Chip key={t} active={form.gyneco.values[fieldId] === t} onClick={() => setGynecoValue(fieldId, t)}>
+          {t}
+        </Chip>
+      ))}
+    </div>
+  );
+
+  const hpmaInputCls =
+    "mx-0.5 inline-block h-6 w-14 rounded border border-input bg-background px-1 align-middle text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  const renderRevSub = (qid: string, sub: RevSub) => {
+    const base = `rev.${qid}.${sub.id}`;
+    if (sub.kind === "blank") {
+      return (
+        <span key={sub.id} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          {sub.label}
+          <input value={form.revision[base] ?? ""} onChange={(e) => setRevVal(base, e.target.value)} className={hpmaInputCls} />
+        </span>
+      );
+    }
+    return (
+      <span key={sub.id} className="inline-flex flex-wrap items-center gap-1">
+        <span className="text-xs text-muted-foreground">{sub.label}:</span>
+        {(sub.opts ?? []).map((op) => {
+          const key = sub.kind === "multi" ? `${base}#${op}` : base;
+          const active = sub.kind === "multi" ? form.revision[key] === "1" : form.revision[key] === op;
+          return (
+            <Chip
+              key={op}
+              active={active}
+              onClick={() => setRevVal(key, sub.kind === "multi" ? (active ? "" : "1") : active ? "" : op)}
+            >
+              {op}
+            </Chip>
+          );
+        })}
+      </span>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -692,6 +833,202 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Exames de imagem (USG) — juntos com a datação, como no PSGO */}
+          <div className="space-y-3 border-t pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">Exames de imagem (USG)</p>
+              <Button type="button" size="sm" variant="outline" onClick={addImaging}>
+                <Plus className="h-4 w-4" /> USG
+              </Button>
+            </div>
+            {form.imagingExams.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Adicione um USG. Percentis de CC/PESO/CA pela Hadlock; IP-AUmb, IP-ACM, RCP e IP da a.
+                uterina pela FMF. O 1º exame é a âncora da datação; os demais têm a IG preenchida
+                automaticamente.
+              </p>
+            ) : (
+              form.imagingExams.map((e, idx) => {
+                const computed = imagingComputed.find((x) => x.id === e.id) ?? e;
+                const centiles = examCentiles(computed);
+                const preview = renderImagingExam(computed);
+                const warns = imagingWarnings(computed);
+                const isDating = idx === 0;
+                return (
+                  <div key={e.id} className="space-y-2 rounded-md border p-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        USG {idx + 1}
+                        {isDating && (
+                          <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                            datação
+                          </span>
+                        )}
+                      </span>
+                      <DateBRInput
+                        className="h-8 w-32"
+                        value={e.date ?? ""}
+                        onChange={(iso) => updateImaging(e.id, { date: iso })}
+                      />
+                      <label className="flex items-center gap-1.5 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={!!e.external}
+                          onChange={(ev) => updateImaging(e.id, { external: ev.target.checked })}
+                          className="h-3.5 w-3.5 rounded border-input"
+                        />
+                        Externo (EXT)
+                      </label>
+                      <div className="ml-auto flex items-center gap-1">
+                        {!isDating && (
+                          <Button type="button" size="sm" variant="ghost" onClick={() => useForDating(e.id)}>
+                            Usar para datar
+                          </Button>
+                        )}
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeImaging(e.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {isDating ? (
+                        <>
+                          <Field label="IG (sem)">
+                            <Input
+                              className="h-8"
+                              inputMode="numeric"
+                              value={e.gaWeeks ?? ""}
+                              onChange={(ev) =>
+                                updateImaging(e.id, { gaWeeks: ev.target.value === "" ? undefined : Number(ev.target.value) })
+                              }
+                            />
+                          </Field>
+                          <Field label="IG (dias)">
+                            <Input
+                              className="h-8"
+                              inputMode="numeric"
+                              value={e.gaDays ?? ""}
+                              onChange={(ev) =>
+                                updateImaging(e.id, { gaDays: ev.target.value === "" ? undefined : Number(ev.target.value) })
+                              }
+                            />
+                          </Field>
+                        </>
+                      ) : (
+                        <Field label="IG (automática)" className="col-span-2">
+                          <div className="flex h-8 items-center rounded-md border border-dashed bg-muted/40 px-3 text-sm text-muted-foreground">
+                            {computed.gaWeeks != null
+                              ? `${computed.gaWeeks} sem ${computed.gaDays ?? 0} d`
+                              : "— (defina a datação)"}
+                          </div>
+                        </Field>
+                      )}
+                      <Field label="Apresentação">
+                        <select
+                          className={`${selectClass} h-8 w-full`}
+                          value={e.presentation ?? ""}
+                          onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
+                        >
+                          <option value="">—</option>
+                          {PRESENTATION_OPTIONS.map((o) => (
+                            <option key={o} value={o}>
+                              {o}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="BCF (bpm)">
+                        <Input className="h-8" value={e.fhr ?? ""} onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })} />
+                      </Field>
+                      <Field label="CC (mm)">
+                        <div className="flex items-center gap-1">
+                          <Input className="h-8" inputMode="numeric" value={e.hc ?? ""} onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })} />
+                          <span className="text-[10px] text-muted-foreground">{centiles.hc}</span>
+                        </div>
+                      </Field>
+                      <Field label="CA (mm)">
+                        <div className="flex items-center gap-1">
+                          <Input className="h-8" inputMode="numeric" value={e.ac ?? ""} onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })} />
+                          <span className="text-[10px] text-muted-foreground">{centiles.ac}</span>
+                        </div>
+                      </Field>
+                      <Field label="PFE (g)">
+                        <div className="flex items-center gap-1">
+                          <Input className="h-8" inputMode="numeric" value={e.efw ?? ""} onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })} />
+                          <span className="text-[10px] text-muted-foreground">{centiles.efw}</span>
+                        </div>
+                      </Field>
+                      <Field label="ILA (cm)">
+                        <Input className="h-8" value={e.ila ?? ""} onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })} />
+                      </Field>
+                      <Field label="MBV (cm)">
+                        <Input className="h-8" value={e.mbv ?? ""} onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })} />
+                      </Field>
+                      <Field label="Placenta (inserção)">
+                        <select
+                          className={`${selectClass} h-8 w-full`}
+                          value={e.placentaSite ?? ""}
+                          onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
+                        >
+                          <option value="">—</option>
+                          {PLACENTA_SITE_OPTIONS.map((o) => (
+                            <option key={o} value={o}>
+                              {o}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Placenta (grau)">
+                        <select
+                          className={`${selectClass} h-8 w-full`}
+                          value={e.placentaGrade ?? ""}
+                          onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
+                        >
+                          <option value="">—</option>
+                          {PLACENTA_GRADE_OPTIONS.map((o) => (
+                            <option key={o} value={o}>
+                              {o}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="IP AUmb">
+                        <Input className="h-8" value={e.uaPi ?? ""} onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })} />
+                      </Field>
+                      <Field label="IP ACM">
+                        <Input className="h-8" value={e.mcaPi ?? ""} onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })} />
+                      </Field>
+                      <Field label="IP a. uterina">
+                        <Input className="h-8" value={e.utPi ?? ""} onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })} />
+                      </Field>
+                    </div>
+                    <Field label="Observações (laudo livre)">
+                      <Input
+                        className="h-8"
+                        value={e.notes ?? ""}
+                        onChange={(ev) => updateImaging(e.id, { notes: ev.target.value })}
+                      />
+                    </Field>
+                    {warns.length > 0 && (
+                      <p className="rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800">{warns.join(" · ")}</p>
+                    )}
+                    {preview.trim() && (
+                      <p className="rounded bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground">{preview}</p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+            <Field label="Outros exames de imagem (texto livre)">
+              <Textarea
+                rows={2}
+                placeholder="-(dd/mm/aa): USG MORFOLÓGICO ..."
+                value={form.otherImaging}
+                onChange={(e) => update({ otherImaging: e.target.value })}
+              />
+            </Field>
           </div>
         </Section>
 
@@ -1147,53 +1484,48 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           )}
         </Section>
 
-        {/* Contexto */}
-        <Section title="Contexto da consulta" contentClassName="space-y-3">
-          <Field label="Movimentação fetal">
-            <div className="w-full max-w-md">
-              <Segmented
-                value={form.context.fetalMovement || "boa"}
-                onChange={(v) => update({ context: { ...form.context, fetalMovement: v } })}
-                options={[
-                  { value: "boa", label: "Boa" },
-                  { value: "diminuida", label: "Diminuída" },
-                  { value: "ausente", label: "Ausente" },
-                  { value: "naorefere", label: "Não refere" },
-                ]}
-              />
-            </div>
-          </Field>
-          {COMPLAINTS.map((c) => (
-            <div key={c.key} className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">{c.label}</Label>
-                <div className="w-40">
-                  <Segmented
-                    value={form.context[c.key].deny ? "nega" : "refere"}
-                    onChange={(v) => updateComplaint(c.key, { deny: v === "nega" })}
-                    options={[
-                      { value: "nega", label: "Nega" },
-                      { value: "refere", label: "Refere" },
-                    ]}
-                  />
-                </div>
-              </div>
-              {!form.context[c.key].deny && (
-                <Input
-                  placeholder="Descreva a queixa…"
-                  value={form.context[c.key].text}
-                  onChange={(e) => updateComplaint(c.key, { text: e.target.value })}
-                />
-              )}
-            </div>
-          ))}
-          <Field label="Observações adicionais">
+        {/* HPMA / Contexto — revisão dirigida (sempre respondida) + queixas atuais.
+            Adaptada do PSGO, sem o gerador de HPMA por QP (a pedido). */}
+        <Section title="HPMA / Contexto" contentClassName="space-y-3">
+          <Field label="Queixas atuais">
             <Textarea
               rows={2}
-              value={form.context.extra}
-              onChange={(e) => update({ context: { ...form.context, extra: e.target.value } })}
+              placeholder="Ex.: refere cefaleia há 2 dias; edema de MMII…"
+              value={form.currentComplaints}
+              onChange={(e) => update({ currentComplaints: e.target.value })}
             />
           </Field>
+          <div className="space-y-1.5 border-t pt-2">
+            <p className="text-xs font-semibold text-muted-foreground">Revisão dirigida (sempre respondida)</p>
+            {REVISION_QUESTIONS.map((q) => {
+              const key = `rev.${q.id}`;
+              const cur = form.revision[key] ?? q.options[0].value;
+              const curOpt = q.options.find((op) => op.value === cur);
+              return (
+                <div key={q.id} className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="w-36 text-xs text-muted-foreground">{q.label}</span>
+                    {q.options.map((op) => (
+                      <Chip key={op.value} active={cur === op.value} onClick={() => setRevVal(key, op.value)}>
+                        {op.label}
+                      </Chip>
+                    ))}
+                  </div>
+                  {curOpt?.subs && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-36">
+                      {curOpt.subs.map((sub) => renderRevSub(q.id, sub))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="space-y-1 border-t pt-2">
+            <span className="text-xs font-semibold text-muted-foreground">Prévia do CONTEXTO</span>
+            <p className="prontuario-text rounded bg-muted/40 px-2 py-1 text-[11px] text-justify">
+              {contextPreview}
+            </p>
+          </div>
         </Section>
 
         {/* Exame físico */}
@@ -1229,9 +1561,6 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             </Field>
             <Field label="AU (cm)">
               <Input value={form.vitals.au ?? ""} onChange={(e) => update({ vitals: { ...form.vitals, au: e.target.value } })} />
-            </Field>
-            <Field label="CA (cm)">
-              <Input value={form.vitals.ca ?? ""} onChange={(e) => update({ vitals: { ...form.vitals, ca: e.target.value } })} />
             </Field>
             <Field label="BCF (bpm)">
               <Input value={form.vitals.bcf ?? ""} onChange={(e) => update({ vitals: { ...form.vitals, bcf: e.target.value } })} />
@@ -1286,21 +1615,11 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
 
           {PRENATAL_EXAM_SYSTEMS.map((s) => {
             const st = form.exam[s.id];
-            const modeOptions: { value: PrenatalExamMode; label: string }[] = s.canSkip
-              ? [
-                  { value: "normal", label: "Normal" },
-                  { value: "altered", label: "Alterado" },
-                  { value: "notdone", label: "Não realizado" },
-                ]
-              : [
-                  { value: "normal", label: "Normal" },
-                  { value: "altered", label: "Alterado" },
-                ];
             return (
               <div key={s.id} className="rounded-md border p-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">{s.label}</span>
-                  <div className={s.canSkip ? "w-60" : "w-44"}>
+                  <div className="w-44">
                     <Segmented
                       value={st.mode}
                       onChange={(v) =>
@@ -1317,7 +1636,10 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                           },
                         })
                       }
-                      options={modeOptions}
+                      options={[
+                        { value: "normal", label: "Normal" },
+                        { value: "altered", label: "Alterado" },
+                      ]}
                     />
                   </div>
                 </div>
@@ -1329,8 +1651,6 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                     placeholder={prenatalNormalLine(s.id, form.vitals)}
                     onChange={(e) => update({ exam: { ...form.exam, [s.id]: { ...st, text: e.target.value } } })}
                   />
-                ) : st.mode === "notdone" ? (
-                  <p className="mt-1 text-xs italic text-muted-foreground">Não realizado nesta consulta.</p>
                 ) : (
                   <p className="mt-1 text-xs text-muted-foreground">{prenatalNormalLine(s.id, form.vitals)}</p>
                 )}
@@ -1339,159 +1659,148 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           })}
         </Section>
 
-        {/* Exames de imagem (USG) */}
+        {/* Exame ginecológico e obstétrico (clicável) — reuso do PSGO */}
         <Section
           defaultOpen={false}
-          title="Exames de imagem (USG)"
-          contentClassName="space-y-3"
-          headerExtra={
-            <Button type="button" size="sm" variant="outline" onClick={addImaging}>
-              <Plus className="h-4 w-4" /> USG
-            </Button>
-          }
+          title="Exame ginecológico e obstétrico"
+          contentClassName="space-y-4"
         >
-          {form.imagingExams.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Adicione um USG. Percentis de CC/PESO/CA pela Hadlock; IP-AUmb, IP-ACM, RCP e IP da a.
-              uterina pela FMF (fetalmedicine.org). O 1º exame é a âncora da datação.
-            </p>
-          ) : (
-            form.imagingExams.map((e, idx) => {
-              const computed = imagingComputed.find((x) => x.id === e.id) ?? e;
-              const preview = renderImagingExam(computed);
-              const warns = imagingWarnings(computed);
-              return (
-                <div key={e.id} className="space-y-2 rounded-md border p-2.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      USG {idx + 1}
-                      {idx === 0 && (
-                        <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                          datação
-                        </span>
-                      )}
-                    </span>
-                    <DateBRInput
-                      className="h-8 w-32"
-                      value={e.date ?? ""}
-                      onChange={(iso) => updateImaging(e.id, { date: iso })}
-                    />
-                    <label className="flex items-center gap-1.5 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={!!e.external}
-                        onChange={(ev) => updateImaging(e.id, { external: ev.target.checked })}
-                        className="h-3.5 w-3.5 rounded border-input"
-                      />
-                      Externo (EXT)
-                    </label>
-                    <div className="ml-auto flex items-center gap-1">
-                      {idx !== 0 && (
-                        <Button type="button" size="sm" variant="ghost" onClick={() => useForDating(e.id)}>
-                          Usar para datar
-                        </Button>
-                      )}
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeImaging(e.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+          {/* Abdome gravídico */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Abdome (gravídico)</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{abdFieldsFor(true).map(gyField)}</div>
+            {form.gyneco.values["abdDu"] === "Presente" && (
+              <Field label="Dinâmica uterina (descrição)" className="max-w-md">
+                <Input
+                  value={form.gyneco.values[ABD_DU_DETALHE_KEY] ?? ""}
+                  onChange={(e) => setGynecoValue(ABD_DU_DETALHE_KEY, e.target.value)}
+                  placeholder="ex.: 2 em 10 minutos"
+                />
+              </Field>
+            )}
+            <p className="text-xs text-muted-foreground">AU e BCF vêm dos sinais vitais do exame físico.</p>
+          </div>
+
+          {/* Exame especular */}
+          <div className="space-y-2 border-t pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold">Exame especular</p>
+              <div className="w-52">
+                <Segmented
+                  value={form.gyneco.espRealizado ? "sim" : "nao"}
+                  onChange={(v) => setGyneco({ espRealizado: v === "sim" })}
+                  options={[
+                    { value: "sim", label: "Realizado" },
+                    { value: "nao", label: "Não realizado" },
+                  ]}
+                />
+              </div>
+            </div>
+            {form.gyneco.espRealizado && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {ESP_FIELDS.map(gyField)}
+                <div className="space-y-1 sm:col-span-2">
+                  {gyChipRow("Secreção", SEC_LOCAL_KEY, SEC_LOCAL_OPTIONS)}
+                  {secHasCharacteristics(form.gyneco.values[SEC_LOCAL_KEY]) && (
+                    <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
+                      {gyChipRow("Cor", SEC_COR_KEY, SEC_COR_OPTIONS)}
+                      {gyChipRow("Grumos", SEC_GRUMOS_KEY, SEC_GRUMOS_OPTIONS)}
+                      {gyChipRow("Odor", SEC_ODOR_KEY, SEC_ODOR_OPTIONS)}
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <Field label="IG (sem)">
-                      <Input
-                        className="h-8"
-                        inputMode="numeric"
-                        value={e.gaWeeks ?? ""}
-                        onChange={(ev) =>
-                          updateImaging(e.id, { gaWeeks: ev.target.value === "" ? undefined : Number(ev.target.value) })
-                        }
-                      />
-                    </Field>
-                    <Field label="IG (dias)">
-                      <Input
-                        className="h-8"
-                        inputMode="numeric"
-                        value={e.gaDays ?? ""}
-                        onChange={(ev) =>
-                          updateImaging(e.id, { gaDays: ev.target.value === "" ? undefined : Number(ev.target.value) })
-                        }
-                      />
-                    </Field>
-                    <Field label="Apresentação">
-                      <Input
-                        className="h-8"
-                        value={e.presentation ?? ""}
-                        onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
-                      />
-                    </Field>
-                    <Field label="BCF (bpm)">
-                      <Input
-                        className="h-8"
-                        value={e.fhr ?? ""}
-                        onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })}
-                      />
-                    </Field>
-                    <Field label="CC (mm)">
-                      <Input className="h-8" value={e.hc ?? ""} onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })} />
-                    </Field>
-                    <Field label="CA (mm)">
-                      <Input className="h-8" value={e.ac ?? ""} onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })} />
-                    </Field>
-                    <Field label="PFE (g)">
-                      <Input className="h-8" value={e.efw ?? ""} onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })} />
-                    </Field>
-                    <Field label="ILA (cm)">
-                      <Input className="h-8" value={e.ila ?? ""} onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })} />
-                    </Field>
-                    <Field label="Placenta (inserção)">
-                      <Input
-                        className="h-8"
-                        value={e.placentaSite ?? ""}
-                        onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
-                      />
-                    </Field>
-                    <Field label="Placenta (grau)">
-                      <Input
-                        className="h-8"
-                        value={e.placentaGrade ?? ""}
-                        onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
-                      />
-                    </Field>
-                    <Field label="IP AUmb">
-                      <Input className="h-8" value={e.uaPi ?? ""} onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })} />
-                    </Field>
-                    <Field label="IP ACM">
-                      <Input className="h-8" value={e.mcaPi ?? ""} onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })} />
-                    </Field>
-                    <Field label="IP a. uterina">
-                      <Input className="h-8" value={e.utPi ?? ""} onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })} />
-                    </Field>
-                  </div>
-                  <Field label="Observações (laudo livre)">
-                    <Input
-                      className="h-8"
-                      value={e.notes ?? ""}
-                      onChange={(ev) => updateImaging(e.id, { notes: ev.target.value })}
-                    />
-                  </Field>
-                  {warns.length > 0 && (
-                    <p className="rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800">{warns.join(" · ")}</p>
-                  )}
-                  {preview.trim() && (
-                    <p className="rounded bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground">{preview}</p>
                   )}
                 </div>
-              );
-            })
-          )}
-          <Field label="Outros exames de imagem (texto livre)">
-            <Textarea
-              rows={2}
-              placeholder="-(dd/mm/aa): USG MORFOLÓGICO ..."
-              value={form.otherImaging}
-              onChange={(e) => update({ otherImaging: e.target.value })}
-            />
-          </Field>
+                <div className="space-y-1 sm:col-span-2">
+                  {gyChipRow("Sangramento", ESP_SANGRAMENTO_KEY, ESP_SANGRAMENTO_OPTIONS)}
+                  {form.gyneco.values[ESP_SANGRAMENTO_KEY] === "Pelo OE" && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-xs text-muted-foreground">Tipo:</span>
+                      {ESP_SANGRAMENTO_OE_OPTIONS.map((op) => (
+                        <Chip
+                          key={op.label}
+                          active={form.gyneco.values[ESP_SANGRAMENTO_OE_KEY] === op.label}
+                          onClick={() => setGynecoValue(ESP_SANGRAMENTO_OE_KEY, op.label)}
+                        >
+                          {op.label}
+                        </Chip>
+                      ))}
+                    </div>
+                  )}
+                  {form.gyneco.values[ESP_SANGRAMENTO_KEY] !== "Ausente" && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-xs text-muted-foreground">Quantidade:</span>
+                      {ESP_SANGRAMENTO_QTD_OPTIONS.map((op) => (
+                        <Chip
+                          key={op.label}
+                          active={form.gyneco.values[ESP_SANGRAMENTO_QTD_KEY] === op.label}
+                          onClick={() => setGynecoValue(ESP_SANGRAMENTO_QTD_KEY, op.label)}
+                        >
+                          {op.label}
+                        </Chip>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  {gyChipRow("Perdas líquidas via colo", ESP_SAIDA_COLO_KEY, ESP_SAIDA_COLO_OPTIONS)}
+                  {form.gyneco.values[ESP_SAIDA_COLO_KEY] !== "Ausente" && (
+                    <>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-xs text-muted-foreground">Tipo:</span>
+                        {ESP_SAIDA_COLO_TIPO_OPTIONS.map((op) => (
+                          <Chip
+                            key={op.label}
+                            active={form.gyneco.values[ESP_SAIDA_COLO_TIPO_KEY] === op.label}
+                            onClick={() => setGynecoValue(ESP_SAIDA_COLO_TIPO_KEY, op.label)}
+                          >
+                            {op.label}
+                          </Chip>
+                        ))}
+                      </div>
+                      <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
+                        {gyTestToggle("AmniSure", ESP_AMNIOSURE_KEY)}
+                        {gyTestToggle("Cristalização", ESP_CRISTALIZACAO_KEY)}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Toque vaginal */}
+          <div className="space-y-2 border-t pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold">Toque vaginal</p>
+              <div className="w-52">
+                <Segmented
+                  value={form.gyneco.toqueRealizado ? "sim" : "nao"}
+                  onChange={(v) => setGyneco({ toqueRealizado: v === "sim" })}
+                  options={[
+                    { value: "sim", label: "Realizado" },
+                    { value: "nao", label: "Não realizado" },
+                  ]}
+                />
+              </div>
+            </div>
+            {form.gyneco.toqueRealizado && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Toque realizado é sempre autorizado pela paciente.
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{toqueFieldsFor(true).map(gyField)}</div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Dor ao toque (pode marcar mais de um)</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {TOQUE_DOR_OPTIONS.map((op) => (
+                      <Chip key={op.key} active={form.gyneco.values[op.key] === "1"} onClick={() => toggleDor(op.key)}>
+                        {op.label}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </Section>
 
         {/* HD */}

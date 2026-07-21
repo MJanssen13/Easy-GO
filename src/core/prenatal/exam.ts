@@ -1,13 +1,14 @@
 /**
  * Exame físico do MODELO DE PRÉ-NATAL (ambulatório): textos padrão "normal" por
- * sistema, com sinais vitais interpolados, e modo "alterado" (texto livre) ou
- * "não realizado" (exame especular / toque vaginal na consulta de rotina).
+ * sistema, com sinais vitais interpolados, e modo "alterado" (texto livre).
  *
- * Reaproveita o conceito de `ExamMode`/`ExamSystemState` do PSGO, mas com as
- * frases da caderneta de pré-natal e a inclusão de AU/CA/BCF no abdome gravídico.
+ * O abdome gravídico, o toque vaginal e o exame especular NÃO ficam aqui — são
+ * detalhados no exame ginecológico/obstétrico (clicável), reaproveitado do PSGO
+ * (`@/core/psgo/gyneco-exam`). Aqui ficam os demais sistemas + os específicos do
+ * pré-natal (tireoide, mamas e inspeção vulvar).
  */
 
-export type PrenatalExamMode = "normal" | "altered" | "notdone";
+export type PrenatalExamMode = "normal" | "altered";
 
 export interface PrenatalExamSystemState {
   mode: PrenatalExamMode;
@@ -15,7 +16,7 @@ export interface PrenatalExamSystemState {
   text: string;
 }
 
-/** Sinais vitais do exame de pré-natal (PA, FC, SatO2, AU, CA, BCF). */
+/** Sinais vitais do exame de pré-natal (PA, FC, SatO2, AU, BCF). */
 export interface PrenatalVitals {
   pas?: string;
   pad?: string;
@@ -24,8 +25,6 @@ export interface PrenatalVitals {
   temp?: string;
   /** Altura uterina (cm). */
   au?: string;
-  /** Circunferência abdominal (cm). */
-  ca?: string;
   /** Batimentos cardiofetais (bpm). */
   bcf?: string;
 }
@@ -33,10 +32,6 @@ export interface PrenatalVitals {
 export interface PrenatalExamSystemDef {
   id: string;
   label: string;
-  /** Permite marcar "não realizado" (exame especular / toque de rotina). */
-  canSkip?: boolean;
-  /** Rótulo usado na linha "NÃO REALIZADO". */
-  notdoneLabel?: string;
 }
 
 export const PRENATAL_EXAM_SYSTEMS: PrenatalExamSystemDef[] = [
@@ -45,10 +40,7 @@ export const PRENATAL_EXAM_SYSTEMS: PrenatalExamSystemDef[] = [
   { id: "acv", label: "Ap. cardiovascular" },
   { id: "ar", label: "Ap. respiratório" },
   { id: "mamas", label: "Mamas" },
-  { id: "abdome", label: "Abdome (gravídico)" },
   { id: "vulva", label: "Inspeção vulvar" },
-  { id: "especular", label: "Exame especular", canSkip: true, notdoneLabel: "EXAME ESPECULAR" },
-  { id: "toque", label: "Toque vaginal", canSkip: true, notdoneLabel: "TOQUE VAGINAL" },
   { id: "mmii", label: "MMII" },
 ];
 
@@ -69,14 +61,8 @@ export function prenatalNormalLine(id: string, v: PrenatalVitals): string {
       return `AR: MV+ SEM RA, EUPNEICA, SATO2: ${v.sat ?? ""}% EM AA`;
     case "mamas":
       return "MAMAS: EM NÚMERO DE 2, PTÓTICAS, MAMILOS EVERTIDOS, DE MÉDIO VOLUME, SEM ABAULAMENTOS, RETRAÇÕES E CICATRIZES, PARÊNQUIMA HETEROGÊNEO, SEM NÓDULOS PALPÁVEIS, FOSSAS AXILARES E FOSSAS INFRA E SUPRACLAVICULARES LIVRES";
-    case "abdome":
-      return `ABDOME: GRAVÍDICO, INDOLOR, AU: ${v.au ?? ""} CM, CA: ${v.ca ?? ""} CM, BCF: ${v.bcf ?? ""} BPM`;
     case "vulva":
       return "INSPEÇÃO VULVAR: SEM LESÕES, PILIFICAÇÃO TÍPICA";
-    case "especular":
-      return "EXAME ESPECULAR: COLO DE SUPERFÍCIE LISA, OE EM FENDA CIRCULAR, SECREÇÃO FISIOLÓGICA, PAREDES VAGINAIS RUGOSAS";
-    case "toque":
-      return "TOQUE VAGINAL: COLO G, P, NL, OEI, SEM SANGUE EM DEDO DE LUVAS";
     case "mmii":
       return "MMII: SEM EDEMAS, PANTURRILHAS LIVRES, SEM SINAIS DE EMPASTAMENTO, SEM VARIZES";
     default:
@@ -84,15 +70,12 @@ export function prenatalNormalLine(id: string, v: PrenatalVitals): string {
   }
 }
 
-/** Texto final de um sistema conforme o modo (normal / alterado / não realizado). */
+/** Texto final de um sistema conforme o modo (normal / alterado). */
 export function buildPrenatalExamLine(
   def: PrenatalExamSystemDef,
   state: PrenatalExamSystemState,
   vitals: PrenatalVitals,
 ): string {
-  if (state.mode === "notdone" && def.canSkip) {
-    return `${def.notdoneLabel ?? def.label.toUpperCase()}: NÃO REALIZADO`;
-  }
   if (state.mode === "altered" && state.text.trim() !== "") {
     return state.text.trim();
   }
