@@ -64,6 +64,8 @@ export interface PacienteLite {
   name: string;
   medicalRecordNumber?: string | null;
   age?: number | null;
+  /** IG atual (semanas/dias) calculada do prontuário — preenche o campo IG. */
+  ga?: string | null;
 }
 
 const selectCls =
@@ -320,6 +322,7 @@ export function ReceitaGenerator({
       prontuario: p.medicalRecordNumber ?? "",
       idade: p.age != null ? `${p.age} anos` : "",
     });
+    if (p.ga) setIg(p.ga); // IG do prontuário (paciente já admitida)
   };
 
   // Preenche o medicamento a partir da lista e sugere o tipo de receita (ANVISA).
@@ -566,7 +569,7 @@ export function ReceitaGenerator({
             <Input
               value={ig}
               onChange={(e) => setIg(e.target.value)}
-              placeholder="ex.: 24 sem — preenche os relatórios"
+              placeholder="auto do prontuário — editável"
             />
           </Field>
         </CardContent>

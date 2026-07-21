@@ -31,7 +31,7 @@ function esc(s: string): string {
 }
 
 const HORAS = [10, 12, 14, 16, 18, 20, 22, 24, 2, 4, 6, 8];
-const TOTAL_LINHAS = 14; // linhas da grade (itens + linhas em branco)
+const TOTAL_LINHAS = 12; // linhas da grade (itens + linhas em branco)
 
 /** Cabeçalho: logo | FOLHA DE PRESCRIÇÃO | HOSPITAL DE CLÍNICAS | TÉCNICO | etapas. */
 function cabecalho(): string {
@@ -117,7 +117,7 @@ function folha(items: HospitalDiaItem[], d: HospitalDiaData): string {
 }
 
 const STYLE = `
-  @page { size: A4 portrait; margin: 8mm; }
+  @page { size: A4 landscape; margin: 8mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body { font-family: "Times New Roman", Times, serif; color: #000; font-size: 9pt; }
@@ -145,9 +145,9 @@ const STYLE = `
   table.presc th, table.presc td { border: 1px solid #000; font-size: 8pt; padding: 2px 3px; text-align: center; word-wrap: break-word; }
   table.presc th { font-weight: normal; }
   table.presc td.p-txt { text-align: left; }
-  .c-cod { width: 7mm; } .c-quant { width: 13mm; } .c-presc { width: 56mm; }
-  .c-via { width: 11mm; } .c-hora { width: 5mm; } .c-obs { width: 18mm; }
-  table.presc tbody tr { height: 9mm; }
+  .c-cod { width: 8mm; } .c-quant { width: 16mm; } .c-presc { width: 104mm; }
+  .c-via { width: 16mm; } .c-hora { width: 6mm; } .c-obs { width: 33mm; }
+  table.presc tbody tr { height: 10mm; }
 `;
 
 /**
