@@ -15,9 +15,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   DMG). Sem vínculo com a HPMA — a escolha é manual.
 - **Documentos opcionais** por modelo (selecionáveis, imprimir ou não): relatórios,
   cartas de solicitação/encaminhamento e curvas (térmica, pressórica, glicêmica),
-  com o mesmo papel timbrado do laudo/termos, em **folha paisagem** (via única).
-  Rascunhados dos modelos em papel, com os dados clínicos em branco para
-  preenchimento.
+  com o mesmo papel timbrado do laudo/termos, em **folha paisagem dividida em
+  duas metades** (como a receita, mas sem espelhar — cada metade traz um
+  documento diferente). Rascunhados dos modelos em papel, com os dados clínicos
+  em branco para preenchimento.
 - **DIP**: campo para o **nome do parceiro** e botão para emitir a **receita do
   parceiro** (Azitromicina 1 g + Ceftriaxona 500 mg IM).
 - Novos módulos `src/core/psgo/receita-templates.ts` e `receita-relatorios.ts`.

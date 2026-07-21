@@ -61,9 +61,9 @@ function letterhead(lh: LaudoLetterhead): string {
   </div>`;
 }
 
-/** Uma folha (timbre repetido a cada quebra de página) com o conteúdo do doc. */
-function frame(lh: LaudoLetterhead, content: string): string {
-  return `<table class="doc"><thead><tr><td>${letterhead(lh)}</td></tr></thead><tbody><tr><td><div class="page-body">${content}</div></td></tr></tbody></table>`;
+/** Uma metade (coluna) da folha paisagem, com timbre próprio + conteúdo. */
+function coluna(lh: LaudoLetterhead, content: string, lado: "left" | "right"): string {
+  return `<div class="col ${lado}">${letterhead(lh)}<div class="doc-body">${content}</div></div>`;
 }
 
 /** Cabeçalho de identificação (Nome / Prontuário / Idade) do documento. */
@@ -220,30 +220,32 @@ function buildDoc(id: ReceitaDocId, d: RelatorioData): string {
 }
 
 const STYLE = `
-  @page { size: A4 landscape; margin: 10mm 14mm; }
+  @page { size: A4 landscape; margin: 8mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.35; color: #000; }
-  table.doc { width: 100%; border-collapse: collapse; page-break-before: always; }
-  table.doc:first-child { page-break-before: auto; }
-  table.doc > thead > tr > td, table.doc > tbody > tr > td { border: 0; padding: 0; }
-  /* Via única, folha em paisagem — conteúdo centralizado (não espelhado). */
-  .page-body { max-width: 200mm; margin: 0 auto; }
-  .letterhead { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 4px 10px; border-bottom: 1.5px solid #000; margin: 0 auto 10px; max-width: 200mm; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5pt; line-height: 1.3; color: #000; }
+  /* Folha paisagem dividida em duas metades (como a receita), SEM espelhar:
+     cada metade traz um documento diferente; a última pode ficar em branco. */
+  .sheet { display: flex; page-break-after: always; }
+  .sheet:last-child { page-break-after: auto; }
+  .col { flex: 1 1 0; min-width: 0; padding: 4mm 7mm; display: flex; flex-direction: column; min-height: 192mm; }
+  .col.left { border-right: 1px dashed #999; }
+  .doc-body { flex: 1 1 auto; }
+  .letterhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px 6px; border-bottom: 1.5px solid #000; margin-bottom: 8px; }
   .letterhead img { width: auto; object-fit: contain; }
-  .lh-sus { height: 40px; } .lh-uftm { height: 46px; } .lh-hubrasil { height: 42px; }
-  h1.titulo { text-align: center; font-size: 12pt; margin: 4px 0 14px; letter-spacing: .02em; }
+  .lh-sus { height: 32px; } .lh-uftm { height: 38px; } .lh-hubrasil { height: 34px; }
+  h1.titulo { text-align: center; font-size: 11pt; margin: 2px 0 10px; letter-spacing: .02em; }
   .idf { margin: 3px 0; }
-  p { margin: 8px 0; }
+  p { margin: 7px 0; }
   .just { text-align: justify; }
-  .small { font-size: 8.5pt; color: #333; }
-  .ln { display: inline-block; border-bottom: 1px solid #000; }
-  .local { margin-top: 30px; }
-  .sig { text-align: center; margin-top: 40px; }
-  .sig-line { width: 62%; border-top: 1px solid #000; margin: 0 auto 4px; }
-  .sig-nm { font-size: 9.5pt; }
+  .small { font-size: 8pt; color: #333; }
+  .ln { display: inline-block; border-bottom: 1px solid #000; max-width: 100%; }
+  .local { margin-top: 22px; }
+  .sig { text-align: center; margin-top: 30px; }
+  .sig-line { width: 70%; border-top: 1px solid #000; margin: 0 auto 4px; }
+  .sig-nm { font-size: 9pt; }
   table.curva { width: 100%; border-collapse: collapse; margin: 8px 0; }
-  table.curva th, table.curva td { border: 1px solid #000; padding: 5px 6px; text-align: center; font-size: 9.5pt; }
+  table.curva th, table.curva td { border: 1px solid #000; padding: 4px 5px; text-align: center; font-size: 9pt; }
   table.curva th { background: #eee; }
   .rodape { margin-top: 8px; font-weight: 700; text-align: center; }
 `;
@@ -254,11 +256,20 @@ export function renderReceitaDocsHtml(
   data: RelatorioData,
   lh: LaudoLetterhead = DEFAULT_LETTERHEAD,
 ): string {
-  const pages = ids.map((id) => frame(lh, buildDoc(id, data))).join("");
+  // Duas metades por folha (esquerda/direita), preenchidas com documentos
+  // diferentes — sem espelhamento. A última metade pode ficar em branco.
+  const cols = ids.map((id) => buildDoc(id, data));
+  const sheets: string[] = [];
+  for (let i = 0; i < cols.length; i += 2) {
+    const left = coluna(lh, cols[i], "left");
+    const right =
+      i + 1 < cols.length ? coluna(lh, cols[i + 1], "right") : `<div class="col right"></div>`;
+    sheets.push(`<div class="sheet">${left}${right}</div>`);
+  }
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="utf-8" /><title>Documentos da receita — PSGO</title>
 <style>${STYLE}</style></head>
-<body>${pages}</body>
+<body>${sheets.join("")}</body>
 </html>`;
 }
