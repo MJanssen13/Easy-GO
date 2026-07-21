@@ -18,6 +18,7 @@ import { parseDecimal } from "@/lib/num";
 import { PRENATAL_EXAM_SYSTEMS, buildPrenatalExamLine } from "./exam";
 import { renderVaccineCard } from "./vaccines";
 import { renderContext } from "./context";
+import { assessWeightGain } from "./weight-gain";
 
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
@@ -175,8 +176,9 @@ export function renderPrenatal(form: PrenatalForm): string {
   // Cartão de vacinas
   push(1, ...renderVaccineCard(form.vaccines));
 
-  // VCE (campo do modelo — texto livre)
-  push(1, `VCE: ${form.vce.trim()}`);
+  // VCE (colpocitologia oncótica / Papanicolau)
+  const vceParts = [form.vce.trim(), form.vceDate ? `EM ${dateBR(form.vceDate)}` : ""].filter(Boolean);
+  push(1, `VCE: ${vceParts.join(" ")}`);
 
   // Sorologias (colado + quadro externo, ordenado por data)
   const seroBlock = ["SOROLOGIAS:"];
@@ -192,6 +194,14 @@ export function renderPrenatal(form: PrenatalForm): string {
     "EXAME FÍSICO:",
     `PESO: ${form.weight} KG // ALTURA: ${form.height} M // IMC: ${bmi ? bmi.imc : ""} KG/M²`,
   ];
+  // IMC pré-gestacional + ganho de peso (IOM 2009) — só quando há peso pré-gestacional.
+  const weightGain = assessWeightGain({
+    prePregnancyWeightKg: parseDecimal(form.prePregnancyWeight),
+    currentWeightKg: weight,
+    heightM: height,
+    gaWeeks: dating.gaWeeks,
+  });
+  if (weightGain) examBlock.push(weightGain.summaryLine);
   for (const s of PRENATAL_EXAM_SYSTEMS) {
     examBlock.push(buildPrenatalExamLine(s, form.exam[s.id], form.vitals));
   }

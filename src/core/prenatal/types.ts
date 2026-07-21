@@ -65,11 +65,10 @@ export interface PrenatalForm {
   // cartão de vacinas
   vaccines: VaccineCard;
 
-  /**
-   * VCE — campo do modelo mantido como texto livre (rótulo a confirmar com a
-   * equipe). Fica em branco por padrão, como no modelo em .docx.
-   */
+  /** VCE — resultado da colpocitologia oncótica (Papanicolau); texto livre. */
   vce: string;
+  /** Data do VCE (Papanicolau), opcional. */
+  vceDate: string;
 
   // sorologias
   serologyPasted: string;
@@ -80,6 +79,8 @@ export interface PrenatalForm {
 
   // exame físico
   weight: string;
+  /** Peso pré-gestacional (kg) — para IMC pré-gestacional e ganho de peso. */
+  prePregnancyWeight: string;
   height: string;
   vitals: PrenatalVitals;
   exam: PrenatalExamState;
@@ -137,10 +138,12 @@ export function emptyPrenatalForm(date?: string): PrenatalForm {
     udiWhich: "",
     vaccines: emptyVaccineCard(),
     vce: "",
+    vceDate: "",
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),
     context: emptyContext(),
     weight: "",
+    prePregnancyWeight: "",
     height: "",
     vitals: {},
     exam: emptyPrenatalExam(),

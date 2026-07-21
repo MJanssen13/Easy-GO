@@ -51,10 +51,21 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   (Hepatite B, dT, dTpa, Influenza, COVID-19, VSR — Caderneta da Gestante),
   bloco **CONTEXTO** (movimentação fetal + queixas mamárias/leucorreia/TGI-TGU),
   **exame físico** da caderneta (tireoide, mamas, abdome gravídico com AU/CA/BCF,
-  inspeção vulvar, especular e toque) e campo **VCE** (rótulo a confirmar).
+  inspeção vulvar, especular e toque) e **VCE** = colpocitologia oncótica
+  (Papanicolau), com data e atalhos de resultado (Bethesda).
 - **HD automática**: "GESTAÇÃO DE {IG} ({método})" + comorbidades e
   sinalizadores (adolescente < 18, pré-natal irregular). Apoio à decisão —
   validar com a equipe.
+- **Apoio à decisão inspirado no e-SUS APS/PEC** (reimplementado na stack, sem
+  copiar o bundle), tudo com a fonte citada e marcado como *validar*:
+  - **Vacinas por IG** (PNI/MS): cada vacina do cartão mostra a janela e a
+    recomendação pela idade gestacional (dTpa 20–36 sem, VSR 28–36 sem etc.),
+    com atalho "Realizada" na janela.
+  - **Exames de rotina por trimestre** (MS/Febrasgo): checklist do trimestre
+    atual e botão "Copiar solicitação para conduta".
+  - **IMC pré-gestacional + ganho de peso** (IOM 2009): classifica o IMC
+    pré-gestacional, mostra a meta de ganho e compara o ganho atual com o
+    esperado para a IG; a linha entra no exame físico do prontuário.
 
 ### PSGO — Salvamento automático e prescrição integrada
 
