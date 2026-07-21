@@ -116,27 +116,28 @@ function folha(items: HospitalDiaItem[], d: HospitalDiaData): string {
   </div>`;
 }
 
-const STYLE = `
+export const HOSPITAL_DIA_STYLE = `
   @page { size: A4 landscape; margin: 8mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body { font-family: "Times New Roman", Times, serif; color: #000; font-size: 9pt; }
-  .folha { page-break-after: always; }
+  .folha { page-break-after: always; font-family: "Times New Roman", Times, serif; font-size: 9pt; color: #000; }
   .folha:last-child { page-break-after: auto; }
   table.cab, table.ident, table.presc { width: 100%; border-collapse: collapse; }
+  table.cab { table-layout: fixed; }
   table.ident, table.presc { margin-top: -1px; }
   table.cab td { border: 1px solid #000; vertical-align: middle; padding: 2px 6px; }
-  .cab-logo { width: 30mm; text-align: center; padding: 3px; }
-  .cab-logo img { max-height: 15mm; max-width: 28mm; width: auto; object-fit: contain; }
-  .cab-titulo { text-align: center; }
+  .cab-logo { width: 34mm; text-align: center; padding: 3px; }
+  .cab-logo img { max-height: 15mm; max-width: 30mm; width: auto; object-fit: contain; }
+  .cab-titulo { width: 92mm; text-align: center; }
   .cab-titulo .t-folha { font-size: 12pt; }
   .cab-titulo .t-main { font-size: 15pt; }
-  .cab-hosp { width: 52mm; text-align: center; }
+  .cab-hosp { width: 74mm; text-align: center; }
   .cab-hosp .t-hosp { font-size: 12pt; }
   .cab-hosp .t-diret { font-size: 9pt; }
-  .cab-tec { width: 8mm; text-align: center; padding: 2px 0; }
+  .cab-tec { width: 14mm; text-align: center; padding: 2px 0; }
   .cab-tec span { display: block; font-size: 8pt; line-height: 1.15; }
-  .cab-etapa { width: 30mm; font-size: 9pt; height: 6mm; }
+  .cab-etapa { width: 48mm; font-size: 9pt; height: 6mm; }
   table.ident td { border: 1px solid #000; padding: 3px 6px; font-size: 9pt; vertical-align: top; }
   table.ident .val { font-family: Arial, sans-serif; font-weight: 700; font-size: 8.5pt; }
   table.ident .i-nome { width: 46%; }
@@ -150,21 +151,26 @@ const STYLE = `
   table.presc tbody tr { height: 10mm; }
 `;
 
-/**
- * HTML autocontido: uma folha (com todos os itens numerados) repetida `nFolhas`
- * vezes — uma folha por dose/aplicação.
- */
-export function buildHospitalDiaHtml(
+/** Só as folhas (sem wrapper HTML) — uma folha por dose. Para impressão combinada. */
+export function hospitalDiaSheetsHtml(
   items: HospitalDiaItem[],
   nFolhas: number,
   d: HospitalDiaData,
 ): string {
   const n = Math.max(1, nFolhas);
-  const folhas = Array.from({ length: n }, () => folha(items, d)).join("");
+  return Array.from({ length: n }, () => folha(items, d)).join("");
+}
+
+/** HTML autocontido: uma folha (itens numerados) repetida `nFolhas` vezes. */
+export function buildHospitalDiaHtml(
+  items: HospitalDiaItem[],
+  nFolhas: number,
+  d: HospitalDiaData,
+): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="utf-8" /><title>Prescrição — Hospital Dia</title>
-<style>${STYLE}</style></head>
-<body>${folhas}</body>
+<style>${HOSPITAL_DIA_STYLE}</style></head>
+<body>${hospitalDiaSheetsHtml(items, nFolhas, d)}</body>
 </html>`;
 }

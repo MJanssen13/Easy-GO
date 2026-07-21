@@ -122,7 +122,7 @@ export const RECEITA_PRINT_STYLE = `
   @page { size: A4 landscape; margin: 8mm; }
   * { box-sizing: border-box; }
   body { margin: 0; color: #111; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8.5pt; line-height: 1.3; }
-  .sheet { display: flex; page-break-after: always; }
+  .sheet { display: flex; page-break-after: always; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8.5pt; color: #111; }
   .sheet:last-child { page-break-after: auto; }
   .col { flex: 1 1 0; min-width: 0; padding: 4mm 6mm; display: flex; flex-direction: column; min-height: 192mm; }
   .col.left { border-right: 1px dashed #999; }

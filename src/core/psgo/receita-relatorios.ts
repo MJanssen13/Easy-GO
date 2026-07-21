@@ -273,7 +273,7 @@ export const RECEITA_DOCS_STYLE = `
   html, body { margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5pt; line-height: 1.3; color: #000; }
   /* Folha paisagem dividida em duas metades (como a receita). */
-  .mdoc-sheet { display: flex; page-break-after: always; }
+  .mdoc-sheet { display: flex; page-break-after: always; font-family: Arial, Helvetica, sans-serif; font-size: 9.5pt; color: #000; }
   .mdoc-sheet:last-child { page-break-after: auto; }
   .mdoc-col { flex: 1 1 0; min-width: 0; padding: 4mm 7mm; display: flex; flex-direction: column; min-height: 192mm; }
   .mdoc-col.left { border-right: 1px dashed #999; }

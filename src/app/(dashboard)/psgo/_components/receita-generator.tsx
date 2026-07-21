@@ -30,12 +30,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
 import { searchMeds, type MedCatmat } from "@/core/psgo/medicamentos-catmat";
-import {
-  buildReceitaPrintHtml,
-  receitaSheetsHtml,
-  RECEITA_PRINT_STYLE,
-} from "@/core/psgo/receita-print";
-import { printHtml, isMobile } from "@/lib/print";
+import { receitaSheetsHtml, RECEITA_PRINT_STYLE } from "@/core/psgo/receita-print";
+import { printHtml } from "@/lib/print";
 import { registrarPrescricaoNaAdmissao } from "@/app/(dashboard)/ferramentas/receita/actions";
 import { letterheadFor } from "@/core/ctg/laudo";
 import {
@@ -45,7 +41,6 @@ import {
   buildSifilisPenicilina,
 } from "@/core/psgo/receita-templates";
 import {
-  renderReceitaDocsHtml,
   receitaDocsSheetsHtml,
   renderCombinedPrint,
   RECEITA_DOCS_STYLE,
@@ -53,10 +48,7 @@ import {
   type ReceitaDocId,
   type RelatorioData,
 } from "@/core/psgo/receita-relatorios";
-import { buildHospitalDiaHtml } from "@/core/psgo/receita-hospital-dia";
-
-// jsPDF é pesado e só é usado no mobile → carregado sob demanda (code-split).
-type ReceitaPdfModule = typeof import("@/core/psgo/receita-pdf");
+import { HOSPITAL_DIA_STYLE, hospitalDiaSheetsHtml } from "@/core/psgo/receita-hospital-dia";
 
 /** Paciente do sistema para preenchimento automático. */
 export interface PacienteLite {
@@ -75,6 +67,24 @@ const uid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
+
+// Sigla da via para a prescrição hospitalar (FOLHA): "Intramuscular" → "IM".
+const VIA_SIGLA: Record<string, string> = {
+  Oral: "VO",
+  Sublingual: "SL",
+  Retal: "VR",
+  Vaginal: "VV",
+  Intramuscular: "IM",
+  Intravenosa: "EV",
+  Subcutânea: "SC",
+  Tópica: "TÓP",
+  Inalatória: "INAL",
+  Nasal: "NASAL",
+  Ocular: "OCULAR",
+  Otológica: "OTO",
+  Transdérmica: "TD",
+};
+const viaSigla = (via: string) => VIA_SIGLA[via.trim()] ?? via.trim();
 
 function Field({
   label,
@@ -229,6 +239,10 @@ export function ReceitaGenerator({
   // Itens enviados à Prescrição Hospital Dia (ids) + nº de folhas (doses).
   const [hdIds, setHdIds] = useState<string[]>([]);
   const [hdFolhas, setHdFolhas] = useState("1");
+  // Seleção do que imprimir (impressão única e combinada).
+  const [printReceita, setPrintReceita] = useState(true);
+  const [printHd, setPrintHd] = useState(true);
+  const [printParceiro, setPrintParceiro] = useState(false);
   const activeTemplate = useMemo(
     () => RECEITA_TEMPLATES.find((t) => t.id === activeTemplateId),
     [activeTemplateId],
@@ -270,6 +284,9 @@ export function ReceitaGenerator({
     setSelectedDocs([]);
     setParceiroNome("");
     setHdIds([]);
+    setPrintReceita(true);
+    setPrintHd(true);
+    setPrintParceiro(false);
     if (!tpl) return;
     const tItems = id === "sifilis" ? [buildSifilisPenicilina(numDoses)] : tpl.items;
     const applied = applyTemplateItems(tItems, uid);
@@ -284,10 +301,12 @@ export function ReceitaGenerator({
   const toggleDoc = (doc: ReceitaDocId) =>
     setSelectedDocs((s) => (s.includes(doc) ? s.filter((d) => d !== doc) : [...s, doc]));
 
-  // Sífilis: muda o nº de doses e reflete na prescrição (item da penicilina).
+  // Sífilis: muda o nº de doses e reflete na prescrição (item da penicilina) e no
+  // nº de folhas do Hospital Dia (uma folha por dose).
   const changeNumDoses = (n: string) => {
     setNumDoses(n);
     if (activeTemplateId === "sifilis") {
+      setHdFolhas(n); // folhas do H Dia acompanham o nº de doses
       setItems((s) =>
         s.map((it) =>
           it.principioAtivo.includes("Penicilina")
@@ -387,28 +406,6 @@ export function ReceitaGenerator({
     });
   };
 
-  // Pré-carrega o gerador de PDF no mobile (mantém o clique dentro do gesto).
-  const pdfMod = useRef<ReceitaPdfModule | null>(null);
-  useEffect(() => {
-    if (isMobile()) import("@/core/psgo/receita-pdf").then((m) => (pdfMod.current = m));
-  }, []);
-
-  // No mobile a impressão do navegador falha (imprime a tela / erro no Android);
-  // geramos o PDF direto no dispositivo. No desktop usamos o diálogo de impressão.
-  const handlePrint = () => {
-    if (!printableItems.length) return;
-    registrar(); // registra a prescrição na admissão (se veio de uma)
-    if (isMobile()) {
-      if (pdfMod.current) pdfMod.current.downloadReceitaPdf(header, printableItems);
-      else
-        import("@/core/psgo/receita-pdf").then((m) =>
-          m.downloadReceitaPdf(header, printableItems),
-        );
-    } else {
-      printHtml(buildReceitaPrintHtml(header, printableItems));
-    }
-  };
-
   // Dados dos documentos (IG e nº de doses preenchidos automaticamente).
   const relatorioData = (over?: Partial<RelatorioData>): RelatorioData => ({
     paciente: header.paciente,
@@ -422,50 +419,68 @@ export function ReceitaGenerator({
   });
   const origin = () => (typeof window !== "undefined" ? window.location.origin : "");
 
-  // Imprime os documentos opcionais do modelo selecionados.
-  const handlePrintDocs = () => {
-    if (!selectedDocs.length) return;
-    printHtml(renderReceitaDocsHtml(selectedDocs, relatorioData(), letterheadFor(origin())));
-  };
-
-  // Emite a receita do parceiro (DIP/sífilis) + a carta, numa só impressão.
-  const handlePrintParceiro = () => {
-    if (!activeTemplate?.parceiro) return;
-    const nome = parceiroNome.trim() || `Parceiro de ${header.paciente.trim()}`.trim();
-    const parceiroHeader: ReceitaHeader = { ...header, paciente: nome, prontuario: "", idade: "" };
-    const pItems =
-      activeTemplate.id === "sifilis"
-        ? [buildSifilisPenicilina(numDoses)]
-        : activeTemplate.parceiro.items;
-    const parceiroItems = applyTemplateItems(pItems, uid);
-    const blocks = [
-      { style: RECEITA_PRINT_STYLE, sheets: receitaSheetsHtml(parceiroHeader, parceiroItems) },
-    ];
-    const pdocs = activeTemplate.parceiro.documentos ?? [];
-    if (pdocs.length) {
-      const data = relatorioData({ paciente: nome, prontuario: "", idade: "" });
-      blocks.push({
-        style: RECEITA_DOCS_STYLE,
-        sheets: receitaDocsSheetsHtml(pdocs, data, letterheadFor(origin())),
-      });
-    }
-    printHtml(renderCombinedPrint(blocks));
-  };
-
-  // Emite a Prescrição Hospital Dia (FOLHA DE PRESCRIÇÃO) — uma folha por dose.
   const hdList = items.filter((it) => hdIds.includes(it.id));
-  const handlePrintHospitalDia = () => {
-    if (!hdList.length) return;
+  const nFolhas = Math.max(1, Number(hdFolhas) || 1);
+
+  // Bloco da Prescrição Hospital Dia (FOLHA) dos itens marcados.
+  const hospitalDiaBlock = () => {
     const docItems = hdList.map((it) => ({
-      prescricao: [medicamentoLabel(it), buildPosologia(it)].filter(Boolean).join(" — "),
-      via: it.via,
+      prescricao: [
+        [it.principioAtivo, it.concentracao].filter((s) => s.trim()).join(" "),
+        buildPosologia(it),
+      ]
+        .filter(Boolean)
+        .join(" — "),
+      via: viaSigla(it.via),
     }));
-    printHtml(
-      buildHospitalDiaHtml(docItems, Math.max(1, Number(hdFolhas) || 1), {
+    return {
+      style: HOSPITAL_DIA_STYLE,
+      sheets: hospitalDiaSheetsHtml(docItems, nFolhas, {
         paciente: header.paciente,
         registro: header.prontuario,
       }),
-    );
+    };
+  };
+
+  // Impressão única e combinada, agrupada na ordem paciente → parceiro.
+  const handleImprimir = () => {
+    const lh = letterheadFor(origin());
+    const blocks: { style: string; sheets: string }[] = [];
+    // --- Paciente ---
+    if (printReceita && printableItems.length)
+      blocks.push({ style: RECEITA_PRINT_STYLE, sheets: receitaSheetsHtml(header, printableItems) });
+    if (printHd && hdList.length) blocks.push(hospitalDiaBlock());
+    if (selectedDocs.length)
+      blocks.push({
+        style: RECEITA_DOCS_STYLE,
+        sheets: receitaDocsSheetsHtml(selectedDocs, relatorioData(), lh),
+      });
+    // --- Parceiro ---
+    if (printParceiro && activeTemplate?.parceiro) {
+      const nome = parceiroNome.trim() || `Parceiro de ${header.paciente.trim()}`.trim();
+      const parceiroHeader: ReceitaHeader = { ...header, paciente: nome, prontuario: "", idade: "" };
+      const pItems =
+        activeTemplate.id === "sifilis"
+          ? [buildSifilisPenicilina(numDoses)]
+          : activeTemplate.parceiro.items;
+      blocks.push({
+        style: RECEITA_PRINT_STYLE,
+        sheets: receitaSheetsHtml(parceiroHeader, applyTemplateItems(pItems, uid)),
+      });
+      const pdocs = activeTemplate.parceiro.documentos ?? [];
+      if (pdocs.length)
+        blocks.push({
+          style: RECEITA_DOCS_STYLE,
+          sheets: receitaDocsSheetsHtml(
+            pdocs,
+            relatorioData({ paciente: nome, prontuario: "", idade: "" }),
+            lh,
+          ),
+        });
+    }
+    if (!blocks.length) return;
+    registrar();
+    printHtml(renderCombinedPrint(blocks));
   };
 
   return (
@@ -972,96 +987,84 @@ export function ReceitaGenerator({
         </CardContent>
       </Card>
 
-      {/* Impressão — todas as ações de saída, centralizadas */}
+      {/* Impressão — marque o que imprimir; sai em uma única impressão combinada */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-center text-base">Impressão</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5">
-          {/* Receita */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
+        <CardContent className="space-y-4">
+          <p className="text-center text-xs text-muted-foreground">
+            Marque o que imprimir — sai em uma única impressão, agrupada na ordem paciente → parceiro.
+          </p>
+
+          {/* Paciente */}
+          <div className="space-y-2 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Paciente
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Chip active={printReceita} onClick={() => setPrintReceita((v) => !v)}>
+                Receita
+              </Chip>
+              {hdList.length > 0 && (
+                <Chip active={printHd} onClick={() => setPrintHd((v) => !v)}>
+                  Hospital Dia ({nFolhas} folha{nFolhas > 1 ? "s" : ""})
+                </Chip>
+              )}
+              {activeTemplate?.documentos?.map((doc) => (
+                <Chip key={doc} active={selectedDocs.includes(doc)} onClick={() => toggleDoc(doc)}>
+                  {RECEITA_DOC_LABEL[doc]}
+                </Chip>
+              ))}
+            </div>
+            {hdList.length > 0 && printHd && (
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <span>Nº de folhas (doses):</span>
+                <Input
+                  type="number"
+                  min={1}
+                  value={hdFolhas}
+                  onChange={(e) => setHdFolhas(e.target.value)}
+                  className="h-8 w-20"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Parceiro */}
+          {activeTemplate?.parceiro && (
+            <div className="space-y-2 border-t pt-4 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Parceiro
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Chip active={printParceiro} onClick={() => setPrintParceiro((v) => !v)}>
+                  Receita do parceiro
+                </Chip>
+              </div>
+              {printParceiro && (
+                <div className="mx-auto max-w-xs">
+                  <Field label="Nome do parceiro (opcional)">
+                    <Input
+                      value={parceiroNome}
+                      onChange={(e) => setParceiroNome(e.target.value)}
+                      placeholder={
+                        header.paciente ? `Parceiro de ${header.paciente}` : "nome do parceiro"
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Ação única */}
+          <div className="flex flex-wrap items-center justify-center gap-2 border-t pt-4">
             <CopyButton text={text} />
-            <Button type="button" onClick={handlePrint} disabled={!printableItems.length}>
+            <Button type="button" onClick={handleImprimir}>
               <Printer className="h-4 w-4" /> Imprimir / PDF
             </Button>
           </div>
-
-          {/* Documentos do modelo */}
-          {activeTemplate?.documentos?.length ? (
-            <div className="space-y-2 border-t pt-4 text-center">
-              <p className="text-xs font-medium">Documentos do modelo</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {activeTemplate.documentos.map((doc) => (
-                  <Chip
-                    key={doc}
-                    active={selectedDocs.includes(doc)}
-                    onClick={() => toggleDoc(doc)}
-                  >
-                    {RECEITA_DOC_LABEL[doc]}
-                  </Chip>
-                ))}
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handlePrintDocs}
-                disabled={!selectedDocs.length}
-              >
-                <Printer className="h-4 w-4" /> Imprimir documentos ({selectedDocs.length})
-              </Button>
-            </div>
-          ) : null}
-
-          {/* Receita do parceiro */}
-          {activeTemplate?.parceiro && (
-            <div className="space-y-2 border-t pt-4 text-center">
-              <p className="text-xs font-medium">
-                Receita do parceiro — {activeTemplate.parceiro.label}
-              </p>
-              <div className="flex flex-wrap items-end justify-center gap-2">
-                <Field label="Nome do parceiro (opcional)" className="min-w-[15rem]">
-                  <Input
-                    value={parceiroNome}
-                    onChange={(e) => setParceiroNome(e.target.value)}
-                    placeholder={
-                      header.paciente ? `Parceiro de ${header.paciente}` : "nome do parceiro"
-                    }
-                  />
-                </Field>
-                <Button type="button" size="sm" variant="outline" onClick={handlePrintParceiro}>
-                  <Printer className="h-4 w-4" /> Imprimir receita do parceiro
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Prescrição Hospital Dia */}
-          {hdList.length > 0 && (
-            <div className="space-y-2 border-t pt-4 text-center">
-              <p className="text-xs font-medium">Prescrição Hospital Dia — uma folha por dose</p>
-              <ul className="mx-auto inline-block list-disc pl-5 text-left text-xs text-muted-foreground">
-                {hdList.map((it, i) => (
-                  <li key={it.id}>
-                    {i + 1}- {medicamentoLabel(it) || "medicamento"} · {it.via}
-                  </li>
-                ))}
-              </ul>
-              <div className="flex flex-wrap items-end justify-center gap-2">
-                <Field label="Nº de folhas (doses)" className="w-40">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={hdFolhas}
-                    onChange={(e) => setHdFolhas(e.target.value)}
-                  />
-                </Field>
-                <Button type="button" size="sm" variant="outline" onClick={handlePrintHospitalDia}>
-                  <Printer className="h-4 w-4" /> Imprimir Hospital Dia
-                </Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
