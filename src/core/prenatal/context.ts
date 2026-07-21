@@ -6,15 +6,15 @@
  * Sem gerador de HPMA por QP (a pedido): apenas as perguntas obrigatórias e um
  * espaço para as queixas atuais.
  */
-import { assembleRevision } from "@/core/psgo/hpma";
+import { assemblePrenatalRevision } from "./revision";
 
 /**
  * Texto do CONTEXTO (sem o prefixo "CONTEXTO:"):
  *   "COMPARECE PARA CONSULTA[. {queixas atuais}]. {revisão dirigida}"
- * A gestante é sempre `true` no pré-natal (inclui contrações e movimentação fetal).
+ * A revisão dirigida inclui queixas mamárias (pré-natal) + a revisão do PSGO.
  */
 export function renderPrenatalContext(revision: Record<string, string>, currentComplaints: string): string {
-  const rev = assembleRevision(revision, true, new Set());
+  const rev = assemblePrenatalRevision(revision);
   const lead = ["COMPARECE PARA CONSULTA", currentComplaints.trim()].filter(Boolean).join(". ");
   return [lead, rev].filter((s) => s.trim()).join(". ");
 }

@@ -79,6 +79,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   para a seção de datação, com **listas suspensas** (apresentação, inserção e
   grau placentário) e percentis Hadlock; os **USGs que não datam têm a IG
   preenchida automaticamente** pela datação resolvida.
+- **Acompanhante** na identificação (nome + parentesco), como no PSGO — sai
+  "ACOMPANHANTE: … (…)" ou "DESACOMPANHADA".
+- **Queixas mamárias** viraram pergunta estruturada da revisão dirigida
+  (nega/relata + sintomas), específica do pré-natal.
+- **Circunferência abdominal (CA)** de volta no exame: entra na linha do abdome
+  entre AU e BCF (AU/CA/BCF), sem alterar o abdome do PSGO.
 
 ### PSGO — Salvamento automático e prescrição integrada
 

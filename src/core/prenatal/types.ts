@@ -31,6 +31,12 @@ export interface PrenatalForm {
   age: string;
   origin: string;
 
+  // acompanhante
+  companion: string;
+  companionRelation: string;
+  /** Preenchido quando `companionRelation === "OUTRO"`. */
+  companionRelationOther: string;
+
   // acompanhamento pré-natal
   prenatalPlace: string;
   prenatalCount: string;
@@ -120,6 +126,9 @@ export function emptyPrenatalForm(date?: string): PrenatalForm {
     rg: "",
     age: "",
     origin: "",
+    companion: "",
+    companionRelation: "",
+    companionRelationOther: "",
     prenatalPlace: "",
     prenatalCount: "",
     prenatalIrregular: false,

@@ -109,10 +109,17 @@ export function renderPrenatal(form: PrenatalForm): string {
   push(1, `## AMBULATÓRIO DE PRÉ-NATAL - ${dateBR(form.date)} ##`);
 
   // Identificação
+  const relation =
+    form.companionRelation === "OUTRO"
+      ? form.companionRelationOther.trim() || "OUTRO"
+      : form.companionRelation;
   push(
     1,
     `${form.name}${form.socialName ? ` (NOME SOCIAL: ${form.socialName})` : ""}, RG ${form.rg}`,
     `${form.age}${form.age.trim() ? " ANOS" : ""}, PROCEDENTE DE ${form.origin}`,
+    form.companion.trim()
+      ? `ACOMPANHANTE: ${form.companion}${relation ? ` (${relation})` : ""}`
+      : "DESACOMPANHADA",
   );
 
   // Acompanhamento pré-natal
@@ -207,7 +214,12 @@ export function renderPrenatal(form: PrenatalForm): string {
   const sysDef = (id: string) => PRENATAL_EXAM_SYSTEMS.find((s) => s.id === id)!;
   const sysLine = (id: string) => buildPrenatalExamLine(sysDef(id), form.exam[id], form.vitals);
   // Exame ginecológico/obstétrico clicável (reuso do PSGO): [ABD, TOQUE, ESPECULAR].
-  const [abdLine, toqueLine, especularLine] = renderGyneco(form.gyneco, form.vitals, true);
+  // O ABD do PSGO traz AU/BCF; o modelo do pré-natal inclui a circunferência
+  // abdominal (CA) — inserida entre AU e BCF (só no pré-natal, sem alterar o PSGO).
+  const gyLines = renderGyneco(form.gyneco, form.vitals, true);
+  const abdLine = gyLines[0].replace(", BCF:", `, CA: ${(form.vitals.ca ?? "").trim()} CM, BCF:`);
+  const toqueLine = gyLines[1];
+  const especularLine = gyLines[2];
   // Ordem do modelo: geral, tireoide, ACV, AR, mamas, ABDOME, vulva, especular, toque, MMII.
   examBlock.push(
     sysLine("geral"),

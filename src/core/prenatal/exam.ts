@@ -16,7 +16,7 @@ export interface PrenatalExamSystemState {
   text: string;
 }
 
-/** Sinais vitais do exame de pré-natal (PA, FC, SatO2, AU, BCF). */
+/** Sinais vitais do exame de pré-natal (PA, FC, SatO2, AU, CA, BCF). */
 export interface PrenatalVitals {
   pas?: string;
   pad?: string;
@@ -25,6 +25,8 @@ export interface PrenatalVitals {
   temp?: string;
   /** Altura uterina (cm). */
   au?: string;
+  /** Circunferência abdominal (cm). */
+  ca?: string;
   /** Batimentos cardiofetais (bpm). */
   bcf?: string;
 }

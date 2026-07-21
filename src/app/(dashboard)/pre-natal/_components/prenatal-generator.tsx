@@ -47,7 +47,7 @@ import {
   refFromISO,
 } from "@/core/psgo/dating";
 import { renderImagingExam, imagingWarnings, examCentiles, type ImagingExam } from "@/core/psgo/imaging";
-import { HABITS, type CoombsEntry } from "@/core/psgo/types";
+import { HABITS, COMPANION_RELATIONS, type CoombsEntry } from "@/core/psgo/types";
 import {
   abdFieldsFor,
   toqueFieldsFor,
@@ -79,7 +79,8 @@ import {
   TEST_OPTIONS,
   type GyField,
 } from "@/core/psgo/gyneco-exam";
-import { REVISION_QUESTIONS, type RevSub } from "@/core/psgo/hpma";
+import { type RevSub } from "@/core/psgo/hpma";
+import { PRENATAL_REVISION_QUESTIONS } from "@/core/prenatal/revision";
 import {
   PRESENTATION_OPTIONS,
   PLACENTA_SITE_OPTIONS,
@@ -644,6 +645,35 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
               />
               Pré-natal irregular
             </label>
+          </div>
+
+          {/* Acompanhante · Parentesco (+ Qual? se OUTRO) */}
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Acompanhante" className="min-w-[12rem] flex-1">
+              <Input value={form.companion} onChange={(e) => update({ companion: e.target.value })} />
+            </Field>
+            <Field label="Parentesco" className="min-w-[10rem] flex-1">
+              <select
+                className={selectClass}
+                value={form.companionRelation}
+                onChange={(e) => update({ companionRelation: e.target.value })}
+              >
+                <option value="">—</option>
+                {COMPANION_RELATIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {form.companionRelation === "OUTRO" && (
+              <Field label="Qual parentesco?" className="min-w-[10rem] flex-1">
+                <Input
+                  value={form.companionRelationOther}
+                  onChange={(e) => update({ companionRelationOther: e.target.value })}
+                />
+              </Field>
+            )}
           </div>
         </Section>
 
@@ -1497,7 +1527,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           </Field>
           <div className="space-y-1.5 border-t pt-2">
             <p className="text-xs font-semibold text-muted-foreground">Revisão dirigida (sempre respondida)</p>
-            {REVISION_QUESTIONS.map((q) => {
+            {PRENATAL_REVISION_QUESTIONS.map((q) => {
               const key = `rev.${q.id}`;
               const cur = form.revision[key] ?? q.options[0].value;
               const curOpt = q.options.find((op) => op.value === cur);
@@ -1561,6 +1591,9 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             </Field>
             <Field label="AU (cm)">
               <Input value={form.vitals.au ?? ""} onChange={(e) => update({ vitals: { ...form.vitals, au: e.target.value } })} />
+            </Field>
+            <Field label="CA (cm)">
+              <Input value={form.vitals.ca ?? ""} onChange={(e) => update({ vitals: { ...form.vitals, ca: e.target.value } })} />
             </Field>
             <Field label="BCF (bpm)">
               <Input value={form.vitals.bcf ?? ""} onChange={(e) => update({ vitals: { ...form.vitals, bcf: e.target.value } })} />
