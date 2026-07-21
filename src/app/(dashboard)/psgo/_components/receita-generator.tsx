@@ -224,9 +224,9 @@ export function ReceitaGenerator({
   const [parceiroNome, setParceiroNome] = useState("");
   const [ig, setIg] = useState(""); // idade gestacional (auto nos relatórios)
   const [numDoses, setNumDoses] = useState("1"); // sífilis: 1 ou 3 doses
-  // Itens marcados p/ a Prescrição Hospital Dia (id → nº de folhas/doses).
-  const [hd, setHd] = useState<Record<string, string>>({});
-  const [hdDiagnostico, setHdDiagnostico] = useState("");
+  // Itens enviados à Prescrição Hospital Dia (ids) + nº de folhas (doses).
+  const [hdIds, setHdIds] = useState<string[]>([]);
+  const [hdFolhas, setHdFolhas] = useState("1");
   const activeTemplate = useMemo(
     () => RECEITA_TEMPLATES.find((t) => t.id === activeTemplateId),
     [activeTemplateId],
@@ -297,13 +297,11 @@ export function ReceitaGenerator({
     return "1";
   };
   const toggleHd = (id: string, pa: string) =>
-    setHd((h) => {
-      const next = { ...h };
-      if (id in next) delete next[id];
-      else next[id] = defaultFolhas(pa);
-      return next;
+    setHdIds((ids) => {
+      if (ids.includes(id)) return ids.filter((x) => x !== id);
+      if (ids.length === 0) setHdFolhas(defaultFolhas(pa)); // sugere pela 1ª seleção
+      return [...ids, id];
     });
-  const setHdFolhas = (id: string, folhas: string) => setHd((h) => ({ ...h, [id]: folhas }));
 
   // Preenche o cabeçalho com os dados de uma paciente do sistema.
   const fillFromPatient = (id: string) => {
@@ -331,8 +329,8 @@ export function ReceitaGenerator({
 
   // Itens da receita comum: exclui bloqueados e os enviados ao Hospital Dia.
   const printableItems = useMemo(
-    () => items.filter((it) => !controleInfo(it.principioAtivo).bloqueado && !(it.id in hd)),
-    [items, hd],
+    () => items.filter((it) => !controleInfo(it.principioAtivo).bloqueado && !hdIds.includes(it.id)),
+    [items, hdIds],
   );
   const blockedItems = useMemo(
     () => items.filter((it) => controleInfo(it.principioAtivo).bloqueado),
@@ -444,21 +442,20 @@ export function ReceitaGenerator({
   };
 
   // Emite a Prescrição Hospital Dia (FOLHA DE PRESCRIÇÃO) — uma folha por dose.
-  const hdList = items.filter((it) => it.id in hd);
+  const hdList = items.filter((it) => hdIds.includes(it.id));
   const handlePrintHospitalDia = () => {
     if (!hdList.length) return;
     const docItems = hdList.map((it) => ({
       prescricao: [medicamentoLabel(it), buildPosologia(it)].filter(Boolean).join(" — "),
       via: it.via,
-      folhas: Math.max(1, Number(hd[it.id]) || 1),
     }));
     printHtml(
-      buildHospitalDiaHtml(docItems, {
-        paciente: header.paciente,
-        registro: header.prontuario,
-        dataBR: header.data ? new Date(`${header.data}T00:00:00`).toLocaleDateString("pt-BR") : "",
-        diagnostico: hdDiagnostico || activeTemplate?.label || "",
-      }),
+      buildHospitalDiaHtml(
+        docItems,
+        Math.max(1, Number(hdFolhas) || 1),
+        { paciente: header.paciente, registro: header.prontuario },
+        letterheadFor(origin()),
+      ),
     );
   };
 
@@ -739,24 +736,12 @@ export function ReceitaGenerator({
                 <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <input
                     type="checkbox"
-                    checked={it.id in hd}
+                    checked={hdIds.includes(it.id)}
                     onChange={() => toggleHd(it.id, it.principioAtivo)}
                     className="h-3.5 w-3.5"
                   />
                   Enviar para a{" "}
                   <span className="font-medium text-foreground">Prescrição Hospital Dia</span>
-                  {it.id in hd && (
-                    <span className="inline-flex items-center gap-1">
-                      · folhas (doses):
-                      <Input
-                        type="number"
-                        min={1}
-                        value={hd[it.id]}
-                        onChange={(e) => setHdFolhas(it.id, e.target.value)}
-                        className="h-7 w-16"
-                      />
-                    </span>
-                  )}
                 </label>
 
                 {info.bloqueado && (
@@ -1048,11 +1033,12 @@ export function ReceitaGenerator({
               <strong>uma folha por dose</strong>. Estes itens não entram na receita comum.
             </p>
             <div className="flex flex-wrap items-end gap-2">
-              <Field label="Diagnóstico (opcional)" className="min-w-[15rem] flex-1">
+              <Field label="Nº de folhas (doses/aplicações)" className="w-44">
                 <Input
-                  value={hdDiagnostico}
-                  onChange={(e) => setHdDiagnostico(e.target.value)}
-                  placeholder={activeTemplate?.label ?? "diagnóstico"}
+                  type="number"
+                  min={1}
+                  value={hdFolhas}
+                  onChange={(e) => setHdFolhas(e.target.value)}
                 />
               </Field>
               <Button type="button" size="sm" onClick={handlePrintHospitalDia}>
@@ -1060,10 +1046,9 @@ export function ReceitaGenerator({
               </Button>
             </div>
             <ul className="list-disc pl-5 text-xs text-muted-foreground">
-              {hdList.map((it) => (
+              {hdList.map((it, i) => (
                 <li key={it.id}>
-                  {medicamentoLabel(it) || "medicamento"} — {Math.max(1, Number(hd[it.id]) || 1)}{" "}
-                  folha(s)
+                  {i + 1}- {medicamentoLabel(it) || "medicamento"} · {it.via}
                 </li>
               ))}
             </ul>
