@@ -9,12 +9,19 @@
 import { assemblePrenatalRevision } from "./revision";
 
 /**
- * Texto do CONTEXTO (sem o prefixo "CONTEXTO:"):
- *   "COMPARECE PARA CONSULTA[. {queixas atuais}]. {revisão dirigida}"
+ * Texto da HPMA (sem o prefixo "HPMA:"):
+ *   "COMPARECE PARA CONSULTA {acompanhante}[. {queixas atuais}]. {revisão dirigida}"
  * A revisão dirigida inclui queixas mamárias (pré-natal) + a revisão do PSGO.
+ * `companionPhrase` (ex.: "ACOMPANHADA DE … (ESPOSO)" ou "DESACOMPANHADA") entra
+ * no comparecimento, como no PSGO.
  */
-export function renderPrenatalContext(revision: Record<string, string>, currentComplaints: string): string {
+export function renderPrenatalContext(
+  revision: Record<string, string>,
+  currentComplaints: string,
+  companionPhrase = "",
+): string {
   const rev = assemblePrenatalRevision(revision);
-  const lead = ["COMPARECE PARA CONSULTA", currentComplaints.trim()].filter(Boolean).join(". ");
+  const comparece = `COMPARECE PARA CONSULTA${companionPhrase ? ` ${companionPhrase}` : ""}`;
+  const lead = [comparece, currentComplaints.trim()].filter(Boolean).join(". ");
   return [lead, rev].filter((s) => s.trim()).join(". ");
 }

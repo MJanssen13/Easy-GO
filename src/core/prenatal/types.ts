@@ -21,6 +21,13 @@ import { emptyPrenatalExam } from "./exam";
 import type { VaccineCard } from "./vaccines";
 import { emptyVaccineCard } from "./vaccines";
 
+/** Um resultado de VCE (colpocitologia oncótica / Papanicolau), com data. */
+export interface VceEntry {
+  id: string;
+  result: string;
+  date: string;
+}
+
 export interface PrenatalForm {
   date: string; // data da consulta (ISO)
 
@@ -71,10 +78,8 @@ export interface PrenatalForm {
   // cartão de vacinas
   vaccines: VaccineCard;
 
-  /** VCE — resultado da colpocitologia oncótica (Papanicolau); texto livre. */
-  vce: string;
-  /** Data do VCE (Papanicolau), opcional. */
-  vceDate: string;
+  /** VCE — colpocitologia oncótica (Papanicolau); permite mais de um resultado. */
+  vceList: VceEntry[];
 
   // sorologias
   serologyPasted: string;
@@ -88,8 +93,6 @@ export interface PrenatalForm {
 
   // exame físico
   weight: string;
-  /** Peso pré-gestacional (kg) — para IMC pré-gestacional e ganho de peso. */
-  prePregnancyWeight: string;
   height: string;
   vitals: PrenatalVitals;
   exam: PrenatalExamState;
@@ -151,14 +154,12 @@ export function emptyPrenatalForm(date?: string): PrenatalForm {
     habitsOther: "",
     udiWhich: "",
     vaccines: emptyVaccineCard(),
-    vce: "",
-    vceDate: "",
+    vceList: [],
     serologyPasted: "",
     serologyGrid: emptySerologyGrid(),
     revision: {},
     currentComplaints: "",
     weight: "",
-    prePregnancyWeight: "",
     height: "",
     vitals: {},
     exam: emptyPrenatalExam(),

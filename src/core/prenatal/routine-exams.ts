@@ -57,6 +57,7 @@ const THIRD: RoutineExam[] = [
   { label: "Coombs indireto", note: "se Rh negativo" },
   { label: "Cultura para EGB (swab vaginal e retal)", note: "35–37 sem" },
   { label: "Urocultura" },
+  { label: "USG obstétrico", note: "crescimento/apresentação/ILA — se indicado" },
 ];
 
 const BY_TRIMESTER: Record<Trimester, RoutineExam[]> = { 1: FIRST, 2: SECOND, 3: THIRD };

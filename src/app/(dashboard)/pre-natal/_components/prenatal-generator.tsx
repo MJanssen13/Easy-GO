@@ -14,19 +14,28 @@ import {
 import {
   emptyPrenatalForm,
   type PrenatalForm,
+  type VceEntry,
 } from "@/core/prenatal/types";
 import { renderPrenatal, prenatalHd } from "@/core/prenatal/render";
 import { renderPrenatalContext } from "@/core/prenatal/context";
-import { PRENATAL_EXAM_SYSTEMS, prenatalNormalLine } from "@/core/prenatal/exam";
-import { PRENATAL_VACCINES, VACCINE_STATUSES } from "@/core/prenatal/vaccines";
-import { vaccineRecommendations, type VaccineRecStatus } from "@/core/prenatal/vaccine-schedule";
+import {
+  PRENATAL_PHYS_SYSTEMS,
+  PRENATAL_GYN_EXAM_SYSTEMS,
+  prenatalNormalLine,
+  type PrenatalExamMode,
+} from "@/core/prenatal/exam";
+import {
+  PRENATAL_VACCINES,
+  SCHEME_STATUSES,
+  schemeDoseCount,
+  type VaccineEntry,
+} from "@/core/prenatal/vaccines";
 import {
   trimesterOf,
   routineExamsFor,
   trimesterLabel,
   routineExamsRequestLine,
 } from "@/core/prenatal/routine-exams";
-import { assessWeightGain } from "@/core/prenatal/weight-gain";
 import {
   PRIOR_TYPE_LABELS,
   NO_COMPLICATIONS_LABEL,
@@ -94,6 +103,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
 import { DateBRInput } from "@/components/date-br-input";
+import { PrenatalCharts } from "./prenatal-charts";
 
 const selectClass =
   "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -328,28 +338,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
       ).gaWeeks,
     [form.lmp, form.lmpUncertain, form.imagingExams, form.datingPreference, form.date],
   );
-  const vaccineRecs = useMemo(() => vaccineRecommendations(gaWeeks), [gaWeeks]);
   const trimester = trimesterOf(gaWeeks);
-  const weightGain = useMemo(
-    () =>
-      assessWeightGain({
-        prePregnancyWeightKg: parseDecimal(form.prePregnancyWeight),
-        currentWeightKg: parseDecimal(form.weight),
-        heightM: parseDecimal(form.height),
-        gaWeeks,
-      }),
-    [form.prePregnancyWeight, form.weight, form.height, gaWeeks],
-  );
-
-  // Cor do destaque da recomendação de vacina conforme o status.
-  const vaccineStatusClass: Record<VaccineRecStatus, string> = {
-    due: "text-emerald-700",
-    late: "text-amber-700",
-    wait: "text-muted-foreground",
-    outside: "text-muted-foreground",
-    anytime: "text-teal-700",
-    unknown: "text-muted-foreground",
-  };
 
   // Papanicolau (VCE) — resultados frequentes (Sistema Bethesda) para atalho.
   const PAP_RESULTS = [
@@ -424,8 +413,24 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
   }
 
   // Vacinas
-  function updateVaccine(id: string, patch: Partial<{ status: string; detail: string }>) {
+  function updateVaccine(id: string, patch: Partial<VaccineEntry>) {
     update({ vaccines: { ...form.vaccines, [id]: { ...form.vaccines[id], ...patch } } });
+  }
+  function setVaccineDose(id: string, idx: number, iso: string) {
+    const doses = [...(form.vaccines[id]?.doses ?? ["", "", ""])];
+    doses[idx] = iso;
+    updateVaccine(id, { doses });
+  }
+
+  // VCE (Papanicolau) — lista
+  function addVce() {
+    update({ vceList: [...form.vceList, { id: uid(), result: "", date: "" }] });
+  }
+  function updateVce(id: string, patch: Partial<VceEntry>) {
+    update({ vceList: form.vceList.map((v) => (v.id === id ? { ...v, ...patch } : v)) });
+  }
+  function removeVce(id: string) {
+    update({ vceList: form.vceList.filter((v) => v.id !== id) });
   }
 
   // Sorologias externas (quadro)
@@ -1263,7 +1268,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           />
         </Section>
 
-        {/* Cartão de vacinas — com recomendação por IG (PNI/MS) */}
+        {/* Cartão de vacinas — esquemas (Hep B/dT), janela (dTpa/VSR) e dose única */}
         <Section
           defaultOpen={false}
           title="Cartão de vacinas"
@@ -1276,82 +1281,109 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                 </span>
               )}
               <InfoTip title="Vacinas na gestação (PNI/MS)">
-                <p>Recomendação por IG: Hepatite B e dT (qualquer IG), dTpa (20–36 sem), Influenza e COVID-19 (qualquer IG), VSR materna (28–36 sem).</p>
+                <p>Hep B e dT: esquema (doses com data; vazio → PENDENTE). dTpa (20–36 sem) e VSR (28–36 sem): data; na janela e sem data → PENDENTE. Influenza e COVID-19: data.</p>
                 <p>Apoio à decisão — validar com a caderneta e o calendário vigente.</p>
               </InfoTip>
             </>
           }
         >
           {PRENATAL_VACCINES.map((v) => {
-            const rec = vaccineRecs.find((r) => r.id === v.id);
+            const entry = form.vaccines[v.id];
+            const doseCount = v.kind === "scheme" ? schemeDoseCount(v, entry.status) : 0;
             return (
-              <div key={v.id} className="space-y-1 rounded-md border p-2">
+              <div key={v.id} className="space-y-1.5 rounded-md border p-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="w-24 text-sm font-semibold">{v.label}</span>
-                  <select
-                    className={`${selectClass} h-8 w-40`}
-                    value={form.vaccines[v.id].status}
-                    onChange={(e) => updateVaccine(v.id, { status: e.target.value })}
-                  >
-                    {VACCINE_STATUSES.map((s) => (
-                      <option key={s || "vazio"} value={s}>
-                        {s || "—"}
-                      </option>
-                    ))}
-                  </select>
-                  <Input
-                    className="h-8 min-w-[7rem] flex-1"
-                    placeholder="Detalhe (data / IG da dose)"
-                    value={form.vaccines[v.id].detail}
-                    onChange={(e) => updateVaccine(v.id, { detail: e.target.value })}
-                  />
-                  {rec && (rec.status === "due" || rec.status === "late") && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      title="Marcar como realizada nesta IG"
-                      onClick={() =>
-                        updateVaccine(v.id, {
-                          status: "REALIZADA",
-                          detail: gaWeeks != null ? `${gaWeeks} SEM` : form.vaccines[v.id].detail,
-                        })
-                      }
+                  {v.kind === "scheme" ? (
+                    <select
+                      className={`${selectClass} h-8 w-44`}
+                      value={entry.status}
+                      onChange={(e) => updateVaccine(v.id, { status: e.target.value })}
                     >
-                      Realizada
-                    </Button>
+                      {SCHEME_STATUSES.map((s) => (
+                        <option key={s || "vazio"} value={s}>
+                          {s || "—"}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">Data</span>
+                      <DateBRInput
+                        className="h-8 w-32"
+                        value={entry.date}
+                        onChange={(iso) => updateVaccine(v.id, { date: iso })}
+                      />
+                    </div>
+                  )}
+                  {v.description && (
+                    <span className="text-[11px] text-muted-foreground">{v.description}</span>
                   )}
                 </div>
-                {rec && (
-                  <p className={`text-[11px] ${vaccineStatusClass[rec.status]}`}>
-                    <span className="font-medium">{rec.window}</span> · {rec.hint}
-                  </p>
+                {doseCount > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 pl-24">
+                    {Array.from({ length: doseCount }, (_, i) => (
+                      <div key={i} className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">{i + 1}ª</span>
+                        <DateBRInput
+                          className="h-8 w-28"
+                          value={entry.doses[i] ?? ""}
+                          onChange={(iso) => setVaccineDose(v.id, i, iso)}
+                        />
+                      </div>
+                    ))}
+                    <span className="text-[11px] text-muted-foreground">dose sem data → PENDENTE</span>
+                  </div>
                 )}
               </div>
             );
           })}
         </Section>
 
-        {/* VCE — colpocitologia oncótica (Papanicolau) */}
-        <Section defaultOpen={false} title="VCE (Papanicolau)" contentClassName="space-y-2">
+        {/* VCE — colpocitologia oncótica (Papanicolau); permite mais de um */}
+        <Section
+          defaultOpen={false}
+          title="VCE (Papanicolau)"
+          contentClassName="space-y-2"
+          headerExtra={
+            <Button type="button" size="sm" variant="outline" onClick={addVce}>
+              <Plus className="h-4 w-4" /> VCE
+            </Button>
+          }
+        >
           <p className="text-xs text-muted-foreground">
-            Resultado da colpocitologia oncótica (Papanicolau).
+            Resultado(s) da colpocitologia oncótica (Papanicolau).
           </p>
-          <div className="flex flex-wrap items-end gap-3">
-            <Field label="Data" className="w-40">
-              <DateBRInput value={form.vceDate} onChange={(iso) => update({ vceDate: iso })} />
-            </Field>
-            <Field label="Resultado" className="min-w-[12rem] flex-1">
-              <Input value={form.vce} onChange={(e) => update({ vce: e.target.value })} />
-            </Field>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {PAP_RESULTS.map((r) => (
-              <Chip key={r} active={form.vce === r} onClick={() => update({ vce: form.vce === r ? "" : r })}>
-                {r}
-              </Chip>
-            ))}
-          </div>
+          {form.vceList.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum VCE. Use &ldquo;+ VCE&rdquo; para adicionar.</p>
+          ) : (
+            form.vceList.map((v) => (
+              <div key={v.id} className="space-y-1.5 rounded-md border p-2">
+                <div className="flex flex-wrap items-end gap-2">
+                  <Field label="Data" className="w-36">
+                    <DateBRInput value={v.date} onChange={(iso) => updateVce(v.id, { date: iso })} />
+                  </Field>
+                  <Field label="Resultado" className="min-w-[10rem] flex-1">
+                    <Input value={v.result} onChange={(e) => updateVce(v.id, { result: e.target.value })} />
+                  </Field>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeVce(v.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {PAP_RESULTS.map((r) => (
+                    <Chip
+                      key={r}
+                      active={v.result === r}
+                      onClick={() => updateVce(v.id, { result: v.result === r ? "" : r })}
+                    >
+                      {r}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
         </Section>
 
         {/* Sorologias e laboratoriais */}
@@ -1466,57 +1498,9 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           </div>
         </Section>
 
-        {/* Rotina de exames por trimestre (MS/Febrasgo) */}
-        <Section
-          defaultOpen={false}
-          title="Exames de rotina (por trimestre)"
-          contentClassName="space-y-2"
-          headerExtra={
-            trimester != null ? (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-                {trimesterLabel(trimester)}
-              </span>
-            ) : undefined
-          }
-        >
-          {trimester == null ? (
-            <p className="text-xs text-muted-foreground">
-              Informe a DUM/USG para identificar o trimestre e a rotina de exames.
-            </p>
-          ) : (
-            <>
-              <ul className="space-y-1 text-sm">
-                {routineExamsFor(trimester).map((e, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-muted-foreground">•</span>
-                    <span>
-                      {e.label}
-                      {e.note && <span className="text-muted-foreground"> — {e.note}</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const line = routineExamsRequestLine(trimester);
-                  update({ cd: form.cd.trim() ? `${form.cd.trim()}\n${line}` : line });
-                }}
-              >
-                <Plus className="h-4 w-4" /> Copiar solicitação para conduta
-              </Button>
-              <p className="text-[10px] text-muted-foreground">
-                Fonte: MS (Pré-Natal de Baixo Risco) / Febrasgo — lista curada, validar com o protocolo do serviço.
-              </p>
-            </>
-          )}
-        </Section>
-
         {/* HPMA / Contexto — revisão dirigida (sempre respondida) + queixas atuais.
             Adaptada do PSGO, sem o gerador de HPMA por QP (a pedido). */}
-        <Section title="HPMA / Contexto" contentClassName="space-y-3">
+        <Section title="HPMA" contentClassName="space-y-3">
           <Field label="Queixas atuais">
             <Textarea
               rows={2}
@@ -1567,13 +1551,6 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             <Field label="Altura (m)">
               <Input value={form.height} onChange={(e) => update({ height: e.target.value })} inputMode="decimal" />
             </Field>
-            <Field label="Peso pré-gest. (kg)">
-              <Input
-                value={form.prePregnancyWeight}
-                onChange={(e) => update({ prePregnancyWeight: e.target.value })}
-                inputMode="decimal"
-              />
-            </Field>
             <Field label="Temp (°C)">
               <Input value={form.vitals.temp ?? ""} onChange={(e) => update({ vitals: { ...form.vitals, temp: e.target.value } })} />
             </Field>
@@ -1600,53 +1577,15 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             </Field>
           </div>
 
-          {/* IMC pré-gestacional + ganho de peso (IOM 2009) */}
-          {weightGain && (
-            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-semibold">
-                  IMC pré-gestacional: {weightGain.bmi.imc} kg/m²{" "}
-                  <span className="font-normal text-muted-foreground">({weightGain.bmi.label})</span>
-                </span>
-                <span className="text-muted-foreground">
-                  Meta de ganho: {weightGain.totalTarget.low}–{weightGain.totalTarget.high} kg
-                </span>
-              </div>
-              {weightGain.currentGain != null && (
-                <p className="mt-1">
-                  Ganho atual:{" "}
-                  <span
-                    className={`font-semibold ${
-                      weightGain.status === "within"
-                        ? "text-emerald-700"
-                        : weightGain.status === null
-                          ? ""
-                          : "text-amber-700"
-                    }`}
-                  >
-                    {weightGain.currentGain > 0 ? "+" : ""}
-                    {weightGain.currentGain} kg
-                    {weightGain.status === "below"
-                      ? " (abaixo)"
-                      : weightGain.status === "above"
-                        ? " (acima)"
-                        : weightGain.status === "within"
-                          ? " (adequado)"
-                          : ""}
-                  </span>
-                  {weightGain.expectedNow && (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      · esperado p/ IG: {weightGain.expectedNow.low}–{weightGain.expectedNow.high} kg
-                    </span>
-                  )}
-                </p>
-              )}
-              <p className="mt-1 text-[10px] text-muted-foreground">Fonte: IOM 2009 · gestação única · validar.</p>
-            </div>
-          )}
+          {/* Gráficos do MS: IMC × IG (Atalah) e altura uterina × IG */}
+          <PrenatalCharts
+            weight={form.weight}
+            height={form.height}
+            au={form.vitals.au ?? ""}
+            gaWeeks={gaWeeks}
+          />
 
-          {PRENATAL_EXAM_SYSTEMS.map((s) => {
+          {PRENATAL_PHYS_SYSTEMS.map((s) => {
             const st = form.exam[s.id];
             return (
               <div key={s.id} className="rounded-md border p-2">
@@ -1698,8 +1637,60 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           title="Exame ginecológico e obstétrico"
           contentClassName="space-y-4"
         >
-          {/* Abdome gravídico */}
+          {/* Mamas e inspeção vulvar (normal / alterado / não realizado) */}
           <div className="space-y-2">
+            {PRENATAL_GYN_EXAM_SYSTEMS.map((s) => {
+              const st = form.exam[s.id];
+              const modeOptions: { value: PrenatalExamMode; label: string }[] = [
+                { value: "normal", label: "Normal" },
+                { value: "altered", label: "Alterado" },
+                { value: "notdone", label: "Não realizado" },
+              ];
+              return (
+                <div key={s.id} className="rounded-md border p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{s.label}</span>
+                    <div className="w-60">
+                      <Segmented
+                        value={st.mode}
+                        onChange={(v) =>
+                          update({
+                            exam: {
+                              ...form.exam,
+                              [s.id]: {
+                                ...st,
+                                mode: v,
+                                ...(v === "altered" && !st.text.trim()
+                                  ? { text: prenatalNormalLine(s.id, form.vitals) }
+                                  : {}),
+                              },
+                            },
+                          })
+                        }
+                        options={modeOptions}
+                      />
+                    </div>
+                  </div>
+                  {st.mode === "altered" ? (
+                    <Textarea
+                      className="mt-2"
+                      rows={2}
+                      value={st.text}
+                      placeholder={prenatalNormalLine(s.id, form.vitals)}
+                      onChange={(e) => update({ exam: { ...form.exam, [s.id]: { ...st, text: e.target.value } } })}
+                    />
+                  ) : st.mode === "notdone" ? (
+                    <p className="mt-1 text-xs italic text-muted-foreground">Não realizado nesta consulta.</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">{prenatalNormalLine(s.id, form.vitals)}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Abdome gravídico */}
+          <div className="space-y-2 border-t pt-3">
             <p className="text-sm font-semibold">Abdome (gravídico)</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{abdFieldsFor(true).map(gyField)}</div>
             {form.gyneco.values["abdDu"] === "Presente" && (
@@ -1872,6 +1863,55 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             value={form.cd}
             onChange={(e) => update({ cd: e.target.value })}
           />
+        </Section>
+
+        {/* Sugestões (exames e USG por trimestre) — MS/Febrasgo. Não vai ao prontuário
+            automaticamente; use "Copiar para conduta". */}
+        <Section
+          defaultOpen={false}
+          title="Sugestões (exames e USG por trimestre)"
+          contentClassName="space-y-2"
+          headerExtra={
+            trimester != null ? (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                {trimesterLabel(trimester)}
+              </span>
+            ) : undefined
+          }
+        >
+          {trimester == null ? (
+            <p className="text-xs text-muted-foreground">
+              Informe a DUM/USG para identificar o trimestre e as sugestões (exames e USG).
+            </p>
+          ) : (
+            <>
+              <ul className="space-y-1 text-sm">
+                {routineExamsFor(trimester).map((e, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-muted-foreground">•</span>
+                    <span>
+                      {e.label}
+                      {e.note && <span className="text-muted-foreground"> — {e.note}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const line = routineExamsRequestLine(trimester);
+                  update({ cd: form.cd.trim() ? `${form.cd.trim()}\n${line}` : line });
+                }}
+              >
+                <Plus className="h-4 w-4" /> Copiar sugestão para conduta
+              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                Fonte: MS (Pré-Natal de Baixo Risco) / Febrasgo — sugestões (inclui USG), validar com o protocolo do serviço.
+              </p>
+            </>
+          )}
         </Section>
       </div>
 

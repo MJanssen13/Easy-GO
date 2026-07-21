@@ -16,10 +16,9 @@ import { renderImaging } from "@/core/psgo/imaging";
 import { renderGyneco } from "@/core/psgo/gyneco-exam";
 import { sortDatedText } from "@/core/psgo/dated-lines";
 import { parseDecimal } from "@/lib/num";
-import { PRENATAL_EXAM_SYSTEMS, buildPrenatalExamLine } from "./exam";
+import { prenatalExamDef, buildPrenatalExamLine } from "./exam";
 import { renderVaccineCard } from "./vaccines";
 import { renderPrenatalContext } from "./context";
-import { assessWeightGain } from "./weight-gain";
 
 function dateBR(iso?: string | null): string {
   if (!iso) return "";
@@ -108,18 +107,11 @@ export function renderPrenatal(form: PrenatalForm): string {
   // Cabeçalho
   push(1, `## AMBULATÓRIO DE PRÉ-NATAL - ${dateBR(form.date)} ##`);
 
-  // Identificação
-  const relation =
-    form.companionRelation === "OUTRO"
-      ? form.companionRelationOther.trim() || "OUTRO"
-      : form.companionRelation;
+  // Identificação (o acompanhante vai na HPMA, como no PSGO)
   push(
     1,
     `${form.name}${form.socialName ? ` (NOME SOCIAL: ${form.socialName})` : ""}, RG ${form.rg}`,
     `${form.age}${form.age.trim() ? " ANOS" : ""}, PROCEDENTE DE ${form.origin}`,
-    form.companion.trim()
-      ? `ACOMPANHANTE: ${form.companion}${relation ? ` (${relation})` : ""}`
-      : "DESACOMPANHADA",
   );
 
   // Acompanhamento pré-natal
@@ -181,12 +173,15 @@ export function renderPrenatal(form: PrenatalForm): string {
   );
   push(1, ...medsBlock);
 
-  // Cartão de vacinas
-  push(1, ...renderVaccineCard(form.vaccines));
+  // Cartão de vacinas (a IG resolve "pendente" vs. em branco das vacinas com janela)
+  push(1, ...renderVaccineCard(form.vaccines, dating.gaWeeks));
 
-  // VCE (colpocitologia oncótica / Papanicolau)
-  const vceParts = [form.vce.trim(), form.vceDate ? `EM ${dateBR(form.vceDate)}` : ""].filter(Boolean);
-  push(1, `VCE: ${vceParts.join(" ")}`);
+  // VCE (colpocitologia oncótica / Papanicolau) — um ou mais resultados
+  const vce = (form.vceList ?? [])
+    .map((v) => [v.result.trim(), v.date ? `EM ${dateBR(v.date)}` : ""].filter(Boolean).join(" "))
+    .filter(Boolean)
+    .join(" / ");
+  push(1, `VCE: ${vce}`);
 
   // Sorologias (colado + quadro externo, ordenado por data)
   const seroBlock = ["SOROLOGIAS:"];
@@ -194,25 +189,23 @@ export function renderPrenatal(form: PrenatalForm): string {
   if (serologies.trim()) seroBlock.push(serologies);
   push(2, ...seroBlock);
 
-  // Contexto da consulta (HPMA adaptada: revisão dirigida + queixas atuais)
-  push(2, `CONTEXTO: ${renderPrenatalContext(form.revision, form.currentComplaints)}`);
+  // HPMA (revisão dirigida + queixas atuais + acompanhante, como no PSGO)
+  const relation =
+    form.companionRelation === "OUTRO"
+      ? form.companionRelationOther.trim() || "OUTRO"
+      : form.companionRelation;
+  const companionPhrase = form.companion.trim()
+    ? `ACOMPANHADA DE ${form.companion.trim()}${relation ? ` (${relation})` : ""}`
+    : "DESACOMPANHADA";
+  push(2, `HPMA: ${renderPrenatalContext(form.revision, form.currentComplaints, companionPhrase)}`);
 
   // Exame físico
   const examBlock = [
     "EXAME FÍSICO:",
     `PESO: ${form.weight} KG // ALTURA: ${form.height} M // IMC: ${bmi ? bmi.imc : ""} KG/M²`,
   ];
-  // IMC pré-gestacional + ganho de peso (IOM 2009) — só quando há peso pré-gestacional.
-  const weightGain = assessWeightGain({
-    prePregnancyWeightKg: parseDecimal(form.prePregnancyWeight),
-    currentWeightKg: weight,
-    heightM: height,
-    gaWeeks: dating.gaWeeks,
-  });
-  if (weightGain) examBlock.push(weightGain.summaryLine);
   // Sistemas por id (para intercalar o exame ginecológico/obstétrico na ordem do modelo).
-  const sysDef = (id: string) => PRENATAL_EXAM_SYSTEMS.find((s) => s.id === id)!;
-  const sysLine = (id: string) => buildPrenatalExamLine(sysDef(id), form.exam[id], form.vitals);
+  const sysLine = (id: string) => buildPrenatalExamLine(prenatalExamDef(id), form.exam[id], form.vitals);
   // Exame ginecológico/obstétrico clicável (reuso do PSGO): [ABD, TOQUE, ESPECULAR].
   // O ABD do PSGO traz AU/BCF; o modelo do pré-natal inclui a circunferência
   // abdominal (CA) — inserida entre AU e BCF (só no pré-natal, sem alterar o PSGO).

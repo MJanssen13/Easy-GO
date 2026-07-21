@@ -85,6 +85,24 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   (nega/relata + sintomas), específica do pré-natal.
 - **Circunferência abdominal (CA)** de volta no exame: entra na linha do abdome
   entre AU e BCF (AU/CA/BCF), sem alterar o abdome do PSGO.
+- **Acompanhante na HPMA** (o bloco antes chamado CONTEXTO virou **HPMA**, como
+  no PSGO): "COMPARECE PARA CONSULTA ACOMPANHADA DE … (…)" ou "DESACOMPANHADA".
+- **Cartão de vacinas reformulado**: Hep B e dT viram **esquema** (status +
+  datas das doses; dose sem data → PENDENTE; dT incompleto abre 2 doses, pois a
+  3ª é a dTpa). **dTpa (20–36 sem)** e **VSR (28–36 sem)** têm um campo de data —
+  na janela sem data → PENDENTE, antes da janela → rótulo em branco. **Influenza**
+  e **COVID-19** têm um campo de data.
+- **VCE (Papanicolau)**: agora aceita **mais de um** resultado (lista com data).
+- **Sugestões (exames + USG por trimestre)**: a antiga seção "exames de rotina"
+  virou **sugestões**, movida para **abaixo da Conduta**, e passa a incluir os
+  **USGs** por trimestre (não vai ao prontuário — botão "copiar para conduta").
+- **Peso pré-gestacional removido** (e a análise de ganho de peso IOM 2009).
+- **Gráficos** no exame físico quando peso e altura estão preenchidos: **IMC**
+  (faixas OMS/MS) e **altura uterina × IG** (regra prática AU≈IG, 20–34 sem).
+  As curvas oficiais da caderneta (IMC gestacional de Atalah e P10/P90 de altura
+  uterina do CLAP) ficam para inserir a partir da tabela — não fabricadas.
+- **Mamas** e **inspeção vulvar** ganharam a opção **"não realizado"** e foram
+  movidas para o **exame ginecológico e obstétrico**.
 
 ### PSGO — Salvamento automático e prescrição integrada
 

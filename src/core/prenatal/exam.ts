@@ -1,14 +1,15 @@
 /**
  * Exame físico do MODELO DE PRÉ-NATAL (ambulatório): textos padrão "normal" por
- * sistema, com sinais vitais interpolados, e modo "alterado" (texto livre).
+ * sistema, com sinais vitais interpolados, e modo "alterado" (texto livre) ou
+ * "não realizado" (mamas / inspeção vulvar).
  *
  * O abdome gravídico, o toque vaginal e o exame especular NÃO ficam aqui — são
  * detalhados no exame ginecológico/obstétrico (clicável), reaproveitado do PSGO
- * (`@/core/psgo/gyneco-exam`). Aqui ficam os demais sistemas + os específicos do
- * pré-natal (tireoide, mamas e inspeção vulvar).
+ * (`@/core/psgo/gyneco-exam`). Mamas e inspeção vulvar também são exibidas nesse
+ * exame ginecológico, mas seguem o modelo normal/alterado/não realizado daqui.
  */
 
-export type PrenatalExamMode = "normal" | "altered";
+export type PrenatalExamMode = "normal" | "altered" | "notdone";
 
 export interface PrenatalExamSystemState {
   mode: PrenatalExamMode;
@@ -34,17 +35,32 @@ export interface PrenatalVitals {
 export interface PrenatalExamSystemDef {
   id: string;
   label: string;
+  /** Permite marcar "não realizado" (mamas / inspeção vulvar). */
+  canSkip?: boolean;
+  /** Rótulo usado na linha "NÃO REALIZADO". */
+  notdoneLabel?: string;
 }
 
-export const PRENATAL_EXAM_SYSTEMS: PrenatalExamSystemDef[] = [
+/** Sistemas do card "Exame físico". */
+export const PRENATAL_PHYS_SYSTEMS: PrenatalExamSystemDef[] = [
   { id: "geral", label: "Geral" },
   { id: "tireoide", label: "Tireoide" },
   { id: "acv", label: "Ap. cardiovascular" },
   { id: "ar", label: "Ap. respiratório" },
-  { id: "mamas", label: "Mamas" },
-  { id: "vulva", label: "Inspeção vulvar" },
   { id: "mmii", label: "MMII" },
 ];
+
+/** Mamas e inspeção vulvar — exibidas no exame ginecológico/obstétrico. */
+export const PRENATAL_GYN_EXAM_SYSTEMS: PrenatalExamSystemDef[] = [
+  { id: "mamas", label: "Mamas", canSkip: true, notdoneLabel: "MAMAS" },
+  { id: "vulva", label: "Inspeção vulvar", canSkip: true, notdoneLabel: "INSPEÇÃO VULVAR" },
+];
+
+const ALL_SYSTEMS = [...PRENATAL_PHYS_SYSTEMS, ...PRENATAL_GYN_EXAM_SYSTEMS];
+
+export function prenatalExamDef(id: string): PrenatalExamSystemDef {
+  return ALL_SYSTEMS.find((s) => s.id === id)!;
+}
 
 /** Texto "normal" de um sistema, com os sinais vitais preenchidos. */
 export function prenatalNormalLine(id: string, v: PrenatalVitals): string {
@@ -72,12 +88,15 @@ export function prenatalNormalLine(id: string, v: PrenatalVitals): string {
   }
 }
 
-/** Texto final de um sistema conforme o modo (normal / alterado). */
+/** Texto final de um sistema conforme o modo (normal / alterado / não realizado). */
 export function buildPrenatalExamLine(
   def: PrenatalExamSystemDef,
   state: PrenatalExamSystemState,
   vitals: PrenatalVitals,
 ): string {
+  if (state.mode === "notdone" && def.canSkip) {
+    return `${def.notdoneLabel ?? def.label.toUpperCase()}: NÃO REALIZADO`;
+  }
   if (state.mode === "altered" && state.text.trim() !== "") {
     return state.text.trim();
   }
@@ -88,6 +107,6 @@ export type PrenatalExamState = Record<string, PrenatalExamSystemState>;
 
 export function emptyPrenatalExam(): PrenatalExamState {
   const exam: PrenatalExamState = {};
-  for (const s of PRENATAL_EXAM_SYSTEMS) exam[s.id] = { mode: "normal", text: "" };
+  for (const s of ALL_SYSTEMS) exam[s.id] = { mode: "normal", text: "" };
   return exam;
 }
