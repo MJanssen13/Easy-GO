@@ -11,8 +11,9 @@ import {
   RepositoryError,
 } from "@/core/patients/repository";
 import { psgoFormToNewPatient } from "@/core/psgo/patient-mapper";
+import { ADMISSION_STATUS_OPTIONS } from "@/core/patients/status";
 import type { PsgoForm } from "@/core/psgo/types";
-import type { PatientModule } from "@/core/patients/types";
+import type { PatientModule, PatientStatus } from "@/core/patients/types";
 
 export type PsgoAdmissionState = { error?: string; patientId?: string };
 
@@ -63,17 +64,30 @@ export async function savePsgoAdmission(
 
 const TRANSFER_TARGETS: PatientModule[] = ["pre_parto", "puerperio", "oncogineco"];
 
-/** Transfere a paciente do PSGO para outro módulo (grava em patient_transfers). */
+/**
+ * Transfere a paciente do PSGO para outro módulo (grava em patient_transfers).
+ * Ao ir para o Pré-Parto, define a situação inicial (Indução/Condução/TP/
+ * Cesárea agendada) para a paciente chegar como admissão, não como "Observação".
+ * Os demais dados da admissão viajam com a paciente (modelo compartilhado).
+ */
 export async function transferPsgoPatient(
   patientId: string,
   toModule: PatientModule,
   reason?: string,
+  status?: PatientStatus,
 ): Promise<{ error?: string }> {
   if (!TRANSFER_TARGETS.includes(toModule)) {
     return { error: "Módulo de destino inválido." };
   }
+  const initialStatus =
+    toModule === "pre_parto" && status && ADMISSION_STATUS_OPTIONS.includes(status)
+      ? status
+      : undefined;
   try {
     await transferPatient(patientId, toModule, reason?.trim() || undefined);
+    if (initialStatus) {
+      await updatePatient(patientId, { status: initialStatus });
+    }
     revalidatePath("/psgo");
     revalidatePath(`/psgo/${patientId}`);
     return {};

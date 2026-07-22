@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft } from "lucide-react";
-import type { PatientModule } from "@/core/patients/types";
+import type { PatientModule, PatientStatus } from "@/core/patients/types";
+import { ADMISSION_STATUS_OPTIONS, PATIENT_STATUS_LABELS } from "@/core/patients/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,14 +21,16 @@ export function PsgoTransfer({ patientId }: { patientId: string }) {
   const [pending, start] = useTransition();
   const [target, setTarget] = useState<PatientModule | "">("");
   const [reason, setReason] = useState("");
+  const [status, setStatus] = useState<PatientStatus>("active_labor");
   const [error, setError] = useState<string | null>(null);
 
   function submit() {
     if (!target) return;
     setError(null);
     const dest = TARGETS.find((t) => t.module === target);
+    const initialStatus = target === "pre_parto" ? status : undefined;
     start(async () => {
-      const res = await transferPsgoPatient(patientId, target, reason || undefined);
+      const res = await transferPsgoPatient(patientId, target, reason || undefined, initialStatus);
       if (res.error) {
         setError(res.error);
         return;
@@ -58,6 +61,28 @@ export function PsgoTransfer({ patientId }: { patientId: string }) {
           ))}
         </div>
       </div>
+
+      {target === "pre_parto" && (
+        <div className="space-y-1">
+          <Label className="text-xs">Situação no Pré-Parto</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {ADMISSION_STATUS_OPTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatus(s)}
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  status === s
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {PATIENT_STATUS_LABELS[s]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-1">
         <Label className="text-xs">Motivo (opcional)</Label>
