@@ -5,19 +5,16 @@
  * módulos); a admissão completa fica em `clinical_summary` (JSON).
  */
 import type { NewPatientInput, Patient } from "@/core/patients/types";
-import {
-  eddFromLMP,
-  eddFromUltrasound,
-  gaFromLMP,
-  gaFromUltrasound,
-} from "@/core/obstetric/gestational-age";
+import { gaFromEdd } from "@/core/obstetric/gestational-age";
 import type { PsgoForm } from "./types";
 import { emptyPsgoCtg, type PsgoCtg } from "./ctg";
 import { formatParity } from "./parity";
 import { autoComorbidities } from "./comorbidities";
-import { resolvePsgoDating, findDatingUsg } from "./dating";
+import { resolveDatingContext, findDatingUsg } from "./dating";
 import { computePsgo, renderPsgo } from "./render";
 import { parseDecimal } from "@/lib/num";
+
+const MS_PER_DAY = 86_400_000;
 
 /** Formato do `clinical_summary` de uma paciente do PSGO. */
 export interface PsgoClinicalSummary {
@@ -64,42 +61,61 @@ export function psgoRiskFactors(form: PsgoForm): string[] {
   ]);
 }
 
-/** Datação → colunas (lmp/edd/IG atual) pelo método escolhido (ACOG). */
-function datingColumns(form: PsgoForm): {
+interface DatingColumns {
   lmp: string | null;
   edd: string | null;
   gaWeeks: number | null;
   gaDays: number | null;
-} {
+  usGaWeeks: number | null;
+  usGaDays: number | null;
+  datingMethod: "lmp" | "ultrasound" | null;
+}
+
+/**
+ * Datação → colunas do paciente pelo método resolvido (preferência + ACOG
+ * CO-700). Guarda uma **DUM-equivalente** derivada da DPP (`edd − 280d`), como
+ * o pré-parto faz, para a IG AVANÇAR com o passar dos dias mesmo quando a
+ * datação veio da USG — e não ficar congelada após a admissão/transferência.
+ */
+function datingColumns(form: PsgoForm): DatingColumns {
+  const empty: DatingColumns = {
+    lmp: form.lmp || null,
+    edd: null,
+    gaWeeks: null,
+    gaDays: null,
+    usGaWeeks: null,
+    usGaDays: null,
+    datingMethod: null,
+  };
   // Não gestante: guarda a DUM como dado ginecológico, sem IG/DPP.
-  if (!form.pregnant) {
-    return { lmp: form.lmp || null, edd: null, gaWeeks: null, gaDays: null };
-  }
-  const dating = resolvePsgoDating({
+  if (!form.pregnant) return empty;
+
+  // IG por USG (exame âncora): guardada para exibição/vigilância no pré-parto.
+  const usg = findDatingUsg(form.imagingExams);
+  const usGaWeeks = usg && usg.gaWeeks != null ? usg.gaWeeks : null;
+  const usGaDays = usGaWeeks != null ? (usg?.gaDays ?? 0) : null;
+
+  const ctx = resolveDatingContext({
     lmp: form.lmp,
     lmpUncertain: form.lmpUncertain,
     usgExams: form.imagingExams,
     preference: form.datingPreference,
   });
-  const lmpDate = form.lmp ? new Date(`${form.lmp}T00:00:00`) : null;
-  const ex = findDatingUsg(form.imagingExams);
-  const scanDate = ex?.date ? new Date(`${ex.date}T00:00:00`) : null;
-  const scanGa = ex && ex.gaWeeks != null ? { weeks: ex.gaWeeks, days: ex.gaDays ?? 0 } : null;
 
-  if (dating.methodTag === "DUM" && lmpDate && !Number.isNaN(lmpDate.getTime())) {
-    const g = gaFromLMP(lmpDate);
-    return { lmp: form.lmp || null, edd: toISODate(eddFromLMP(lmpDate)), gaWeeks: g.weeks, gaDays: g.days };
-  }
-  if (dating.methodTag === "US" && scanDate && scanGa) {
-    const g = gaFromUltrasound(scanDate, scanGa);
-    return {
-      lmp: form.lmp || null,
-      edd: toISODate(eddFromUltrasound(scanDate, scanGa)),
-      gaWeeks: g.weeks,
-      gaDays: g.days,
-    };
-  }
-  return { lmp: form.lmp || null, edd: null, gaWeeks: dating.gaWeeks, gaDays: null };
+  // Sem datação resolvível (só DUM incerta, ou sem insumos): mantém a DUM crua.
+  if (!ctx.edd) return { ...empty, usGaWeeks, usGaDays };
+
+  const ga = gaFromEdd(ctx.edd);
+  const lmpEquiv = new Date(ctx.edd.getTime() - 280 * MS_PER_DAY);
+  return {
+    lmp: toISODate(lmpEquiv),
+    edd: toISODate(ctx.edd),
+    gaWeeks: ga.weeks,
+    gaDays: ga.days,
+    usGaWeeks,
+    usGaDays,
+    datingMethod: ctx.method === "US" ? "ultrasound" : "lmp",
+  };
 }
 
 /** Admissão do PSGO → paciente (module="psgo"), com o form completo no JSON. */
@@ -126,6 +142,9 @@ export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
     edd: dt.edd,
     gaWeeks: dt.gaWeeks,
     gaDays: dt.gaDays,
+    usGaWeeks: dt.usGaWeeks,
+    usGaDays: dt.usGaDays,
+    datingMethod: dt.datingMethod,
     status: "observation",
     riskFactors: psgoRiskFactors(form),
     clinicalSummary: summary as unknown as Record<string, unknown>,

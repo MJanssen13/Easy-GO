@@ -42,6 +42,9 @@ export async function savePsgoAdmission(
         edd: input.edd,
         gaWeeks: input.gaWeeks,
         gaDays: input.gaDays,
+        usGaWeeks: input.usGaWeeks,
+        usGaDays: input.usGaDays,
+        datingMethod: input.datingMethod,
         riskFactors: input.riskFactors,
         clinicalSummary: input.clinicalSummary,
       });
