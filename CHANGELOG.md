@@ -38,6 +38,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   (térmica, pressórica, glicêmica — espelhadas), **relatórios** e **cartas** de forma
   avulsa. Os mesmos documentos continuam disponíveis dentro da **Receita** quando
   pertinentes ao modelo.
+- Nova seção **"Atestados e declarações"** em Documentos de apoio: **atestado de
+  afastamento** (dias por extenso), **declaração de comparecimento** e **de
+  acompanhante**, usando a identificação compartilhada. **Vários documentos de
+  uma vez** (ex.: atestado + acompanhante) impressos no **modelo da receita**
+  (A4 paisagem, um documento por lado). **Busca de CID-10** (código/descrição) —
+  ao incluir, o documento registra que foi **informado com autorização da
+  paciente**; campo de **motivo** opcional. Impressão via navegador (desktop) e
+  **PDF nativo (jsPDF)** no mobile. O campo de documento aceita **CPF/RG/prontuário**.
+
 ### Pré-Natal — Nova sessão (gerador de consulta)
 
 - Nova rota **`/pre-natal`** com o gerador de consulta do **ambulatório de

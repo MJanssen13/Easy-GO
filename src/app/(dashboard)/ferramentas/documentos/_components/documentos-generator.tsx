@@ -14,6 +14,7 @@ import {
   type ReceitaDocId,
   type RelatorioData,
 } from "@/core/psgo/receita-relatorios";
+import { AtestadoSection } from "./atestado-section";
 
 const CURVAS: ReceitaDocId[] = ["curva-termica", "curva-pressorica", "curva-glicemica"];
 const CARTAS: ReceitaDocId[] = [
@@ -105,7 +106,7 @@ export function DocumentosGenerator({ today }: { today: string }) {
           <Field label="Paciente">
             <Input value={paciente} onChange={(e) => setPaciente(e.target.value)} />
           </Field>
-          <Field label="Prontuário/RG">
+          <Field label="Documento (CPF / RG / prontuário)">
             <Input value={prontuario} onChange={(e) => setProntuario(e.target.value)} />
           </Field>
           <Field label="Idade">
@@ -167,6 +168,8 @@ export function DocumentosGenerator({ today }: { today: string }) {
           </div>
         </CardContent>
       </Card>
+
+      <AtestadoSection paciente={paciente} documento={prontuario} cidade={cidade} data={data} />
     </div>
   );
 }
