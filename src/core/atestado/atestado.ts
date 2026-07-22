@@ -13,11 +13,14 @@ export const ATESTADO_TIPO_OPTIONS: { value: AtestadoTipo; label: string; titulo
 ];
 
 export interface AtestadoForm {
+  id: string;
   tipo: AtestadoTipo;
   paciente: string;
-  documento: string; // RG / prontuário
+  documento: string; // CPF / RG (opcional)
   /** Nome do(a) acompanhante (tipo ACOMPANHANTE). */
   acompanhante: string;
+  /** Motivo (opcional). */
+  motivo: string;
   incluirCid: boolean;
   cid: string;
   dias: string; // afastamento
@@ -29,12 +32,14 @@ export interface AtestadoForm {
   data: string; // ISO
 }
 
-export function emptyAtestado(today: string): AtestadoForm {
+export function emptyAtestado(today: string, id = "atestado"): AtestadoForm {
   return {
+    id,
     tipo: "AFASTAMENTO",
     paciente: "",
     documento: "",
     acompanhante: "",
+    motivo: "",
     incluirCid: false,
     cid: "",
     dias: "",
@@ -107,6 +112,11 @@ function horaPart(form: AtestadoForm): string {
   return "";
 }
 
+/** Finalidade do atendimento (usa o motivo, se informado). */
+function finalidade(form: AtestadoForm): string {
+  return form.motivo.trim() || "atendimento médico";
+}
+
 /** Corpo do atestado (parágrafo), conforme o tipo. */
 export function atestadoCorpo(form: AtestadoForm): string {
   const pac = form.paciente.trim() || "___________________________";
@@ -115,14 +125,14 @@ export function atestadoCorpo(form: AtestadoForm): string {
     case "COMPARECIMENTO":
       return `Declaro, para os devidos fins, que o(a) Sr.(a) ${pac}${docPart(
         form.documento,
-      )} compareceu a esta unidade de saúde para atendimento médico no dia ${dataBR}${horaPart(form)}.`;
+      )} compareceu a esta unidade de saúde para ${finalidade(form)} no dia ${dataBR}${horaPart(form)}.`;
     case "ACOMPANHANTE": {
       const acomp = form.acompanhante.trim() || "___________________________";
       return `Declaro, para os devidos fins, que o(a) Sr.(a) ${acomp}${docPart(
         form.documento,
-      )} compareceu a esta unidade de saúde na condição de acompanhante de ${pac}, para atendimento médico no dia ${dataBR}${horaPart(
+      )} compareceu a esta unidade de saúde na condição de acompanhante de ${pac}, para ${finalidade(
         form,
-      )}.`;
+      )} no dia ${dataBR}${horaPart(form)}.`;
     }
     case "AFASTAMENTO":
     default: {
@@ -134,16 +144,22 @@ export function atestadoCorpo(form: AtestadoForm): string {
           : "por ____ (______) dias";
       const inicioBR = dateBR(form.inicio);
       const desde = inicioBR ? `, a partir de ${inicioBR}` : "";
+      const razao = form.motivo.trim() ? `, em razão de ${form.motivo.trim()}` : "";
       return `Atesto, para os devidos fins, que o(a) Sr.(a) ${pac}${docPart(
         form.documento,
-      )} esteve sob meus cuidados médicos nesta data, devendo permanecer afastado(a) de suas atividades ${diasStr}${desde}.`;
+      )} esteve sob meus cuidados médicos nesta data, devendo permanecer afastado(a) de suas atividades ${diasStr}${desde}${razao}.`;
     }
   }
 }
 
-/** Linha do CID (apenas quando incluído e informado). */
+/**
+ * Linha do CID (apenas quando incluído e informado). O CID é sigiloso: só entra
+ * a pedido/com autorização do paciente — o que é registrado no próprio documento.
+ */
 export function atestadoCid(form: AtestadoForm): string {
-  return form.incluirCid && form.cid.trim() ? `CID-10: ${form.cid.trim().toUpperCase()}` : "";
+  return form.incluirCid && form.cid.trim()
+    ? `CID-10: ${form.cid.trim().toUpperCase()} (informado com autorização da paciente).`
+    : "";
 }
 
 /** Texto completo do atestado (para cópia). */
@@ -162,4 +178,11 @@ export function buildAtestadoText(form: AtestadoForm): string {
   L.push("__________________________________");
   L.push("Médico Assistente");
   return L.join("\n");
+}
+
+/** Texto de vários documentos (para prévia/cópia). */
+export function buildAtestadosText(docs: AtestadoForm[]): string {
+  return docs
+    .map(buildAtestadoText)
+    .join("\n\n──────────────────────────────\n\n");
 }

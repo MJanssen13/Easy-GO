@@ -36,7 +36,7 @@ const GROUPS: ToolGroup[] = [
         label: "Atestado",
         short: "Atestado médico e declarações",
         description:
-          "Gera atestado de afastamento (com dias por extenso), declaração de comparecimento e de acompanhante, com o timbre do HC-UFTM. CID opcional (com autorização do paciente). Exporta em PDF (A4 retrato).",
+          "Gera atestado de afastamento (dias por extenso), declaração de comparecimento e de acompanhante, com o timbre do HC-UFTM. Busca de CID (com autorização do paciente) e campo de motivo. Emite vários documentos de uma vez no modelo da receita (A4 paisagem, um por lado).",
         icon: FileText,
         badge: "Documento",
       },
