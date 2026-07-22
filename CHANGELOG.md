@@ -5,6 +5,17 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Ferramentas — Documentos de apoio: Atestado
+
+- A aba **Ferramentas** passa a agrupar os utilitários em **“Documentos de apoio”**
+  (Receita, Atestado) e **“Utilitários”** (Cardiotocografia).
+- Novo **Atestado** (`/ferramentas/atestado`): gera **atestado de afastamento**
+  (com os dias por extenso), **declaração de comparecimento** e **de
+  acompanhante**, com o **timbre do HC-UFTM** (logos + CNES). **CID opcional**
+  (só com autorização do paciente). Preenchimento automático a partir das
+  pacientes do PSGO, prévia ao vivo e cópia. Impressão via diálogo do navegador
+  (desktop) e **PDF nativo (jsPDF)** no mobile — A4 retrato.
+
 ### PSGO — Salvamento automático e prescrição integrada
 
 - **Salvamento automático** da admissão: assim que **nome e prontuário (RG)**
