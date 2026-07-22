@@ -2,12 +2,33 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Pill, ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { toISODateLocal } from "@/core/obstetric/gestational-age";
+import {
+  toISODateLocal,
+  gaFromEdd,
+  gaFromLMP,
+  type GestationalAge,
+} from "@/core/obstetric/gestational-age";
 import { listPatients } from "@/core/patients/repository";
 import type { Patient } from "@/core/patients/types";
 import { ReceitaGenerator, type PacienteLite } from "../../psgo/_components/receita-generator";
 
 export const metadata: Metadata = { title: "Receita" };
+
+/** IG legível ("24 semanas e 3 dias"). */
+function fmtGa(ga: GestationalAge): string {
+  const w = `${ga.weeks} semana${ga.weeks === 1 ? "" : "s"}`;
+  return ga.days ? `${w} e ${ga.days} dia${ga.days === 1 ? "" : "s"}` : w;
+}
+
+/** IG atual da paciente pela datação do prontuário (DPP ancora a linha do tempo). */
+function igAtual(p: Patient): string | null {
+  const today = new Date();
+  const edd = p.edd ? new Date(`${p.edd}T00:00:00`) : null;
+  if (edd && !Number.isNaN(edd.getTime())) return fmtGa(gaFromEdd(edd, today));
+  const lmp = p.lmp ? new Date(`${p.lmp}T00:00:00`) : null;
+  if (lmp && !Number.isNaN(lmp.getTime())) return fmtGa(gaFromLMP(lmp, today));
+  return null;
+}
 
 export default async function ReceitaPage({
   searchParams,
@@ -26,6 +47,7 @@ export default async function ReceitaPage({
       name: p.name,
       medicalRecordNumber: p.medicalRecordNumber,
       age: p.age,
+      ga: igAtual(p),
     }));
   } catch {
     patients = [];

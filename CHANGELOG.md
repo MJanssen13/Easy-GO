@@ -5,16 +5,115 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
-### Ferramentas — Documentos de apoio: Atestado
+### Receita — Modelos por situação/patologia
 
-- A aba **Ferramentas** passa a agrupar os utilitários em **“Documentos de apoio”**
-  (Receita, Atestado) e **“Utilitários”** (Cardiotocografia).
-- Novo **Atestado** (`/ferramentas/atestado`): gera **atestado de afastamento**
-  (com os dias por extenso), **declaração de comparecimento** e **de
-  acompanhante**, com o **timbre do HC-UFTM** (logos + CNES). **CID opcional**
-  (só com autorização do paciente). Preenchimento automático a partir das
-  pacientes do PSGO, prévia ao vivo e cópia. Impressão via diálogo do navegador
-  (desktop) e **PDF nativo (jsPDF)** no mobile — A4 retrato.
+- Novo seletor **"Modelo por situação"** no gerador de receita: aplica um modelo
+  **pré-preenchido** de medicamentos (todos editáveis), agrupados por categoria
+  (Infecções, Sintomáticos, Anemia, Diabetes). 14 modelos a partir das receitas
+  do HC-UFTM (DIP, sífilis, toxoplasmose ≤/>16 sem, infecção de FO, dengue,
+  síndrome gripal, GECA c/ e s/ diarreia, náuseas/vômitos, constipação, ferro EV,
+  DMG). Sem vínculo com a HPMA — a escolha é manual.
+- **Classificação automática comum/especial**: antibióticos entram como
+  **receituário de controle especial** (2 vias); os demais itens, como comum.
+- **Documentos opcionais** por modelo (selecionáveis): relatórios, cartas e curvas,
+  com o papel timbrado do HC-UFTM, em **folha paisagem dividida ao meio** (como a
+  receita). Relatórios/cartas ocupam metades diferentes (dois por folha); **curvas
+  são espelhadas** nas duas metades. O nome do paciente/parceiro sai em CAIXA ALTA.
+- **IG (idade gestacional)** preenche automaticamente os relatórios (toxo e DMG).
+- **DIP**: a **receita do parceiro** (Azitromicina 1 g + Ceftriaxona 500 mg IM)
+  sai junto com a **carta de solicitação de aplicação (IM)** numa só impressão.
+- **Sífilis**: seletor de **nº de doses (1 ou 3)** que afeta a receita e a carta,
+  para a paciente e o parceiro; carta única **"Acompanhamento de antibioticoterapia"**
+  (com 3 doses, indica o intervalo semanal); o parceiro recebe a carta sem o aviso
+  de retorno ao PSGO.
+- **Impressão única**: card "Impressão" com seleção do que sair (receita,
+  documentos do modelo, receita do parceiro) numa **única impressão combinada**,
+  agrupada na ordem paciente → parceiro.
+- Novos módulos `receita-templates.ts` e `receita-relatorios.ts` em
+  `src/core/psgo/`.
+
+### Ferramentas — Documentos de apoio
+
+- Novo card **"Documentos de apoio"** (`/ferramentas/documentos`): gera as **curvas**
+  (térmica, pressórica, glicêmica — espelhadas), **relatórios** e **cartas** de forma
+  avulsa. Os mesmos documentos continuam disponíveis dentro da **Receita** quando
+  pertinentes ao modelo.
+### Pré-Natal — Nova sessão (gerador de consulta)
+
+- Nova rota **`/pre-natal`** com o gerador de consulta do **ambulatório de
+  pré-natal** (modelo HC-UFTM): formulário estruturado → texto pronto para o
+  prontuário, à maneira do PSGO (gerador *stateless*, não armazena dados).
+- **Reaproveita a lógica de domínio do PSGO** (sem duplicar): paridade (GPA),
+  datação DUM/USG (ACOG CO-700), comorbidades/IMC, medicamentos, tipo
+  sanguíneo/Coombs, sorologias (quadro + colagem), exames de imagem (USG com
+  percentis Hadlock/FMF) e laboratoriais.
+- **Específico do pré-natal** (`src/core/prenatal/`): **cartão de vacinas**
+  (Hepatite B, dT, dTpa, Influenza, COVID-19, VSR — Caderneta da Gestante),
+  bloco **CONTEXTO** (movimentação fetal + queixas mamárias/leucorreia/TGI-TGU),
+  **exame físico** da caderneta (tireoide, mamas, abdome gravídico com AU/CA/BCF,
+  inspeção vulvar, especular e toque) e **VCE** = colpocitologia oncótica
+  (Papanicolau), com data e atalhos de resultado (Bethesda).
+- **HD automática**: "GESTAÇÃO DE {IG} ({método})" + comorbidades e
+  sinalizadores (adolescente < 18, pré-natal irregular). Apoio à decisão —
+  validar com a equipe.
+- **Apoio à decisão inspirado no e-SUS APS/PEC** (reimplementado na stack, sem
+  copiar o bundle), tudo com a fonte citada e marcado como *validar*:
+  - **Vacinas por IG** (PNI/MS): cada vacina do cartão mostra a janela e a
+    recomendação pela idade gestacional (dTpa 20–36 sem, VSR 28–36 sem etc.),
+    com atalho "Realizada" na janela.
+  - **Exames de rotina por trimestre** (MS/Febrasgo): checklist do trimestre
+    atual e botão "Copiar solicitação para conduta".
+  - **IMC pré-gestacional + ganho de peso** (IOM 2009): classifica o IMC
+    pré-gestacional, mostra a meta de ganho e compara o ganho atual com o
+    esperado para a IG; a linha entra no exame físico do prontuário.
+- **Exame físico e ginecológico/obstétrico do PSGO reaproveitados**: além dos
+  sistemas do modelo (geral, tireoide, mamas, inspeção vulvar, MMII), o abdome
+  gravídico, o exame especular e o toque vaginal agora usam o **exame clicável**
+  do PSGO (`gyneco-exam`) — mesma notação obstétrica compartilhada.
+- **HPMA adaptada do PSGO, sem o gerador** (a pedido): a seção "HPMA / Contexto"
+  traz só a **revisão dirigida** (perguntas sempre respondidas: sangramento,
+  secreção, hábitos intestinal/urinário, contrações e movimentação fetal —
+  `REVISION_QUESTIONS`) e um campo livre de **queixas atuais**. O bloco CONTEXTO
+  do prontuário é montado a partir delas.
+- **Exames de imagem junto com a datação** (como no PSGO): o quadro de USG passou
+  para a seção de datação, com **listas suspensas** (apresentação, inserção e
+  grau placentário) e percentis Hadlock; os **USGs que não datam têm a IG
+  preenchida automaticamente** pela datação resolvida.
+- **Acompanhante** na identificação (nome + parentesco), como no PSGO — sai
+  "ACOMPANHANTE: … (…)" ou "DESACOMPANHADA".
+- **Queixas mamárias** viraram pergunta estruturada da revisão dirigida
+  (nega/relata + sintomas), específica do pré-natal.
+- **Circunferência abdominal (CA)** de volta no exame: entra na linha do abdome
+  entre AU e BCF (AU/CA/BCF), sem alterar o abdome do PSGO.
+- **Acompanhante na HPMA** (o bloco antes chamado CONTEXTO virou **HPMA**, como
+  no PSGO): "COMPARECE PARA CONSULTA ACOMPANHADA DE … (…)" ou "DESACOMPANHADA".
+- **Cartão de vacinas reformulado**: Hep B e dT viram **esquema** (status +
+  datas das doses; dose sem data → PENDENTE; dT incompleto abre 2 doses, pois a
+  3ª é a dTpa). **dTpa (20–36 sem)** e **VSR (28–36 sem)** têm um campo de data —
+  na janela sem data → PENDENTE, antes da janela → rótulo em branco. **Influenza**
+  e **COVID-19** têm um campo de data.
+- **VCE (Papanicolau)**: agora aceita **mais de um** resultado (lista com data).
+- **Sugestões (exames + USG por trimestre)**: a antiga seção "exames de rotina"
+  virou **sugestões**, movida para **abaixo da Conduta**, e passa a incluir os
+  **USGs** por trimestre (não vai ao prontuário — botão "copiar para conduta").
+- **Peso pré-gestacional removido** (e a análise de ganho de peso IOM 2009).
+- **Gráficos** no exame físico quando peso e altura estão preenchidos: **IMC**
+  (faixas OMS/MS) e **altura uterina × IG** (regra prática AU≈IG, 20–34 sem).
+  As curvas oficiais da caderneta (IMC gestacional de Atalah e P10/P90 de altura
+  uterina do CLAP) ficam para inserir a partir da tabela — não fabricadas.
+- **Mamas** e **inspeção vulvar** ganharam a opção **"não realizado"** e foram
+  movidas para o **exame ginecológico e obstétrico**.
+- **Vacinas por situação pré-gestacional**: a lista suspensa de Hep B e dT reflete
+  a situação na descoberta da gestação e abre os campos de dose conforme o status
+  (Hep B: 1 dose → 2 campos, 2 doses → 1, desconhecido → 3; dT: 1 dose → 2, 2
+  doses → 0, desconhecido → 2; sem "imune"/"reforço"). O prontuário registra o que
+  havia antes ("1 DOSE PRÉ-GESTACIONAL…") e as doses da gestação (sem data →
+  PENDENTE). Nova **caixa "Outras vacinas"**.
+- **Gráficos com as curvas oficiais** (transcritas das tabelas enviadas, com
+  fonte — não fabricadas): **IMC × IG pela curva de Atalah** (MS/SISVAN; classifica
+  baixo peso/adequado/sobrepeso/obesidade por semana) e **altura uterina × IG com
+  P10/P90** (Freire et al., RBGO 2006). Dados em `src/core/prenatal/ms-curves.ts`.
+- Removido o botão **"copiar sugestão para conduta"** da seção de sugestões.
 
 ### PSGO — Salvamento automático e prescrição integrada
 

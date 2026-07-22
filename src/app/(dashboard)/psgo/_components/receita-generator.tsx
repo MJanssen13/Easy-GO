@@ -30,12 +30,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
 import { searchMeds, type MedCatmat } from "@/core/psgo/medicamentos-catmat";
-import { buildReceitaPrintHtml } from "@/core/psgo/receita-print";
-import { printHtml, isMobile } from "@/lib/print";
+import { receitaSheetsHtml, RECEITA_PRINT_STYLE } from "@/core/psgo/receita-print";
+import { printHtml } from "@/lib/print";
 import { registrarPrescricaoNaAdmissao } from "@/app/(dashboard)/ferramentas/receita/actions";
-
-// jsPDF é pesado e só é usado no mobile → carregado sob demanda (code-split).
-type ReceitaPdfModule = typeof import("@/core/psgo/receita-pdf");
+import { letterheadFor } from "@/core/ctg/laudo";
+import {
+  RECEITA_TEMPLATES,
+  RECEITA_CATEGORIAS,
+  applyTemplateItems,
+  buildSifilisPenicilina,
+} from "@/core/psgo/receita-templates";
+import {
+  receitaDocsSheetsHtml,
+  renderCombinedPrint,
+  RECEITA_DOCS_STYLE,
+  RECEITA_DOC_LABEL,
+  type ReceitaDocId,
+  type RelatorioData,
+} from "@/core/psgo/receita-relatorios";
 
 /** Paciente do sistema para preenchimento automático. */
 export interface PacienteLite {
@@ -43,6 +55,8 @@ export interface PacienteLite {
   name: string;
   medicalRecordNumber?: string | null;
   age?: number | null;
+  /** IG atual (semanas/dias) calculada do prontuário — preenche o campo IG. */
+  ga?: string | null;
 }
 
 const selectCls =
@@ -197,6 +211,19 @@ export function ReceitaGenerator({
     data: today,
   });
   const [items, setItems] = useState<PrescricaoItem[]>([emptyPrescricaoItem(uid())]);
+  // Modelo por situação (opcional): preenche os itens; documentos são opcionais.
+  const [activeTemplateId, setActiveTemplateId] = useState<string>("");
+  const [selectedDocs, setSelectedDocs] = useState<ReceitaDocId[]>([]);
+  const [parceiroNome, setParceiroNome] = useState("");
+  const [ig, setIg] = useState(""); // idade gestacional (auto nos relatórios)
+  const [numDoses, setNumDoses] = useState("1"); // sífilis: 1 ou 3 doses
+  // Seleção do que imprimir (impressão única e combinada).
+  const [printReceita, setPrintReceita] = useState(true);
+  const [printParceiro, setPrintParceiro] = useState(false);
+  const activeTemplate = useMemo(
+    () => RECEITA_TEMPLATES.find((t) => t.id === activeTemplateId),
+    [activeTemplateId],
+  );
 
   const setH = (patch: Partial<ReceitaHeader>) => setHeader((h) => ({ ...h, ...patch }));
   const addItem = () =>
@@ -227,6 +254,35 @@ export function ReceitaGenerator({
       ),
     );
 
+  // Aplica um modelo por situação: substitui os itens (todos ficam editáveis).
+  const applyTemplate = (id: string) => {
+    const tpl = RECEITA_TEMPLATES.find((t) => t.id === id);
+    setActiveTemplateId(tpl ? id : "");
+    setSelectedDocs([]);
+    setParceiroNome("");
+    setPrintReceita(true);
+    setPrintParceiro(false);
+    if (!tpl) return;
+    const tItems = id === "sifilis" ? [buildSifilisPenicilina(numDoses)] : tpl.items;
+    setItems(applyTemplateItems(tItems, uid));
+  };
+  const toggleDoc = (doc: ReceitaDocId) =>
+    setSelectedDocs((s) => (s.includes(doc) ? s.filter((d) => d !== doc) : [...s, doc]));
+
+  // Sífilis: muda o nº de doses e reflete na prescrição (item da penicilina).
+  const changeNumDoses = (n: string) => {
+    setNumDoses(n);
+    if (activeTemplateId === "sifilis") {
+      setItems((s) =>
+        s.map((it) =>
+          it.principioAtivo.includes("Penicilina")
+            ? { ...emptyPrescricaoItem(it.id), ...buildSifilisPenicilina(n) }
+            : it,
+        ),
+      );
+    }
+  };
+
   // Preenche o cabeçalho com os dados de uma paciente do sistema.
   const fillFromPatient = (id: string) => {
     const p = patients.find((x) => x.id === id);
@@ -236,6 +292,7 @@ export function ReceitaGenerator({
       prontuario: p.medicalRecordNumber ?? "",
       idade: p.age != null ? `${p.age} anos` : "",
     });
+    if (p.ga) setIg(p.ga); // IG do prontuário (paciente já admitida)
   };
 
   // Preenche o medicamento a partir da lista e sugere o tipo de receita (ANVISA).
@@ -251,6 +308,7 @@ export function ReceitaGenerator({
     });
   };
 
+  // Itens da receita comum: exclui os bloqueados (exigem notificação de receita).
   const printableItems = useMemo(
     () => items.filter((it) => !controleInfo(it.principioAtivo).bloqueado),
     [items],
@@ -299,43 +357,66 @@ export function ReceitaGenerator({
     });
   };
 
-  // Pré-carrega o gerador de PDF no mobile (mantém o clique dentro do gesto).
-  const pdfMod = useRef<ReceitaPdfModule | null>(null);
-  useEffect(() => {
-    if (isMobile()) import("@/core/psgo/receita-pdf").then((m) => (pdfMod.current = m));
-  }, []);
+  // Dados dos documentos (IG e nº de doses preenchidos automaticamente).
+  const relatorioData = (over?: Partial<RelatorioData>): RelatorioData => ({
+    paciente: header.paciente,
+    prontuario: header.prontuario,
+    idade: header.idade,
+    cidade: header.cidade,
+    dataBR: header.data ? new Date(`${header.data}T00:00:00`).toLocaleDateString("pt-BR") : "",
+    ig,
+    numDoses,
+    ...over,
+  });
+  const origin = () => (typeof window !== "undefined" ? window.location.origin : "");
 
-  // No mobile a impressão do navegador falha (imprime a tela / erro no Android);
-  // geramos o PDF direto no dispositivo. No desktop usamos o diálogo de impressão.
-  const handlePrint = () => {
-    if (!printableItems.length) return;
-    registrar(); // registra a prescrição na admissão (se veio de uma)
-    if (isMobile()) {
-      if (pdfMod.current) pdfMod.current.downloadReceitaPdf(header, printableItems);
-      else
-        import("@/core/psgo/receita-pdf").then((m) =>
-          m.downloadReceitaPdf(header, printableItems),
-        );
-    } else {
-      printHtml(buildReceitaPrintHtml(header, printableItems));
+  // Impressão única e combinada, agrupada na ordem paciente → parceiro.
+  const handleImprimir = () => {
+    const lh = letterheadFor(origin());
+    const blocks: { style: string; sheets: string }[] = [];
+    // --- Paciente ---
+    if (printReceita && printableItems.length)
+      blocks.push({ style: RECEITA_PRINT_STYLE, sheets: receitaSheetsHtml(header, printableItems) });
+    if (selectedDocs.length)
+      blocks.push({
+        style: RECEITA_DOCS_STYLE,
+        sheets: receitaDocsSheetsHtml(selectedDocs, relatorioData(), lh),
+      });
+    // --- Parceiro ---
+    if (printParceiro && activeTemplate?.parceiro) {
+      const nome = parceiroNome.trim() || `Parceiro de ${header.paciente.trim()}`.trim();
+      const parceiroHeader: ReceitaHeader = { ...header, paciente: nome, prontuario: "", idade: "" };
+      const pItems =
+        activeTemplate.id === "sifilis"
+          ? [buildSifilisPenicilina(numDoses)]
+          : activeTemplate.parceiro.items;
+      blocks.push({
+        style: RECEITA_PRINT_STYLE,
+        sheets: receitaSheetsHtml(parceiroHeader, applyTemplateItems(pItems, uid)),
+      });
+      const pdocs = activeTemplate.parceiro.documentos ?? [];
+      if (pdocs.length)
+        blocks.push({
+          style: RECEITA_DOCS_STYLE,
+          sheets: receitaDocsSheetsHtml(
+            pdocs,
+            relatorioData({ paciente: nome, prontuario: "", idade: "" }),
+            lh,
+          ),
+        });
     }
+    if (!blocks.length) return;
+    registrar();
+    printHtml(renderCombinedPrint(blocks));
   };
 
   return (
     <div className="space-y-4">
-      {/* Ações (sempre visíveis) + aviso */}
-      <div className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <p className="hidden max-w-md text-xs text-muted-foreground sm:block">
-          Apoio à documentação — valide medicamento, dose e posologia. O tipo de receituário é
-          sugerido automaticamente (ANVISA 344/98 e RDC 471/2021) e pode ser ajustado.
-        </p>
-        <div className="flex items-center gap-2">
-          <CopyButton text={text} />
-          <Button type="button" size="sm" onClick={handlePrint} disabled={!printableItems.length}>
-            <Printer className="h-4 w-4" /> Imprimir / PDF
-          </Button>
-        </div>
-      </div>
+      {/* Aviso (as ações de impressão ficam no card "Impressão", ao final) */}
+      <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        Apoio à documentação — valide medicamento, dose e posologia. O tipo de receituário é
+        sugerido automaticamente (ANVISA 344/98 e RDC 471/2021) e pode ser ajustado.
+      </p>
 
       {admissionPatientId && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/30 bg-accent/50 px-3 py-2 text-xs">
@@ -426,6 +507,57 @@ export function ReceitaGenerator({
           <Field label="Data">
             <Input type="date" value={header.data} onChange={(e) => setH({ data: e.target.value })} />
           </Field>
+          <Field label="Idade gestacional (IG)">
+            <Input
+              value={ig}
+              onChange={(e) => setIg(e.target.value)}
+              placeholder="auto do prontuário — editável"
+            />
+          </Field>
+        </CardContent>
+      </Card>
+
+      {/* Modelo por situação (opcional) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Modelo por situação</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Field label="Escolha um modelo — preenche os medicamentos (todos editáveis)">
+            <select
+              className={`${selectCls} max-w-none`}
+              value={activeTemplateId}
+              onChange={(e) => applyTemplate(e.target.value)}
+            >
+              <option value="">— nenhum (prescrição manual) —</option>
+              {RECEITA_CATEGORIAS.map((cat) => (
+                <optgroup key={cat} label={cat}>
+                  {RECEITA_TEMPLATES.filter((t) => t.categoria === cat).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              {activeTemplate?.descricao ??
+                "Aplicar um modelo substitui os medicamentos abaixo — que continuam editáveis."}
+            </p>
+          </Field>
+
+          {activeTemplateId === "sifilis" && (
+            <Field label="Nº de doses (afeta a receita da paciente e do parceiro)">
+              <select
+                className={selectCls}
+                value={numDoses}
+                onChange={(e) => changeNumDoses(e.target.value)}
+              >
+                <option value="1">Dose única</option>
+                <option value="3">3 doses (1 por semana)</option>
+              </select>
+            </Field>
+          )}
         </CardContent>
       </Card>
 
@@ -768,6 +900,70 @@ export function ReceitaGenerator({
           <Button type="button" variant="outline" onClick={addItem} className="w-full">
             <Plus className="h-4 w-4" /> Adicionar medicamento
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Impressão — marque o que imprimir; sai em uma única impressão combinada */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-center text-base">Impressão</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-center text-xs text-muted-foreground">
+            Marque o que imprimir — sai em uma única impressão, agrupada na ordem paciente → parceiro.
+          </p>
+
+          {/* Paciente */}
+          <div className="space-y-2 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Paciente
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Chip active={printReceita} onClick={() => setPrintReceita((v) => !v)}>
+                Receita
+              </Chip>
+              {activeTemplate?.documentos?.map((doc) => (
+                <Chip key={doc} active={selectedDocs.includes(doc)} onClick={() => toggleDoc(doc)}>
+                  {RECEITA_DOC_LABEL[doc]}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          {/* Parceiro */}
+          {activeTemplate?.parceiro && (
+            <div className="space-y-2 border-t pt-4 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Parceiro
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Chip active={printParceiro} onClick={() => setPrintParceiro((v) => !v)}>
+                  Receita do parceiro
+                </Chip>
+              </div>
+              {printParceiro && (
+                <div className="mx-auto max-w-xs">
+                  <Field label="Nome do parceiro (opcional)">
+                    <Input
+                      value={parceiroNome}
+                      onChange={(e) => setParceiroNome(e.target.value)}
+                      placeholder={
+                        header.paciente ? `Parceiro de ${header.paciente}` : "nome do parceiro"
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Ação única */}
+          <div className="flex flex-wrap items-center justify-center gap-2 border-t pt-4">
+            <CopyButton text={text} />
+            <Button type="button" onClick={handleImprimir}>
+              <Printer className="h-4 w-4" /> Imprimir / PDF
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
