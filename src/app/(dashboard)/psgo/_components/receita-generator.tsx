@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Printer, AlertTriangle, Eraser, Search, Check } from "lucide-react";
+import { Plus, Trash2, Printer, AlertTriangle, Eraser, Search, Check, FileDown } from "lucide-react";
 import {
   emptyPrescricaoItem,
   renderReceita,
@@ -12,6 +12,7 @@ import {
   TIPO_FREQUENCIA_OPTIONS,
   MEDIDA_TEMPO_OPTIONS,
   MOMENTO_OPTIONS,
+  REFEICAO_OPTIONS,
   VIA_OPTIONS,
   UNIDADE_DOSE_OPTIONS,
   TURNO_OPTIONS,
@@ -23,15 +24,23 @@ import {
   type MomentoRefeicao,
 } from "@/core/psgo/prescricao";
 import { controleInfo } from "@/core/psgo/receita-controle";
+import { gestacao } from "@/core/psgo/gestacao";
+import { lactancia } from "@/core/psgo/lactancia";
+import {
+  hospitalDiaItems,
+  hospitalDiaGrupos,
+  buildHospitalDiaPrintHtml,
+} from "@/core/psgo/hospital-dia";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { CopyButton } from "@/components/copy-button";
 import { searchMeds, type MedCatmat } from "@/core/psgo/medicamentos-catmat";
 import { receitaSheetsHtml, RECEITA_PRINT_STYLE } from "@/core/psgo/receita-print";
-import { printHtml } from "@/lib/print";
+import { printHtml, isMobile } from "@/lib/print";
 import { registrarPrescricaoNaAdmissao } from "@/app/(dashboard)/ferramentas/receita/actions";
 import { letterheadFor } from "@/core/ctg/laudo";
 import {
@@ -207,8 +216,12 @@ export function ReceitaGenerator({
     paciente: "",
     prontuario: "",
     idade: "",
+    endereco: "",
     cidade: "Uberaba-MG",
     data: today,
+    mostrarData: true,
+    gestante: false,
+    lactante: false,
   });
   const [items, setItems] = useState<PrescricaoItem[]>([emptyPrescricaoItem(uid())]);
   // Modelo por situação (opcional): preenche os itens; documentos são opcionais.
@@ -220,6 +233,11 @@ export function ReceitaGenerator({
   // Seleção do que imprimir (impressão única e combinada).
   const [printReceita, setPrintReceita] = useState(true);
   const [printParceiro, setPrintParceiro] = useState(false);
+  // Nº de folhas (vias) impressas por grupamento do Hospital Dia (H1, H2…).
+  const [hdCopiasPorGrupo, setHdCopiasPorGrupo] = useState<Record<number, number>>({});
+  // No mobile a impressão do navegador é instável — oferecemos o download em PDF.
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => setMobile(isMobile()), []);
   const activeTemplate = useMemo(
     () => RECEITA_TEMPLATES.find((t) => t.id === activeTemplateId),
     [activeTemplateId],
@@ -253,6 +271,19 @@ export function ReceitaGenerator({
         i.id === id ? { ...i, turnoDoses: { ...i.turnoDoses, [turno]: dose } } : i,
       ),
     );
+  const toggleRefeicao = (id: string, value: string) =>
+    setItems((s) =>
+      s.map((i) =>
+        i.id === id
+          ? {
+              ...i,
+              refeicoes: i.refeicoes.includes(value)
+                ? i.refeicoes.filter((r) => r !== value)
+                : [...i.refeicoes, value],
+            }
+          : i,
+      ),
+    );
 
   // Aplica um modelo por situação: substitui os itens (todos ficam editáveis).
   const applyTemplate = (id: string) => {
@@ -283,7 +314,8 @@ export function ReceitaGenerator({
     }
   };
 
-  // Preenche o cabeçalho com os dados de uma paciente do sistema.
+  // Preenche o cabeçalho com os dados de uma paciente do sistema. Gestante/
+  // lactante ligam os alertas de segurança na prescrição automaticamente.
   const fillFromPatient = (id: string) => {
     const p = patients.find((x) => x.id === id);
     if (!p) return;
@@ -291,6 +323,7 @@ export function ReceitaGenerator({
       paciente: p.name ?? "",
       prontuario: p.medicalRecordNumber ?? "",
       idade: p.age != null ? `${p.age} anos` : "",
+      gestante: !!p.ga || header.gestante, // paciente com IG do prontuário → gestante
     });
     if (p.ga) setIg(p.ga); // IG do prontuário (paciente já admitida)
   };
@@ -317,7 +350,17 @@ export function ReceitaGenerator({
     () => items.filter((it) => controleInfo(it.principioAtivo).bloqueado),
     [items],
   );
-  const text = useMemo(() => renderReceita(header, printableItems), [header, printableItems]);
+  // Itens que efetivamente entram na receita: imprimíveis e que NÃO são do
+  // Hospital Dia (esses saem na folha própria de prescrição).
+  const receitaItems = useMemo(
+    () => printableItems.filter((it) => !it.hospitalDia),
+    [printableItems],
+  );
+  const text = useMemo(() => renderReceita(header, receitaItems), [header, receitaItems]);
+
+  // Itens marcados para a Folha de Prescrição do Hospital Dia (com conteúdo).
+  const hdItems = useMemo(() => hospitalDiaItems(items), [items]);
+  const hdGrupos = useMemo(() => hospitalDiaGrupos(hdItems), [hdItems]);
 
   // Vindo de uma admissão do PSGO: preenche a paciente automaticamente (1x).
   const filledRef = useRef(false);
@@ -328,6 +371,22 @@ export function ReceitaGenerator({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [admissionPatientId, patients]);
+
+  // "Em jejum" e "ao deitar" são tomadas únicas: se a frequência passar a ter
+  // mais de uma dose/dia, limpa o momento incompatível.
+  useEffect(() => {
+    setItems((s) => {
+      let changed = false;
+      const next = s.map((it) => {
+        if ((it.momento === "JEJUM" || it.momento === "AO_DEITAR") && isMultiDaily(it)) {
+          changed = true;
+          return { ...it, momento: "" as MomentoRefeicao, momentoMinutos: "", refeicoes: [] };
+        }
+        return it;
+      });
+      return changed ? next : s;
+    });
+  }, [items]);
 
   // "PRESCREVO: ..." com os medicamentos prescritos, incluindo posologia e
   // quantidade (ex.: "Amoxicilina 500 mg — Cápsula: 1 cápsula, via oral, a cada
@@ -375,8 +434,8 @@ export function ReceitaGenerator({
     const lh = letterheadFor(origin());
     const blocks: { style: string; sheets: string }[] = [];
     // --- Paciente ---
-    if (printReceita && printableItems.length)
-      blocks.push({ style: RECEITA_PRINT_STYLE, sheets: receitaSheetsHtml(header, printableItems) });
+    if (printReceita && receitaItems.length)
+      blocks.push({ style: RECEITA_PRINT_STYLE, sheets: receitaSheetsHtml(header, receitaItems) });
     if (selectedDocs.length)
       blocks.push({
         style: RECEITA_DOCS_STYLE,
@@ -408,6 +467,19 @@ export function ReceitaGenerator({
     if (!blocks.length) return;
     registrar();
     printHtml(renderCombinedPrint(blocks));
+  };
+
+  // Folha de Prescrição do Hospital Dia (HC-UFTM) — impressão/PDF próprios.
+  const handleHospitalDia = () => {
+    if (!hdItems.length) return;
+    registrar();
+    printHtml(buildHospitalDiaPrintHtml(header, hdItems, hdCopiasPorGrupo));
+  };
+  const handleHospitalDiaPdf = async () => {
+    if (!hdItems.length) return;
+    registrar();
+    const mod = await import("@/core/psgo/hospital-dia-pdf");
+    mod.downloadHospitalDiaPdf(header, hdItems, hdCopiasPorGrupo);
   };
 
   return (
@@ -501,6 +573,13 @@ export function ReceitaGenerator({
           <Field label="Idade">
             <Input value={header.idade} onChange={(e) => setH({ idade: e.target.value })} />
           </Field>
+          <Field label="Endereço (opcional)" className="col-span-2 sm:col-span-4">
+            <Input
+              value={header.endereco}
+              onChange={(e) => setH({ endereco: e.target.value })}
+              placeholder="opcional — usado no receituário de controle especial"
+            />
+          </Field>
           <Field label="Cidade">
             <Input value={header.cidade} onChange={(e) => setH({ cidade: e.target.value })} />
           </Field>
@@ -514,6 +593,39 @@ export function ReceitaGenerator({
               placeholder="auto do prontuário — editável"
             />
           </Field>
+          <div className="col-span-2 flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 sm:col-span-4">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={header.gestante}
+              onClick={() => setH({ gestante: !header.gestante })}
+              className="flex items-center gap-2 text-sm focus-visible:outline-none"
+            >
+              <Switch checked={header.gestante} />
+              <span>Gestante</span>
+            </button>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={header.lactante}
+              onClick={() => setH({ lactante: !header.lactante })}
+              className="flex items-center gap-2 text-sm focus-visible:outline-none"
+            >
+              <Switch checked={header.lactante} />
+              <span>Lactante</span>
+            </button>
+            {header.gestante && (
+              <span className="text-[11px] text-muted-foreground">
+                Mostra a categoria de risco na gestação (TGA/Austrália; FDA como reserva) em cada
+                medicamento.
+              </span>
+            )}
+            {header.lactante && (
+              <span className="text-[11px] text-muted-foreground">
+                Mostra o risco na amamentação (e-lactancia.org) em cada medicamento.
+              </span>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -570,6 +682,20 @@ export function ReceitaGenerator({
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
+          {header.gestante && (
+            <ClassLegend
+              titulo="Risco na gestação — categorias"
+              fonte="Fonte: TGA (Austrália), com FDA como reserva. Apoio à decisão — validar (bula/Anvisa)."
+              entradas={GEST_LEGEND}
+            />
+          )}
+          {header.lactante && (
+            <ClassLegend
+              titulo="Risco na amamentação — níveis"
+              fonte="Fonte: e-lactancia.org. Apoio à decisão — validar (bula)."
+              entradas={LACT_LEGEND}
+            />
+          )}
           {items.map((it, idx) => {
             const info = controleInfo(it.principioAtivo);
             const hasMed =
@@ -583,7 +709,7 @@ export function ReceitaGenerator({
                 className={`space-y-3 rounded-md border p-3 ${info.bloqueado ? "border-amber-300 bg-amber-50/50" : ""}`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-primary">{idx + 1}º medicamento</span>
                     {it.principioAtivo.trim() && (
                       <span
@@ -599,6 +725,12 @@ export function ReceitaGenerator({
                       >
                         {info.label}
                       </span>
+                    )}
+                    {header.gestante && it.principioAtivo.trim() && (
+                      <GestacaoBadge pa={it.principioAtivo} />
+                    )}
+                    {header.lactante && it.principioAtivo.trim() && (
+                      <LactacaoBadge pa={it.principioAtivo} />
                     )}
                   </div>
                   <div className="flex items-center gap-3">
@@ -647,6 +779,33 @@ export function ReceitaGenerator({
                     ))}
                   </div>
                 )}
+
+                {/* Hospital Dia: inclui este item na Folha de Prescrição (HC-UFTM) */}
+                <div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={it.hospitalDia}
+                    onClick={() =>
+                      setItem(
+                        it.id,
+                        it.hospitalDia
+                          ? { hospitalDia: false }
+                          : // Ao marcar H. dia, a frequência vira "dose única" por padrão
+                            { hospitalDia: true, tipoFrequencia: "UNICA" },
+                      )
+                    }
+                    className="flex items-center gap-2 text-sm focus-visible:outline-none"
+                  >
+                    <Switch checked={it.hospitalDia} />
+                    <span className="text-muted-foreground">Prescrição do Hospital Dia</span>
+                  </button>
+                  {it.hospitalDia && (
+                    <p className="mt-1 pl-[3.25rem] text-[11px] text-muted-foreground">
+                      Sai na Folha do Hospital Dia (dose individual, não o esquema completo).
+                    </p>
+                  )}
+                </div>
 
                 {/* Busca na lista CATMAT (preenche princípio/concentração/forma) */}
                 <Field label="Buscar medicamento (lista CATMAT)">
@@ -817,15 +976,18 @@ export function ReceitaGenerator({
                     )}
 
                     {it.tipoFrequencia !== "UNICA" && (
-                      <label className="col-span-2 flex items-center gap-2 self-end pb-1 text-sm sm:col-span-4">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-input"
-                          checked={it.usoContinuo}
-                          onChange={(e) => setItem(it.id, { usoContinuo: e.target.checked })}
-                        />
+                      <div className="col-span-2 flex items-center gap-2 self-end pb-1 text-sm sm:col-span-4">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={it.usoContinuo}
+                          onClick={() => setItem(it.id, { usoContinuo: !it.usoContinuo })}
+                          className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <Switch checked={it.usoContinuo} />
+                        </button>
                         <span>Uso contínuo (sem duração definida)</span>
-                      </label>
+                      </div>
                     )}
 
                     {!it.usoContinuo && it.tipoFrequencia !== "UNICA" && (
@@ -861,13 +1023,60 @@ export function ReceitaGenerator({
                         value={it.momento}
                         onChange={(e) => setItem(it.id, { momento: e.target.value as MomentoRefeicao })}
                       >
-                        {MOMENTO_OPTIONS.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label}
-                          </option>
-                        ))}
+                        {MOMENTO_OPTIONS.map((m) => {
+                          // Jejum / ao deitar são tomadas únicas: indisponíveis
+                          // quando a frequência tem mais de uma dose/dia.
+                          const soUnicaDiaria = m.value === "JEJUM" || m.value === "AO_DEITAR";
+                          return (
+                            <option
+                              key={m.value}
+                              value={m.value}
+                              disabled={soUnicaDiaria && isMultiDaily(it)}
+                            >
+                              {m.label}
+                            </option>
+                          );
+                        })}
                       </select>
                     </Field>
+
+                    {(it.momento === "JEJUM" ||
+                      it.momento === "PREPRANDIAL" ||
+                      it.momento === "POSPRANDIAL") && (
+                      <Field label="Minutos (opcional)">
+                        <Input
+                          value={it.momentoMinutos}
+                          onChange={(e) => setItem(it.id, { momentoMinutos: e.target.value })}
+                          inputMode="numeric"
+                          placeholder={
+                            it.momento === "JEJUM"
+                              ? "ex.: 30 (antes de comer)"
+                              : it.momento === "POSPRANDIAL"
+                                ? "ex.: 30 (após)"
+                                : "ex.: 30 (antes)"
+                          }
+                        />
+                      </Field>
+                    )}
+
+                    {(it.momento === "PREPRANDIAL" || it.momento === "POSPRANDIAL") && (
+                      <div className="col-span-2 space-y-1 sm:col-span-4">
+                        <Label className="text-xs text-muted-foreground">
+                          Refeições (opcional — vazio = todas as refeições)
+                        </Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {REFEICAO_OPTIONS.map((r) => (
+                            <Chip
+                              key={r.value}
+                              active={it.refeicoes.includes(r.value)}
+                              onClick={() => toggleRefeicao(it.id, r.value)}
+                            >
+                              {r.value}
+                            </Chip>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -957,6 +1166,20 @@ export function ReceitaGenerator({
             </div>
           )}
 
+          {/* Datar a receita (cidade + data) */}
+          <div className="flex justify-center border-t pt-4">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={header.mostrarData}
+              onClick={() => setH({ mostrarData: !header.mostrarData })}
+              className="flex items-center gap-2 text-sm focus-visible:outline-none"
+            >
+              <Switch checked={header.mostrarData} />
+              <span className="text-muted-foreground">Datar a receita (cidade e data)</span>
+            </button>
+          </div>
+
           {/* Ação única */}
           <div className="flex flex-wrap items-center justify-center gap-2 border-t pt-4">
             <CopyButton text={text} />
@@ -964,10 +1187,189 @@ export function ReceitaGenerator({
               <Printer className="h-4 w-4" /> Imprimir / PDF
             </Button>
           </div>
+
+          {/* Folha do Hospital Dia (HC-UFTM) — saída própria */}
+          {hdItems.length > 0 && (
+            <div className="space-y-2 border-t pt-4 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Hospital Dia
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {hdItems.length} medicamento{hdItems.length === 1 ? "" : "s"} na Folha de Prescrição
+                {hdGrupos.length > 1 ? ` · ${hdGrupos.length} grupos em folhas separadas` : ""}
+              </p>
+              {/* Nº de folhas (vias) por grupamento */}
+              <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5">
+                {hdGrupos.map((g) => (
+                  <label
+                    key={g.grupo}
+                    className="flex items-center gap-1 text-xs text-muted-foreground"
+                  >
+                    <span className="font-medium">{g.sigla}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={hdCopiasPorGrupo[g.grupo] ?? 1}
+                      onChange={(e) =>
+                        setHdCopiasPorGrupo((m) => ({
+                          ...m,
+                          [g.grupo]: Math.max(1, Math.min(20, Number(e.target.value) || 1)),
+                        }))
+                      }
+                      title={`Nº de folhas do grupamento ${g.sigla}`}
+                      className="h-8 w-12 rounded-md border border-input bg-background px-1 text-center text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    {hdGrupos.length === 1 ? "folhas" : ""}
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={mobile ? handleHospitalDiaPdf : handleHospitalDia}
+                >
+                  {mobile ? <FileDown className="h-4 w-4" /> : <Printer className="h-4 w-4" />} Folha
+                  H. dia
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
+}
+
+// Cores do selo por severidade (0 mais seguro → 5 contraindicado).
+const SEV_BADGE_CLS = [
+  "bg-emerald-100 text-emerald-800", // 0 · A
+  "bg-green-100 text-green-800", // 1 · B1/B2/B
+  "bg-lime-100 text-lime-800", // 2 · B3
+  "bg-amber-100 text-amber-900", // 3 · C
+  "bg-orange-100 text-orange-900", // 4 · D
+  "bg-red-100 text-red-800", // 5 · X
+];
+
+/** Selo da categoria de risco na gestação (TGA, com FDA como reserva). */
+function GestacaoBadge({ pa }: { pa: string }) {
+  const r = gestacao(pa);
+  if (!r) {
+    return (
+      <span
+        title="Sem categoria de gestação (TGA/FDA) para este princípio ativo — validar na bula (nenhum sistema cobre todos os fármacos)."
+        className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+      >
+        Gestação: sem classificação
+      </span>
+    );
+  }
+  const sys = r.sistema === "TGA" ? "TGA (Austrália)" : "FDA (descontinuada)";
+  return (
+    <span
+      title={`${r.info.titulo} · ${sys}${r.combinacao ? " · associação (maior risco)" : ""}: ${r.info.desc} — apoio à decisão, validar.`}
+      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${SEV_BADGE_CLS[r.severidade]}`}
+    >
+      Gestação {r.categoria}
+      <span className="ml-1 font-normal opacity-70">{r.sistema}</span>
+    </span>
+  );
+}
+
+// Selo de lactação (e-lactancia): cor e rótulo curto por nível (0 seguro → 3 evitar).
+const LACT_BADGE_CLS = [
+  "bg-emerald-100 text-emerald-800",
+  "bg-lime-100 text-lime-800",
+  "bg-orange-100 text-orange-900",
+  "bg-red-100 text-red-800",
+];
+const LACT_LABEL = ["compatível", "risco baixo", "risco alto", "evitar"];
+
+/** Selo do risco na amamentação (e-lactancia.org) do princípio ativo. */
+function LactacaoBadge({ pa }: { pa: string }) {
+  const r = lactancia(pa);
+  if (!r) {
+    return (
+      <span
+        title="Sem avaliação no e-lactancia.org para este princípio ativo — validar (não cobre todos os fármacos)."
+        className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+      >
+        Lactação: sem avaliação
+      </span>
+    );
+  }
+  return (
+    <span
+      title={`${r.info.titulo} (nível ${r.nivel}) · e-lactancia${r.combinacao ? " · associação (maior risco)" : ""}: ${r.info.desc} — apoio à decisão, validar.`}
+      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${LACT_BADGE_CLS[r.nivel]}`}
+    >
+      Lactação: {LACT_LABEL[r.nivel]}
+    </span>
+  );
+}
+
+// Legendas sucintas das classificações (mostradas quando a chave está ligada).
+const GEST_LEGEND = [
+  { cat: "A", cls: SEV_BADGE_CLS[0], txt: "sem risco observado" },
+  { cat: "B1/B2", cls: SEV_BADGE_CLS[1], txt: "dados limitados, sem dano" },
+  { cat: "B3", cls: SEV_BADGE_CLS[2], txt: "dados limitados; dano em animais" },
+  { cat: "C", cls: SEV_BADGE_CLS[3], txt: "efeitos reversíveis, sem malformação" },
+  { cat: "D", cls: SEV_BADGE_CLS[4], txt: "risco de malformação/dano" },
+  { cat: "X", cls: SEV_BADGE_CLS[5], txt: "contraindicado" },
+];
+const LACT_LEGEND = [
+  { cat: "0", cls: LACT_BADGE_CLS[0], txt: "compatível (risco muito baixo)" },
+  { cat: "1", cls: LACT_BADGE_CLS[1], txt: "risco baixo (provavelmente compatível)" },
+  { cat: "2", cls: LACT_BADGE_CLS[2], txt: "risco alto (pouco seguro)" },
+  { cat: "3", cls: LACT_BADGE_CLS[3], txt: "evitar (risco muito alto)" },
+];
+
+/** Quadro-legenda sucinto de uma classificação de risco. */
+function ClassLegend({
+  titulo,
+  fonte,
+  entradas,
+}: {
+  titulo: string;
+  fonte: string;
+  entradas: { cat: string; cls: string; txt: string }[];
+}) {
+  return (
+    <div className="rounded-md border bg-muted/30 px-3 py-2 text-[11px] leading-snug">
+      <div className="mb-1 font-semibold text-foreground/80">{titulo}</div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {entradas.map((e) => (
+          <span key={e.cat} className="inline-flex items-center gap-1">
+            <span className={`rounded px-1 font-semibold ${e.cls}`}>{e.cat}</span>
+            <span className="text-muted-foreground">{e.txt}</span>
+          </span>
+        ))}
+      </div>
+      <div className="mt-1 text-muted-foreground/70">{fonte}</div>
+    </div>
+  );
+}
+
+/**
+ * Frequência com mais de uma dose por dia — incompatível com "em jejum" e "ao
+ * deitar" (tomadas únicas no dia).
+ */
+function isMultiDaily(it: PrescricaoItem): boolean {
+  switch (it.tipoFrequencia) {
+    case "INTERVALO": {
+      const h = parseFloat(it.intervaloHoras.replace(",", "."));
+      return Number.isFinite(h) && h > 0 && h < 24;
+    }
+    case "FREQUENCIA": {
+      const n = parseInt(it.vezesAoDia, 10);
+      return Number.isFinite(n) && n > 1;
+    }
+    case "TURNO":
+      return it.turnos.length > 1;
+    default:
+      return false;
+  }
 }
 
 // Prévia curta da posologia de um item (usa o mesmo builder do core).

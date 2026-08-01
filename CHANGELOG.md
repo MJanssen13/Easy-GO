@@ -5,6 +5,33 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Receita — Base completa (segurança na gestação/lactação e Hospital Dia)
+
+- **Segurança por medicamento**: chaves **"Gestante"** e **"Lactante"** na
+  identificação (ligadas automaticamente ao preencher com uma paciente com IG do
+  prontuário). Com elas ativas, cada medicamento exibe um **selo de risco**:
+  **gestação** por categoria **TGA (Austrália)**, com **FDA** como reserva
+  (A/B/C/D/X), e **amamentação** pelo **e-lactancia.org** (compatível → evitar),
+  ambos com **legenda** e cores por severidade. Princípios ativos sem
+  classificação são sinalizados como tal. **Apoio à decisão — validar na bula.**
+- **Folha de Prescrição do Hospital Dia (HC-UFTM)**: chave por medicamento
+  ("Prescrição do Hospital Dia") que o retira da receita e o leva para a **folha
+  própria** com o brasão da UFTM — impressa/PDF à parte, com **agrupamento**
+  (H1, H2…) e **nº de folhas** por grupo. Ao marcar, a frequência vira **dose
+  única** por padrão (prescrição por dose individual, não o esquema completo).
+- **Receituário de controle especial** ganhou o campo **Endereço** (opcional) e a
+  opção **"Datar a receita"** (cidade + data) no card de impressão.
+- **Posologia mais rica**: campo de **minutos** para "em jejum / antes / após as
+  refeições" e seleção das **refeições** (café da manhã, almoço, jantar); "em
+  jejum" e "ao deitar" ficam indisponíveis quando a frequência tem mais de uma
+  tomada por dia.
+- **Base do gerador atualizada** a partir do índice MJ (núcleo de prescrição,
+  impressão e PDF), **mantendo os modelos por situação da GO** (DIP, sífilis,
+  toxoplasmose, curvas/relatórios) e a integração com pacientes do PSGO. Novos
+  módulos em `src/core/psgo/` (`gestacao`, `lactancia`, `fda-preg-data`,
+  `tga-preg-data`, `lactancia-data`, `norm-principio`, `hospital-dia`,
+  `hospital-dia-pdf`) e `src/core/letterhead/` (`logos`, `uftm-brasao`).
+
 ### PSGO — Passagem de plantão (colagem formatada)
 
 - Botão **"Passagem"** no quadro do PSGO (todas as pacientes ativas) **e** na
