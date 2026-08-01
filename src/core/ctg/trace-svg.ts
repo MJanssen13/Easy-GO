@@ -157,9 +157,8 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
 
   // ---- marcas: movimento fetal, estímulos e autozeros ----
   // MOVIMENTO FETAL → seta para cima, logo abaixo do painel de FHR, na posição
-  // real do evento (convenção do papel de cardiotocografia). Setas muito próximas
-  // (rajada de movimentos) são agrupadas numa única seta com a contagem ("×4"),
-  // para não virarem um borrão.
+  // real do evento (convenção do papel de cardiotocografia). Uma seta por evento;
+  // setas próximas podem se sobrepor.
   // ESTÍMULOS (EM/ES) → linha indicativa vertical na posição real (sólida =
   // mecânico, tracejada = sonoro) + selo circular com a sigla, numa faixa própria
   // abaixo das setas. Selos que se sobreporiam são deslocados na horizontal e
@@ -192,21 +191,14 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
     }
   }
 
-  // 2) Setas de movimento fetal, agrupando as que se sobreporiam.
+  // 2) Setas de movimento fetal: UMA por evento, sempre na posição real. Setas
+  //    próximas podem se sobrepor — a aglomeração é a própria leitura de que
+  //    houve muitos movimentos ali, e nenhum evento é omitido.
   const AR_HALF = 0.85; // meia-largura da cabeça da seta
-  const AR_MERGE = 2 * AR_HALF + 0.6; // distância mínima entre setas legíveis
   movesX.sort((a, b) => a - b);
-  for (let i = 0; i < movesX.length; ) {
-    let j = i + 1;
-    while (j < movesX.length && movesX[j] - movesX[j - 1] < AR_MERGE) j++;
-    const group = movesX.slice(i, j);
-    const x = group.reduce((a, b) => a + b, 0) / group.length;
+  for (const x of movesX) {
     out.push(`<path d="M ${f(x)} ${f(ARROW_BASE)} L ${f(x)} ${f(ARROW_TIP + 1.6)}" stroke="#000" stroke-width="0.32" fill="none"/>`);
     out.push(`<path d="M ${f(x - AR_HALF)} ${f(ARROW_TIP + 1.9)} L ${f(x)} ${f(ARROW_TIP)} L ${f(x + AR_HALF)} ${f(ARROW_TIP + 1.9)} Z" fill="#000"/>`);
-    if (group.length > 1) {
-      out.push(`<text x="${f(x + AR_HALF + 0.4)}" y="${f(ARROW_BASE)}" font-size="1.9" fill="#000">×${group.length}</text>`);
-    }
-    i = j;
   }
 
   // 3) Selos de estímulo: linha na posição real, selo deslocado só o necessário

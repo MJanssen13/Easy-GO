@@ -279,11 +279,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Estímulos (EM/ES) arrastáveis**: cada selo pode ser **arrastado na prévia**
   até o instante correto — o tempo e a hora do estímulo são recalculados ao
   soltar. A linha indicativa (sólida = mecânico, tracejada = sonoro) acompanha.
-- **Marcas sem sobreposição** quando há muitas próximas: setas vizinhas que se
-  sobreporiam viram **uma seta com a contagem** (`×4`); os selos de estímulo ficam
-  em **faixa própria**, deslocados só o necessário para não colidir e ligados à
-  sua linha por um **fio-guia**. As linhas/setas permanecem na **posição real**,
-  preservando a informação temporal.
+- **Uma seta por movimento**, sempre na posição real — setas próximas **podem se
+  sobrepor**, e o adensamento é a própria leitura de que houve muitos movimentos
+  ali (nenhum evento é omitido ou resumido).
+- **Selos de estímulo sem sobreposição**: ficam em **faixa própria**, deslocados
+  só o necessário para não colidir e ligados à sua linha (na posição real) por um
+  **fio-guia**.
 - **Estímulos** mecânicos e sonoros adicionáveis na plataforma por **tempo
   decorrido** (mm:ss) ou **hora de relógio** (HH:MM) — as duas formas são
   exibidas — plotados como linhas verticais (sólida = mecânico, tracejada =
