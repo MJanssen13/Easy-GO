@@ -22,6 +22,11 @@ export interface TraceMark {
   /** Posição em segundos a partir do início DESTA gravação. */
   positionSec: number;
   kind: MarkKind;
+  /**
+   * Id do estímulo de origem (só para marcas de estímulo). Permite identificar a
+   * marca no SVG para arrastá-la até a posição correta.
+   */
+  id?: string;
 }
 
 export const STIMULUS_LABEL: Record<StimulusKind, string> = {
@@ -79,7 +84,7 @@ export function examStartSec(traces: CtgTrace[]): number | null {
 }
 
 /** Início (hora de relógio, em segundos) de uma gravação; cai para o exame. */
-function recordingStartSec(trace: CtgTrace, examStart: number | null): number | null {
+export function recordingStartSec(trace: CtgTrace, examStart: number | null): number | null {
   if (trace.startTime) {
     const c = parseClock(trace.startTime);
     if (c != null) return c;
@@ -107,7 +112,7 @@ export function buildMarks(
     for (const s of stimuli) {
       const pos = s.clockSec - recStart;
       if (pos >= 0 && pos <= trace.samples) {
-        marks.push({ positionSec: pos, kind: s.kind });
+        marks.push({ positionSec: pos, kind: s.kind, id: s.id });
       }
     }
   }

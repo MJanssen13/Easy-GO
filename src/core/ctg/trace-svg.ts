@@ -8,7 +8,7 @@
 // Função pura (sem React); usada tanto na prévia quanto na impressão.
 
 import type { CtgTrace } from "./trc";
-import type { MarkKind, TraceMark } from "./stimuli";
+import type { TraceMark } from "./stimuli";
 
 export interface TraceSvgOptions {
   /** Milímetros por minuto (velocidade do papel). Padrão 10 (= 1 cm/min). */
@@ -33,7 +33,7 @@ const RIGHT = 4;
 const TOP = 6; // rótulos de tempo acima do painel de FHR
 const MM_PER_BPM = 10 / 30; // 1 cm = 30 bpm
 const FHR_H = (FHR_HI - FHR_LO) * MM_PER_BPM; // ≈ 53,3 mm
-const GAP = 10; // 1 cm entre painéis FHR e TOCO (aloja os selos de marca)
+const GAP = 11; // espaço entre painéis FHR e TOCO (setas de movimento + selos de estímulo)
 const MM_PER_MMHG = 10 / 25; // 1 cm = 25 mmHg
 const TOCO_H = (TOCO_HI - TOCO_LO) * MM_PER_MMHG; // 40 mm
 const MARK_H = 4; // faixa inferior para marcações/legenda
@@ -106,9 +106,12 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   const xAt = (sec: number) => LEFT + sec * mmPerSec;
 
   const out: string[] = [];
+  // `data-*` expõem a geometria (em mm) para converter pixel → segundo ao
+  // arrastar um estímulo na prévia.
   out.push(
     `<svg width="${f(width)}mm" height="${f(height)}mm" viewBox="0 0 ${f(width)} ${f(height)}" ` +
-      `xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif" style="display:block">`,
+      `xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif" style="display:block" ` +
+      `data-left="${f(LEFT)}" data-mm-per-sec="${mmPerSec}" data-samples="${trace.samples}">`,
   );
 
   // ---- painel FHR (1 cm = 30 bpm) ----
@@ -153,97 +156,83 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   }
 
   // ---- marcas: movimento fetal, estímulos e autozeros ----
-  // Cada marca gera uma LINHA indicativa vertical na posição REAL (pontilhada =
-  // movimento fetal; sólida = estímulo mecânico; tracejada = estímulo sonoro),
-  // atravessando os dois painéis. No espaço de 1 cm entre os gráficos vai o SELO
-  // com a sigla. Para não sobrepor os selos quando há muitas marcas próximas
-  // (movimentos ou estímulos em rajada), marcas vizinhas do mesmo tipo são
-  // agrupadas em um único selo com a contagem ("MF ×4"), e os selos restantes são
-  // distribuídos em até duas linhas / deslocados na horizontal para não colidir —
-  // as linhas indicativas permanecem sempre na posição real de cada marca.
-  // Autozero → triângulo vazado na linha de base do TOCO.
+  // MOVIMENTO FETAL → seta para cima, logo abaixo do painel de FHR, na posição
+  // real do evento (convenção do papel de cardiotocografia). Setas muito próximas
+  // (rajada de movimentos) são agrupadas numa única seta com a contagem ("×4"),
+  // para não virarem um borrão.
+  // ESTÍMULOS (EM/ES) → linha indicativa vertical na posição real (sólida =
+  // mecânico, tracejada = sonoro) + selo circular com a sigla, numa faixa própria
+  // abaixo das setas. Selos que se sobreporiam são deslocados na horizontal e
+  // ligados à sua linha por um fio-guia. Cada selo é arrastável (`data-stim`).
+  // AUTOZERO → triângulo vazado na linha de base do TOCO.
   const marks =
     opts.marks ??
     trace.events.map((e) => ({ positionSec: e.positionSec, kind: e.kind } as TraceMark));
-  const gapCenter = fTop + FHR_H + GAP / 2;
+  const gapTop = fTop + FHR_H;
+  const ARROW_TIP = gapTop + 0.7; // ponta da seta (encostada no painel de FHR)
+  const ARROW_BASE = gapTop + 4.6; // base da seta
+  const STIM_CY = gapTop + 8.0; // centro dos selos de estímulo
 
-  const DASH: Partial<Record<MarkKind, string>> = { movimento: "0.35 0.9", mecanico: "", sonoro: "1.6 1" };
-  const TAG: Partial<Record<MarkKind, string>> = { movimento: "MF", mecanico: "EM", sonoro: "ES" };
+  const DASH: Record<"mecanico" | "sonoro", string> = { mecanico: "", sonoro: "1.6 1" };
+  const TAG: Record<"mecanico" | "sonoro", string> = { mecanico: "EM", sonoro: "ES" };
 
-  // 1) Linhas indicativas (posição real) + autozeros; coleta os selos a posicionar.
-  const badgeMarks: { x: number; kind: MarkKind }[] = [];
+  // 1) Autozeros; separa movimentos (setas) e estímulos (selos).
+  const movesX: number[] = [];
+  const stims: { x: number; kind: "mecanico" | "sonoro"; id?: string }[] = [];
   for (const mk of marks) {
     const x = clamp(xAt(mk.positionSec), LEFT, LEFT + traceW);
     if (mk.kind === "autozero") {
       const y = yToco(TOCO_LO);
       out.push(`<path d="M ${f(x - 1.4)} ${f(y)} L ${f(x + 1.4)} ${f(y)} L ${f(x)} ${f(y - 2.6)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
       out.push(`<text x="${f(x + 2)}" y="${f(y - 0.5)}" font-size="2.2" fill="${LABEL}">AZ</text>`);
-      continue;
-    }
-    const dash = DASH[mk.kind] ?? "";
-    const da = dash ? ` stroke-dasharray="${dash}"` : "";
-    out.push(`<line x1="${f(x)}" y1="${f(fTop)}" x2="${f(x)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.2"${da}/>`);
-    badgeMarks.push({ x, kind: mk.kind });
-  }
-
-  // 2) Agrupa marcas vizinhas do mesmo tipo (cujos selos se sobreporiam) num só selo.
-  const R = 2.4; // raio do selo circular
-  const PAD = 0.7; // folga mínima entre selos
-  const MERGE = 2 * R + PAD; // distância (mm) abaixo da qual selos do mesmo tipo se fundem
-  const FS = 2.2; // corpo do rótulo do selo
-  const CHAR = FS * 0.62; // largura aproximada de caractere (para dimensionar a pílula)
-
-  interface Seal { x: number; kind: MarkKind; count: number; half: number; row: number }
-  const seals: Seal[] = [];
-  for (const kind of ["movimento", "mecanico", "sonoro"] as MarkKind[]) {
-    const xs = badgeMarks.filter((m) => m.kind === kind).map((m) => m.x).sort((a, b) => a - b);
-    for (let i = 0; i < xs.length; ) {
-      let j = i + 1;
-      while (j < xs.length && xs[j] - xs[j - 1] < MERGE) j++;
-      const group = xs.slice(i, j);
-      const cx = group.reduce((a, b) => a + b, 0) / group.length;
-      const count = group.length;
-      const label = count > 1 ? `${TAG[kind]} ×${count}` : TAG[kind]!;
-      const half = count > 1 ? (label.length * CHAR) / 2 + 1.4 : R; // pílula p/ grupos
-      seals.push({ x: cx, kind, count, half, row: 0 });
-      i = j;
-    }
-  }
-
-  // 3) Distribui os selos em até duas linhas, sem sobreposição; empurra na horizontal
-  //    quando ambas as linhas estão ocupadas. As linhas indicativas não se movem.
-  const minX = LEFT;
-  const maxX = LEFT + traceW;
-  const MAX_ROWS = 2;
-  const rowRight: number[] = []; // borda direita ocupada em cada linha
-  seals.sort((a, b) => a.x - b.x);
-  for (const s of seals) {
-    s.x = clamp(s.x, minX + s.half, maxX - s.half);
-    let placed = -1;
-    for (let r = 0; r < Math.min(rowRight.length + 1, MAX_ROWS); r++) {
-      if (s.x - s.half >= (rowRight[r] ?? -Infinity) + PAD) { placed = r; break; }
-    }
-    if (placed === -1) {
-      // Nenhuma linha livre: usa a que libera antes e desloca o selo para a direita.
-      placed = rowRight[0] <= (rowRight[1] ?? Infinity) ? 0 : 1;
-      s.x = clamp(rowRight[placed] + PAD + s.half, minX + s.half, maxX - s.half);
-    }
-    rowRight[placed] = s.x + s.half;
-    s.row = placed;
-  }
-  const twoRows = rowRight.length > 1;
-  const rowOffset = 2.5;
-
-  // 4) Desenha os selos (círculo para marca única; pílula com contagem para grupos).
-  for (const s of seals) {
-    const cy = !twoRows ? gapCenter : gapCenter + (s.row === 0 ? -rowOffset : rowOffset);
-    const label = s.count > 1 ? `${TAG[s.kind]} ×${s.count}` : TAG[s.kind]!;
-    if (s.count > 1) {
-      out.push(`<rect x="${f(s.x - s.half)}" y="${f(cy - R)}" width="${f(2 * s.half)}" height="${f(2 * R)}" rx="${f(R)}" fill="#000"/>`);
+    } else if (mk.kind === "movimento") {
+      movesX.push(x);
     } else {
-      out.push(`<circle cx="${f(s.x)}" cy="${f(cy)}" r="${f(R)}" fill="#000"/>`);
+      stims.push({ x, kind: mk.kind, id: mk.id });
     }
-    out.push(`<text x="${f(s.x)}" y="${f(cy)}" font-size="${FS}" text-anchor="middle" dominant-baseline="central" fill="#fff">${label}</text>`);
+  }
+
+  // 2) Setas de movimento fetal, agrupando as que se sobreporiam.
+  const AR_HALF = 0.85; // meia-largura da cabeça da seta
+  const AR_MERGE = 2 * AR_HALF + 0.6; // distância mínima entre setas legíveis
+  movesX.sort((a, b) => a - b);
+  for (let i = 0; i < movesX.length; ) {
+    let j = i + 1;
+    while (j < movesX.length && movesX[j] - movesX[j - 1] < AR_MERGE) j++;
+    const group = movesX.slice(i, j);
+    const x = group.reduce((a, b) => a + b, 0) / group.length;
+    out.push(`<path d="M ${f(x)} ${f(ARROW_BASE)} L ${f(x)} ${f(ARROW_TIP + 1.6)}" stroke="#000" stroke-width="0.32" fill="none"/>`);
+    out.push(`<path d="M ${f(x - AR_HALF)} ${f(ARROW_TIP + 1.9)} L ${f(x)} ${f(ARROW_TIP)} L ${f(x + AR_HALF)} ${f(ARROW_TIP + 1.9)} Z" fill="#000"/>`);
+    if (group.length > 1) {
+      out.push(`<text x="${f(x + AR_HALF + 0.4)}" y="${f(ARROW_BASE)}" font-size="1.9" fill="#000">×${group.length}</text>`);
+    }
+    i = j;
+  }
+
+  // 3) Selos de estímulo: linha na posição real, selo deslocado só o necessário
+  //    para não colidir com o anterior, com fio-guia quando sai do lugar.
+  const R = 2.4; // raio do selo
+  const PAD = 0.7; // folga mínima entre selos
+  const FS = 2.2;
+  stims.sort((a, b) => a.x - b.x);
+  let usedRight = -Infinity;
+  for (const s of stims) {
+    const da = DASH[s.kind] ? ` stroke-dasharray="${DASH[s.kind]}"` : "";
+    let bx = clamp(s.x, LEFT + R, Math.max(LEFT + R, LEFT + traceW - R));
+    if (bx - R < usedRight + PAD) bx = usedRight + PAD + R;
+    usedRight = bx + R;
+    const attrs = s.id ? ` data-stim="${s.id}" data-kind="${s.kind}" style="cursor:grab"` : "";
+    out.push(`<g${attrs}>`);
+    out.push(`<line x1="${f(s.x)}" y1="${f(fTop)}" x2="${f(s.x)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.2"${da}/>`);
+    if (Math.abs(bx - s.x) > 0.15) {
+      // fio-guia ligando o selo deslocado à sua linha (posição verdadeira).
+      out.push(`<path d="M ${f(s.x)} ${f(STIM_CY - R)} L ${f(bx)} ${f(STIM_CY - R)}" stroke="#000" stroke-width="0.15" stroke-dasharray="0.4 0.4" fill="none"/>`);
+    }
+    // área de captura maior, para facilitar o arrasto.
+    out.push(`<circle cx="${f(bx)}" cy="${f(STIM_CY)}" r="${f(R + 1.2)}" fill="transparent"/>`);
+    out.push(`<circle cx="${f(bx)}" cy="${f(STIM_CY)}" r="${f(R)}" fill="#000"/>`);
+    out.push(`<text x="${f(bx)}" y="${f(STIM_CY)}" font-size="${FS}" text-anchor="middle" dominant-baseline="central" fill="#fff">${TAG[s.kind]}</text>`);
+    out.push(`</g>`);
   }
 
   // ---- rótulos dos painéis, escala e legenda ----
@@ -256,7 +245,7 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
     : `1 cm/min · FHR 30 bpm/cm · TOCO 25 mmHg/cm · eixo em minutos`;
   const legendY = height - 1.5;
   const lx = LEFT + 1;
-  // legenda: selo circular + linha indicativa por tipo, depois o autozero.
+  // legenda: seta (movimento fetal), selos dos estímulos e o autozero.
   const legItem = (x: number, dash: string, tag: string, text: string): number => {
     const cy = legendY - 0.9;
     const da = dash ? ` stroke-dasharray="${dash}"` : "";
@@ -266,8 +255,15 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
     out.push(`<text x="${f(x + 2.6)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">${text}</text>`);
     return x + 2.6 + text.length * 1.25 + 4;
   };
+  const legArrow = (x: number, text: string): number => {
+    const cy = legendY - 0.9;
+    out.push(`<path d="M ${f(x)} ${f(cy + 2)} L ${f(x)} ${f(cy - 1.1)}" stroke="#000" stroke-width="0.32" fill="none"/>`);
+    out.push(`<path d="M ${f(x - 0.85)} ${f(cy - 0.8)} L ${f(x)} ${f(cy - 2.3)} L ${f(x + 0.85)} ${f(cy - 0.8)} Z" fill="#000"/>`);
+    out.push(`<text x="${f(x + 2)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">${text}</text>`);
+    return x + 2 + text.length * 1.25 + 4;
+  };
   let cx = lx;
-  cx = legItem(cx, "0.35 0.9", "MF", "movimento fetal");
+  cx = legArrow(cx, "movimento fetal");
   cx = legItem(cx, "", "EM", "est. mecânico");
   cx = legItem(cx, "1.6 1", "ES", "est. sonoro");
   // autozero (triângulo)

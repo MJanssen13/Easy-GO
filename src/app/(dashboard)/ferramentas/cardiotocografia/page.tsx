@@ -14,6 +14,7 @@ import { buildCtgTraceHtml, buildCtgBatchHtml, type LaudoPatient } from "@/core/
 import {
   buildMarks,
   examStartSec,
+  recordingStartSec,
   parseClock,
   parseElapsed,
   formatClock,
@@ -57,6 +58,68 @@ function Seg<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Prévia do traçado com os selos de estímulo (EM/ES) arrastáveis: ao soltar,
+ * o estímulo passa a valer no instante correspondente ao ponto onde foi solto.
+ * Os movimentos fetais (setas) vêm do aparelho e não são arrastáveis.
+ */
+function TracePreview({
+  svg,
+  onMoveStimulus,
+}: {
+  svg: string;
+  onMoveStimulus: (id: string, positionSec: number) => void;
+}) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<string | null>(null);
+
+  // Converte a posição do ponteiro (px) em segundos do traçado.
+  const secAt = (clientX: number): number | null => {
+    const svgEl = hostRef.current?.querySelector("svg");
+    if (!svgEl) return null;
+    const rect = svgEl.getBoundingClientRect();
+    if (!rect.width) return null;
+    const vbWidth = svgEl.viewBox.baseVal.width || rect.width;
+    const left = Number(svgEl.dataset.left ?? 0);
+    const mmPerSec = Number(svgEl.dataset.mmPerSec ?? 0);
+    const samples = Number(svgEl.dataset.samples ?? 0);
+    if (!mmPerSec) return null;
+    const xMM = ((clientX - rect.left) / rect.width) * vbWidth;
+    return Math.min(Math.max((xMM - left) / mmPerSec, 0), samples);
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const g = (e.target as Element).closest?.("[data-stim]");
+    const id = g?.getAttribute("data-stim");
+    if (!id) return;
+    dragRef.current = id;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    const sec = secAt(e.clientX);
+    if (sec != null) onMoveStimulus(dragRef.current, sec);
+  };
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
+  return (
+    <div
+      ref={hostRef}
+      className="overflow-x-auto touch-none [&_[data-stim]]:cursor-grab"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
   );
 }
 
@@ -177,6 +240,16 @@ export default function CardiotocografiaToolPage() {
     setStimValue("");
   };
   const removeStimulus = (id: string) => setStimuli((s) => s.filter((x) => x.id !== id));
+
+  /** Arrastar o selo na prévia: reposiciona o estímulo no instante escolhido. */
+  const moveStimulus = (id: string, positionSec: number, trace: CtgTrace) => {
+    const recStart = recordingStartSec(trace, examStart);
+    if (recStart == null) return;
+    const clockSec = recStart + Math.round(positionSec);
+    setStimuli((s) =>
+      s.map((x) => (x.id === id ? { ...x, clockSec } : x)).sort((a, b) => a.clockSec - b.clockSec),
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -347,7 +420,9 @@ export default function CardiotocografiaToolPage() {
               <p className="text-xs text-muted-foreground">
                 Informe por <strong>tempo decorrido</strong> (mm:ss desde o início do exame) ou por{" "}
                 <strong>hora de relógio</strong> (HH:MM); os dois são mostrados. Cada estímulo vira uma
-                linha vertical no traçado (sólida = mecânico, tracejada = sonoro).
+                linha vertical no traçado (sólida = mecânico, tracejada = sonoro) com o selo EM/ES —{" "}
+                <strong>arraste o selo</strong> na prévia para ajustar o instante. Os movimentos fetais
+                vêm do aparelho e são desenhados como <strong>setas para cima</strong>.
               </p>
             </CardContent>
           </Card>
@@ -364,9 +439,9 @@ export default function CardiotocografiaToolPage() {
                     </span>
                   )}
                 </div>
-                <div
-                  className="overflow-x-auto"
-                  dangerouslySetInnerHTML={{ __html: renderCtgTraceSvg(t, { marks: buildMarks(t, stimuli, examStart) }) }}
+                <TracePreview
+                  svg={renderCtgTraceSvg(t, { marks: buildMarks(t, stimuli, examStart) })}
+                  onMoveStimulus={(id, sec) => moveStimulus(id, sec, t)}
                 />
               </CardContent>
             </Card>

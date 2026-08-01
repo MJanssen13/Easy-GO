@@ -273,12 +273,17 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   gravações cuja **hora não era reconhecida** e o caso em que o **carimbo de
   data/hora aparecia como RG**: agora, quando **não há ID**, o RG fica em
   **branco** (o carimbo e o nome nunca são usados como identificação).
-- **Selos sem sobreposição** quando há muitas marcas próximas: marcas vizinhas do
-  **mesmo tipo** (movimentos ou estímulos em rajada) são **agrupadas em um único
-  selo com a contagem** (ex.: `MF ×4`), e os selos restantes são **distribuídos em
-  até duas linhas** ou deslocados na horizontal para não colidir. As **linhas
-  indicativas** permanecem sempre na **posição real** de cada marca, preservando a
-  informação temporal.
+- **Movimentos fetais desenhados como setas para cima**, logo abaixo do painel de
+  FHR e na posição real do evento (convenção do papel de cardiotocografia), no
+  lugar do antigo selo "MF".
+- **Estímulos (EM/ES) arrastáveis**: cada selo pode ser **arrastado na prévia**
+  até o instante correto — o tempo e a hora do estímulo são recalculados ao
+  soltar. A linha indicativa (sólida = mecânico, tracejada = sonoro) acompanha.
+- **Marcas sem sobreposição** quando há muitas próximas: setas vizinhas que se
+  sobreporiam viram **uma seta com a contagem** (`×4`); os selos de estímulo ficam
+  em **faixa própria**, deslocados só o necessário para não colidir e ligados à
+  sua linha por um **fio-guia**. As linhas/setas permanecem na **posição real**,
+  preservando a informação temporal.
 - **Estímulos** mecânicos e sonoros adicionáveis na plataforma por **tempo
   decorrido** (mm:ss) ou **hora de relógio** (HH:MM) — as duas formas são
   exibidas — plotados como linhas verticais (sólida = mecânico, tracejada =
