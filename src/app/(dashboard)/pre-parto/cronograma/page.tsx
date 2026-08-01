@@ -40,9 +40,6 @@ export default async function CronogramaPage() {
 
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Cronograma do plantão</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Próximas aferições planejadas de todas as pacientes do Pré-Parto.
-        </p>
       </div>
 
       {error ? (

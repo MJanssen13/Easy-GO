@@ -48,7 +48,6 @@ export default async function PrePartoBoard() {
           </span>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Pré-Parto</h1>
-            <p className="text-sm text-muted-foreground">Leitos e trabalho de parto</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

@@ -328,6 +328,8 @@ export function renderCtgLaudoHtml(
   .foot { margin-top: 14px; }
   .foot > div { margin: 10px 0; }
   .foot .lbl { font-weight: bold; }
+  /* A conduta é escrita ABAIXO de "...que orienta:", não na mesma linha. */
+  .foot .cd-val { margin-top: 4px; min-height: 3em; white-space: pre-wrap; }
   /* Equipe de plantão fixada na última linha da folha (espaço acima). */
   .equipe-foot { margin-top: auto; padding-top: 12mm; }
   .equipe-foot .lbl { font-weight: bold; }
@@ -371,7 +373,8 @@ export function renderCtgLaudoHtml(
     ${concluObs}
 
     <div class="foot">
-      <div><span class="lbl">CD:</span> DISCUTIDA COM EQUIPE, QUE ORIENTA: ${esc(d.cd)}</div>
+      <div><span class="lbl">CD:</span> DISCUTIDA COM EQUIPE, QUE ORIENTA:</div>
+      <div class="cd-val">${esc(d.cd)}</div>
     </div>
 
     <div class="equipe-foot"><span class="lbl">EQUIPE:</span> ${esc(d.equipe)}</div>

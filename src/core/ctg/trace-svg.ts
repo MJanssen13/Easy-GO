@@ -182,10 +182,11 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   // MOVIMENTO FETAL → seta para cima, logo abaixo do painel de FHR, na posição
   // real do evento (convenção do papel de cardiotocografia). Uma seta por evento;
   // setas próximas podem se sobrepor.
-  // ESTÍMULOS (EM/ES) → linha indicativa vertical na posição real (sólida =
-  // mecânico, tracejada = sonoro) + selo circular com a sigla, numa faixa própria
-  // abaixo das setas. Selos que se sobreporiam são deslocados na horizontal e
-  // ligados à sua linha por um fio-guia. Cada selo é arrastável (`data-stim`).
+  // ESTÍMULOS (EM/ES) → linha indicativa vertical CONTÍNUA na posição real (os
+  // dois tipos; quem distingue é a sigla do selo) + selo circular numa faixa
+  // própria abaixo das setas. Selos que se sobreporiam são deslocados na
+  // horizontal e ligados à sua linha por um fio-guia; cada selo é arrastável
+  // (`data-stim`). A linha TRACEJADA é dos períodos de observação.
   // AUTOZERO → triângulo vazado na linha de base do TOCO.
   const marks =
     opts.marks ??
@@ -195,7 +196,10 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   const ARROW_BASE = gapTop + 4.6; // base da seta
   const STIM_CY = gapTop + 8.0; // centro dos selos de estímulo
 
-  const DASH: Record<"mecanico" | "sonoro", string> = { mecanico: "", sonoro: "1.6 1" };
+  // Estímulos (EM e ES) → LINHA CONTÍNUA; o que distingue é a sigla no selo.
+  // A linha TRACEJADA fica reservada aos limites dos períodos de observação.
+  const STIM_DASH = "";
+  const ANNOT_DASH = "1.6 1";
   const TAG: Record<"mecanico" | "sonoro", string> = { mecanico: "EM", sonoro: "ES" };
 
   // 1) Autozeros; separa movimentos (setas) e estímulos (selos).
@@ -232,7 +236,7 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   stims.sort((a, b) => a.x - b.x);
   let usedRight = -Infinity;
   for (const s of stims) {
-    const da = DASH[s.kind] ? ` stroke-dasharray="${DASH[s.kind]}"` : "";
+    const da = STIM_DASH ? ` stroke-dasharray="${STIM_DASH}"` : "";
     let bx = clamp(s.x, LEFT + R, Math.max(LEFT + R, LEFT + traceW - R));
     if (bx - R < usedRight + PAD) bx = usedRight + PAD + R;
     usedRight = bx + R;
@@ -258,8 +262,8 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
     const x2 = bandX(a.endSec);
     const by = fTop + 2.2; // colchete logo abaixo da borda superior do painel FHR
     out.push(`<path d="M ${f(x1)} ${f(by + 1.3)} L ${f(x1)} ${f(by)} L ${f(x2)} ${f(by)} L ${f(x2)} ${f(by + 1.3)}" fill="none" stroke="#000" stroke-width="0.25"/>`);
-    out.push(`<line x1="${f(x1)}" y1="${f(fTop)}" x2="${f(x1)}" y2="${f(fTop + FHR_H)}" stroke="#000" stroke-width="0.18" stroke-dasharray="0.8 0.6"/>`);
-    out.push(`<line x1="${f(x2)}" y1="${f(fTop)}" x2="${f(x2)}" y2="${f(fTop + FHR_H)}" stroke="#000" stroke-width="0.18" stroke-dasharray="0.8 0.6"/>`);
+    out.push(`<line x1="${f(x1)}" y1="${f(fTop)}" x2="${f(x1)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.2" stroke-dasharray="${ANNOT_DASH}"/>`);
+    out.push(`<line x1="${f(x2)}" y1="${f(fTop)}" x2="${f(x2)}" y2="${f(tBottom)}" stroke="#000" stroke-width="0.2" stroke-dasharray="${ANNOT_DASH}"/>`);
     const cxN = (x1 + x2) / 2;
     out.push(`<circle cx="${f(cxN)}" cy="${f(by)}" r="1.7" fill="#000"/>`);
     out.push(`<text x="${f(cxN)}" y="${f(by)}" font-size="2" text-anchor="middle" dominant-baseline="central" fill="#fff">${i + 1}</text>`);
@@ -294,8 +298,18 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
   };
   let cx = lx;
   cx = legArrow(cx, "movimento fetal");
-  cx = legItem(cx, "", "EM", "est. mecânico");
-  cx = legItem(cx, "1.6 1", "ES", "est. sonoro");
+  cx = legItem(cx, STIM_DASH, "EM", "est. mecânico");
+  cx = legItem(cx, STIM_DASH, "ES", "est. sonoro");
+  if (notes.length > 0) {
+    // período de observação: par de linhas tracejadas com o número
+    const cy = legendY - 0.9;
+    out.push(`<line x1="${f(cx)}" y1="${f(cy - 2)}" x2="${f(cx)}" y2="${f(cy + 2)}" stroke="#000" stroke-width="0.2" stroke-dasharray="${ANNOT_DASH}"/>`);
+    out.push(`<line x1="${f(cx + 3.4)}" y1="${f(cy - 2)}" x2="${f(cx + 3.4)}" y2="${f(cy + 2)}" stroke="#000" stroke-width="0.2" stroke-dasharray="${ANNOT_DASH}"/>`);
+    out.push(`<circle cx="${f(cx + 1.7)}" cy="${f(cy)}" r="1.4" fill="#000"/>`);
+    out.push(`<text x="${f(cx + 1.7)}" y="${f(cy)}" font-size="1.7" text-anchor="middle" dominant-baseline="central" fill="#fff">n</text>`);
+    out.push(`<text x="${f(cx + 4.4)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">período observado</text>`);
+    cx += 4.4 + "período observado".length * 1.25 + 4;
+  }
   // autozero (triângulo)
   out.push(`<path d="M ${f(cx)} ${f(legendY)} L ${f(cx + 2.8)} ${f(legendY)} L ${f(cx + 1.4)} ${f(legendY - 2.4)} Z" fill="#fff" stroke="#000" stroke-width="0.2"/>`);
   out.push(`<text x="${f(cx + 4)}" y="${f(legendY)}" font-size="2.2" fill="${LABEL}">AZ = autozero</text>`);

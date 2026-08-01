@@ -45,9 +45,6 @@ export default async function PsgoBoard() {
           </span>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">PSGO</h1>
-            <p className="text-sm text-muted-foreground">
-              Pronto-socorro obstétrico — admissões e prontuário.
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">

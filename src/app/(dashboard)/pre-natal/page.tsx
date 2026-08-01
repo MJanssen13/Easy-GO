@@ -14,10 +14,6 @@ export default function PreNatalPage() {
         </span>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Consulta de Pré-Natal</h1>
-          <p className="text-sm text-muted-foreground">
-            Ambulatório de pré-natal (MS/Febrasgo). Gera o texto do prontuário. Apoio à decisão;
-            valide com a equipe.
-          </p>
         </div>
       </div>
 

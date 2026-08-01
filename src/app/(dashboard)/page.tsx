@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { MODULES } from "@/lib/modules";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftTeamCard } from "@/components/shift-team-card";
 
 export default function HubPage() {
@@ -9,10 +9,6 @@ export default function HubPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Plataforma Easy-GO</h1>
-        <p className="text-muted-foreground">
-          Selecione um módulo para iniciar. Os módulos de geração não armazenam dados; os de
-          acompanhamento persistem com segurança.
-        </p>
       </div>
 
       <ShiftTeamCard />
@@ -38,9 +34,6 @@ export default function HubPage() {
                   </CardTitle>
                   <CardDescription>{m.short}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{m.description}</p>
-                </CardContent>
               </Card>
             </Link>
           );

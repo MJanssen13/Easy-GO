@@ -457,13 +457,6 @@ export default function CardiotocografiaToolPage() {
           <HeartPulse className="h-6 w-6 text-slate-600" />
           Cardiotocografia
         </h1>
-        <p className="text-muted-foreground">
-          Abra os arquivos <code className="rounded bg-muted px-1">.trc</code> do monitor fetal Edan
-          (F2/F3) e gere o laudo em paisagem, em linha contínua: <strong>1 cm/min</strong>, FHR a{" "}
-          <strong>30 bpm/cm</strong>, TOCO a <strong>25 mmHg/cm</strong>, com movimentos fetais,
-          autozeros e estímulos. Preto e branco, pronto para imprimir ou salvar como PDF. Tudo é
-          processado no seu dispositivo — nenhum arquivo é enviado.
-        </p>
       </div>
 
       <Card>
@@ -617,11 +610,7 @@ export default function CardiotocografiaToolPage() {
                 </ul>
               )}
               <p className="text-xs text-muted-foreground">
-                Informe por <strong>tempo decorrido</strong> (mm:ss desde o início do exame) ou por{" "}
-                <strong>hora de relógio</strong> (HH:MM); os dois são mostrados. Cada estímulo vira uma
-                linha vertical no traçado (sólida = mecânico, tracejada = sonoro) com o selo EM/ES —{" "}
-                <strong>arraste o selo</strong> na prévia para ajustar o instante. Os movimentos fetais
-                vêm do aparelho e são desenhados como <strong>setas para cima</strong>.
+                Arraste o selo EM/ES na prévia para ajustar o instante.
               </p>
             </CardContent>
           </Card>
@@ -736,9 +725,7 @@ export default function CardiotocografiaToolPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      <strong>Arraste sobre o traçado</strong> para marcar o período (ou informe
-                      início/fim em mm:ss) e escreva a observação. Ela aparece numerada na faixa do
-                      traçado e listada abaixo dele no impresso.
+                      Arraste sobre o traçado para marcar o período.
                     </p>
                     {notes.length > 0 && (
                       <ol className="space-y-1 text-xs">
@@ -901,22 +888,12 @@ export default function CardiotocografiaToolPage() {
             )}
 
             <p className="text-xs text-muted-foreground">
-              O RG e o nome vêm preenchidos pelo próprio arquivo (editáveis). Marque os exames e
-              exporte todos em um único arquivo, com um exame por página — ou clique no{" "}
-              <Eye className="inline h-3 w-3" /> para <strong>abrir apenas um exame</strong> e laudá-lo.
+              <Eye className="inline h-3 w-3" /> abre apenas um exame.
             </p>
           </CardContent>
         </Card>
       )}
 
-      {traces.length > 0 && (
-        <p className="px-1 text-xs text-muted-foreground">
-          Reconstrução a partir dos dados brutos do aparelho (1 amostra/s; FHR 50–210 bpm a 30 bpm/cm,
-          faixa cinza = 110–160 bpm; TOCO 0–100 mmHg a 25 mmHg/cm; papel a 1 cm/min). No diálogo de
-          impressão, escolha a impressora ou &quot;Salvar como PDF&quot;. Ferramenta de apoio — a
-          interpretação clínica deve ser feita pelo profissional sobre o traçado original do monitor.
-        </p>
-      )}
     </div>
   );
 }

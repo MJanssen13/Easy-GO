@@ -17,9 +17,6 @@ export default function DocumentosPage() {
           </span>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Documentos de apoio</h1>
-            <p className="text-sm text-muted-foreground">
-              Curvas, relatórios e cartas para impressão. Apoio à documentação; valide com a equipe.
-            </p>
           </div>
         </div>
         <Link href="/ferramentas" className={buttonVariants({ variant: "outline" })}>

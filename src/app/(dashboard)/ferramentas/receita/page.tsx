@@ -62,9 +62,6 @@ export default async function ReceitaPage({
           </span>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Receita</h1>
-            <p className="text-sm text-muted-foreground">
-              Prescrição médica estruturada. Apoio à documentação; valide com a equipe.
-            </p>
           </div>
         </div>
         <Link href="/ferramentas" className={buttonVariants({ variant: "outline" })}>

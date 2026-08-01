@@ -454,8 +454,9 @@ export function CtgLaudoForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <Label htmlFor="l-cd">CD (conduta)</Label>
-            <Input
+            <Textarea
               id="l-cd"
+              rows={3}
               value={f.cd}
               onChange={(e) => set("cd", e.target.value)}
               placeholder="orientação da equipe"

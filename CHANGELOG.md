@@ -5,6 +5,26 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Interface — menos texto explicativo
+
+- Removidos os **subtítulos explicativos** das páginas (hub, Ferramentas,
+  Cardiotocografia, Receita, Documentos, Pré-Natal, PSGO, Pré-Parto, Cronograma)
+  e as **descrições longas dos cards** do hub e das Ferramentas — o título e o
+  subtítulo curto de cada card já dizem o que é. Os subtítulos que trazem **dados
+  da paciente** (nome, RG, leito) foram mantidos, assim como o aviso de segurança
+  no rodapé da plataforma.
+- Na Cardiotocografia sobraram apenas as dicas de interação não óbvia (arrastar o
+  selo EM/ES; arrastar sobre o traçado para marcar o período).
+
+### Cardiotocografia — laudo e traçado
+
+- **Conduta (CD) escrita abaixo** de "DISCUTIDA COM EQUIPE, QUE ORIENTA:", em
+  linhas próprias, e o campo virou **área de texto** (aceita várias linhas).
+- **Estímulo sonoro (ES) com linha contínua**, igual ao mecânico (EM) — os dois
+  se distinguem pela sigla do selo. A **linha tracejada** passou a ser exclusiva
+  dos **limites dos períodos de observação**, que agora atravessam os dois
+  painéis; a legenda ganhou o item "período observado".
+
 ### PSGO — Passagem de plantão (colagem formatada)
 
 - Botão **"Passagem"** no quadro do PSGO (todas as pacientes ativas) **e** na

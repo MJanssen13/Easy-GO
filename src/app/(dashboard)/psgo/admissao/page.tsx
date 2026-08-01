@@ -38,9 +38,6 @@ export default async function PsgoAdmissionPage({
             <h1 className="text-2xl font-bold tracking-tight">
               {editId ? "Editar admissão" : "Nova admissão"} — PSGO
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Pronto-socorro obstétrico. Apoio à decisão; valide com a equipe.
-            </p>
           </div>
         </div>
         <Link href="/psgo" className={buttonVariants({ variant: "outline" })}>
