@@ -9,7 +9,13 @@ import type { PsgoForm } from "./types";
 import type { ImagingExam } from "./imaging";
 import { formatParity } from "./parity";
 import { computePsgo, psgoHd } from "./render";
-import { renderGyneco } from "./gyneco-exam";
+import {
+  renderGyneco,
+  emptyGynecoState,
+  TOQUE_FIELDS,
+  TOQUE_DOR_OPTIONS,
+  TOQUE_DOR_INDOLOR_KEY,
+} from "./gyneco-exam";
 import { groupImaging, renderImagingGroup, renderImagingExam } from "./imaging";
 import { withAutoGa, resolveDatingContext } from "./dating";
 import { multipleGestationPhrase } from "./multiple";
@@ -106,8 +112,24 @@ function lastCtgLine(form: PsgoForm): string {
   return `-${ctgLineWithTime(best)}`;
 }
 
-/** Último toque vaginal (omite quando "NÃO REALIZADO"). */
+// Chaves do toque para comparar com o padrão (detecta se foi preenchido).
+const TOQUE_KEYS = [
+  ...TOQUE_FIELDS.map((f) => f.id),
+  ...TOQUE_DOR_OPTIONS.map((o) => o.key),
+  TOQUE_DOR_INDOLOR_KEY,
+];
+const TOQUE_DEFAULTS = emptyGynecoState().values;
+
+/** true quando o toque foi de fato preenchido (difere do padrão do formulário). */
+function toquePreenchido(form: PsgoForm): boolean {
+  if (!form.gyneco.toqueRealizado) return false; // marcado "não realizado"
+  const cur = form.gyneco.values;
+  return TOQUE_KEYS.some((k) => (cur[k] ?? "") !== (TOQUE_DEFAULTS[k] ?? ""));
+}
+
+/** Último toque vaginal — só quando preenchido (não expõe o padrão nem "não realizado"). */
 function toqueLine(form: PsgoForm): string {
+  if (!toquePreenchido(form)) return "";
   const lines = renderGyneco(form.gyneco, form.vitals, form.pregnant);
   const t = lines.find((l) => l.startsWith("TOQUE VAGINAL"));
   if (!t || t.includes("NÃO REALIZADO")) return "";

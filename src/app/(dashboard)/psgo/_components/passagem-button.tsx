@@ -13,10 +13,15 @@ export function PassagemButton({
   text,
   html,
   count,
+  label,
+  size = "default",
 }: {
   text: string;
   html: string;
   count: number;
+  /** Rótulo do botão; padrão "Passagem (N)". */
+  label?: string;
+  size?: "default" | "sm";
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -56,12 +61,13 @@ export function PassagemButton({
     <Button
       type="button"
       variant="outline"
+      size={size}
       onClick={copy}
       disabled={!count}
-      title={count ? "Copiar a passagem de plantão (mantém o formato)" : "Nenhuma paciente ativa"}
+      title={count ? "Copiar a passagem de plantão (mantém o formato)" : "Sem dados para a passagem"}
     >
       {copied ? <Check className="h-4 w-4" /> : <ClipboardList className="h-4 w-4" />}
-      {copied ? "Copiado" : `Passagem (${count})`}
+      {copied ? "Copiado" : (label ?? `Passagem (${count})`)}
     </Button>
   );
 }

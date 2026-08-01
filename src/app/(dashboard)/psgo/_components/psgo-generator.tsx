@@ -92,6 +92,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
+import { buildPassagemBlock, passagemText, passagemHtml } from "@/core/psgo/passagem";
+import { PassagemButton } from "./passagem-button";
 import { DateBRInput } from "@/components/date-br-input";
 import { PsgoTermosButton } from "./psgo-termos-button";
 
@@ -457,6 +459,10 @@ export function PsgoGenerator({
     const team = formatShiftTeamBlock(shiftTeam);
     return team ? `${base}\n\n${team.toUpperCase()}` : base;
   }, [form, shiftTeam]);
+  // Passagem de plantão desta paciente (colagem formatada).
+  const passagem = useMemo(() => buildPassagemBlock(form), [form]);
+  const passagemTxt = useMemo(() => (passagem ? passagemText([passagem]) : ""), [passagem]);
+  const passagemHtm = useMemo(() => (passagem ? passagemHtml([passagem]) : ""), [passagem]);
   const hpmaPreview = useMemo(
     () =>
       assembleHpma({
@@ -3010,6 +3016,13 @@ export function PsgoGenerator({
                   {saving ? "Salvando…" : (savedId ?? patientId) ? "Salvar alterações" : "Salvar admissão"}
                 </Button>
                 <PsgoTermosButton name={form.name} rg={form.rg} />
+                <PassagemButton
+                  text={passagemTxt}
+                  html={passagemHtm}
+                  count={passagem ? 1 : 0}
+                  label="Passagem"
+                  size="sm"
+                />
                 <CopyButton text={text} />
               </div>
             </CardTitle>

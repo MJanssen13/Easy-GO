@@ -7,11 +7,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ### PSGO — Passagem de plantão (colagem formatada)
 
-- Botão **"Passagem"** no quadro do PSGO: gera a **passagem de plantão** de todas
-  as pacientes ativas no formato do documento do serviço — **nome + RG em negrito**
-  e, em linhas com "-", **idade/paridade/tipo sanguíneo/Robson**, **hipóteses
-  diagnósticas**, **último USG**, **último laboratorial**, **última CTG** e
-  **último toque**. Características indisponíveis são **omitidas**.
+- Botão **"Passagem"** no quadro do PSGO (todas as pacientes ativas) **e** na
+  própria admissão (**uma paciente**): gera a **passagem de plantão** no formato
+  do documento do serviço — **nome + RG em negrito** e, em linhas com "-",
+  **idade/paridade/tipo sanguíneo/Robson**, **hipóteses diagnósticas**, **último
+  USG**, **último laboratorial**, **última CTG** e **último toque**.
+- Características indisponíveis são **omitidas**; o **toque só aparece quando foi
+  de fato preenchido** (o toque-padrão do formulário e "não realizado" não saem).
 - A cópia mantém a **formatação** (HTML Calibri 9pt com o nome em negrito): ao
   colar no documento (Word/Docs) o negrito e a estrutura são preservados.
 
