@@ -26,11 +26,18 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   **percentis inline** (Hadlock/FMF) e **prévia editável** por USG dentro do
   próprio cartão.
 - **Todos os campos aparecem**, **organizados por contexto**: *Biometria fetal*,
-  *Gestação inicial* (CCN/SG/VV), *Líquido e placenta* e *Doppler (FMF)* — sem
-  alternadores.
+  *Gestação inicial* (CCN/SG/VV), *Líquido e placenta* e *Doppler (FMF)*. Os
+  campos ficaram **compactos** (números pequenos e listas curtas ocupam menos
+  espaço, vários por linha).
+- **BCF**: seletor **Presente/Ausente** + o número (bpm) quando presente.
+- **Líquido amniótico**: opção **"Normal (LA NL)"** no lugar de medir MBV/ILA
+  (sai "LA NL" no laudo); ou **"Medir"** para informar MBV/ILA.
+- Apresentação **"Córmica" → "Transverso"** (no USG e na classificação de Robson;
+  admissões antigas com "córmica" seguem legíveis).
+- **Avisos de unidade**: além de **cm × mm** (CC/CA), agora também **kg × g**
+  (PFE) — o aviso aparece quando o valor sugere troca de unidade.
 - Recursos do PSGO preservados: **gestação múltipla** (um bloco por **FETO** no
-  cartão), BCF ausente, IG automática dos USGs que não datam e "Outros exames
-  de imagem".
+  cartão), IG automática dos USGs que não datam e "Outros exames de imagem".
 
 ### Receita — Modelos por situação/patologia
 

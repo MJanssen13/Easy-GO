@@ -4,7 +4,7 @@
  * quadro do pré-natal consistente com o do pronto-socorro.
  */
 
-export const PRESENTATION_OPTIONS = ["CEFÁLICA", "PÉLVICA", "CÓRMICA"];
+export const PRESENTATION_OPTIONS = ["CEFÁLICA", "PÉLVICA", "TRANSVERSO"];
 
 export const PLACENTA_SITE_OPTIONS = [
   "ANTERIOR",

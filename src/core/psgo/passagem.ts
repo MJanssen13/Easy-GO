@@ -54,6 +54,7 @@ function examHasData(e: ImagingExam): boolean {
     e.utPi ||
     e.mbv ||
     e.ila ||
+    e.laNl ||
     e.placentaSite ||
     e.overrideText
   );

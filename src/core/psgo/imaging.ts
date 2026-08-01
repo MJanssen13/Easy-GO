@@ -14,6 +14,7 @@ import {
   hcCentile,
   expectedAc,
   expectedHc,
+  expectedEfw,
 } from "@/core/fmf/biometry";
 import { uaPiCentile, mcaPiCentile, cprCentile, cprValue } from "@/core/fmf/cpr";
 import { utPiCentile } from "@/core/fmf/uterine";
@@ -43,6 +44,7 @@ export interface ImagingExam {
   placentaGrade?: string; // grau (0/I/II/III)
   mbv?: string; // maior bolsão vertical (cm)
   ila?: string; // ILA — índice de líquido amniótico (cm)
+  laNl?: boolean; // líquido amniótico normal (sai "LA NL", no lugar de MBV/ILA)
   uaPi?: string; // IP AUMB — IP da artéria umbilical
   mcaPi?: string; // IP ACM — IP da artéria cerebral média
   utPi?: string; // IP A. UTERINA (média) — IP das artérias uterinas
@@ -99,7 +101,8 @@ function igPhrase(e: ImagingExam): string {
 const PRESENTATION_ABBR: Record<string, string> = {
   CEFÁLICA: "CEF",
   PÉLVICA: "PELV",
-  CÓRMICA: "CORM",
+  TRANSVERSO: "TRANSV",
+  CÓRMICA: "CORM", // legado (admissões antigas) — hoje usamos "Transverso"
 };
 /** Abreviação da apresentação (CEF/PELV/CORM); desconhecidas ficam como estão. */
 function presentationAbbr(p: string): string {
@@ -180,6 +183,7 @@ export function hasImagingData(e: ImagingExam): boolean {
       e.mcaPi ||
       e.mbv ||
       e.ila ||
+      e.laNl ||
       e.utPi ||
       e.crl ||
       e.placentaSite ||
@@ -228,9 +232,13 @@ export function imagingFields(e: ImagingExam): string[] {
     fields.push(`PFE ${e.efw} g${pctSuffix(c)}`);
   }
 
-  // Líquido amniótico.
-  if (e.mbv) fields.push(`MBV ${e.mbv}CM`);
-  if (e.ila) fields.push(`ILA ${e.ila}CM`);
+  // Líquido amniótico (normal → "LA NL"; senão, os valores medidos).
+  if (e.laNl) {
+    fields.push("LA NL");
+  } else {
+    if (e.mbv) fields.push(`MBV ${e.mbv}CM`);
+    if (e.ila) fields.push(`ILA ${e.ila}CM`);
+  }
 
   // BCF.
   if (e.fhr) {
@@ -303,6 +311,14 @@ export function imagingWarnings(e: ImagingExam): string[] {
     out.push("CA parece estar em cm — confira (valor em mm, ex.: 261, não 26,1).");
   if (suspectCm(num(e.hc), expectedHc(gaDays)))
     out.push("CC parece estar em cm — confira (valor em mm, ex.: 290, não 29,0).");
+  // PFE anotado em kg no lugar de g (valor ~1000× menor que o esperado).
+  const suspectKg = (valueG: number | null, expectedG: number | null): boolean => {
+    if (valueG == null || valueG <= 0 || expectedG == null || expectedG <= 0) return false;
+    const x1000 = valueG * 1000;
+    return x1000 >= expectedG * 0.55 && x1000 <= expectedG * 1.6;
+  };
+  if (suspectKg(num(e.efw), expectedEfw(gaDays)))
+    out.push("PESO (PFE) parece estar em kg — confira (valor em g, ex.: 1200, não 1,2).");
   return out;
 }
 
