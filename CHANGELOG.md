@@ -16,6 +16,10 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   de fato preenchido** (o toque-padrão do formulário e "não realizado" não saem).
 - A cópia mantém a **formatação** (HTML Calibri 9pt com o nome em negrito): ao
   colar no documento (Word/Docs) o negrito e a estrutura são preservados.
+- Os **cartões das pacientes no quadro do PSGO** agora exibem a passagem de forma
+  **estruturada** (HD, último USG, último laboratorial, última CTG e toque quando
+  preenchido), com rótulos — sem a formatação rígida da cópia; itens ausentes são
+  omitidos.
 
 ### PSGO — USG em cartões (como no pré-natal)
 

@@ -25,8 +25,24 @@ import { parseDatedText } from "./dated-lines";
 export interface PassagemBlock {
   /** Linha de cabeçalho em negrito: "NOME, RG: XXXX". */
   header: string;
-  /** Demais linhas do bloco (já prefixadas por "-"). */
+  nome: string;
+  rg: string;
+  /** Campos estruturados (sem o "-" inicial), para exibição nos cards. */
+  campos: {
+    demografia: string; // idade/paridade/TS/Robson
+    hd: string;
+    usg: string;
+    lab: string;
+    ctg: string;
+    toque: string;
+  };
+  /** Demais linhas do bloco (já prefixadas por "-"), para a cópia formatada. */
   linhas: string[];
+}
+
+/** Remove o traço inicial de uma linha ("- (x): y" → "(x): y"). */
+function stripDash(s: string): string {
+  return s.replace(/^-\s*/, "").trim();
 }
 
 const up = (s: string) => s.trim().toUpperCase();
@@ -144,12 +160,10 @@ export function buildPassagemBlock(form: PsgoForm): PassagemBlock | null {
   const rg = form.rg.trim();
   const header = rg ? `${nome}, RG: ${rg}` : nome;
 
-  const linhas: string[] = [];
-
   // Idade, Paridade, tipo sanguíneo e Robson (omite os ausentes).
   const parity = formatParity(form.priorPregnancies, form.pregnant);
   const robson = computePsgo(form).robsonGroup;
-  const demog = [
+  const demografia = [
     form.age.trim() ? `${form.age.trim()} ANOS` : "",
     parity.summary || "",
     up(form.bloodType),
@@ -157,25 +171,37 @@ export function buildPassagemBlock(form: PsgoForm): PassagemBlock | null {
   ]
     .filter(Boolean)
     .join(", ");
-  if (demog) linhas.push(`-${demog}`);
 
-  // Hipóteses diagnósticas.
   const hd = (form.hd.trim() || psgoHd(form)).trim();
-  if (hd) linhas.push(`-${up(hd)}`);
-
+  const hdUp = hd ? up(hd) : "";
   const usg = lastUsgLine(form);
-  if (usg) linhas.push(usg);
-
   const lab = lastLabLine(form);
-  if (lab) linhas.push(lab);
-
   const ctg = lastCtgLine(form);
-  if (ctg) linhas.push(ctg);
-
   const toque = toqueLine(form);
+
+  // Linhas prefixadas por "-" para a cópia formatada.
+  const linhas: string[] = [];
+  if (demografia) linhas.push(`-${demografia}`);
+  if (hdUp) linhas.push(`-${hdUp}`);
+  if (usg) linhas.push(usg);
+  if (lab) linhas.push(lab);
+  if (ctg) linhas.push(ctg);
   if (toque) linhas.push(toque);
 
-  return { header, linhas };
+  return {
+    header,
+    nome,
+    rg,
+    campos: {
+      demografia,
+      hd: hdUp,
+      usg: stripDash(usg),
+      lab: stripDash(lab),
+      ctg: stripDash(ctg),
+      toque: stripDash(toque),
+    },
+    linhas,
+  };
 }
 
 /** Passagem de várias pacientes em texto puro. */

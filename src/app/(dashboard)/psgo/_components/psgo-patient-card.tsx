@@ -2,15 +2,30 @@ import Link from "next/link";
 import { User } from "lucide-react";
 import type { Patient } from "@/core/patients/types";
 import { Card, CardContent } from "@/components/ui/card";
+import { patientToPsgoForm } from "@/core/psgo/patient-mapper";
+import { buildPassagemBlock } from "@/core/psgo/passagem";
 
 function gaLabel(p: Patient): string | null {
   if (p.gaWeeks == null) return null;
   return `${p.gaWeeks}s${p.gaDays ? ` ${p.gaDays}d` : ""}`;
 }
 
+/** Linha estruturada (rótulo + valor) da passagem, no card. */
+function Row({ label, value, clamp = 2 }: { label: string; value: string; clamp?: 1 | 2 }) {
+  return (
+    <p className={`text-xs text-muted-foreground ${clamp === 1 ? "line-clamp-1" : "line-clamp-2"}`}>
+      <span className="font-semibold text-foreground/70">{label}:</span> {value}
+    </p>
+  );
+}
+
 export function PsgoPatientCard({ patient }: { patient: Patient }) {
   const robson = (patient.clinicalSummary as { robsonGroup?: number | null } | null)?.robsonGroup;
   const ga = gaLabel(patient);
+  // Passagem estruturada (mesma fonte da colagem) para exibir no card.
+  const form = patientToPsgoForm(patient);
+  const bloco = form ? buildPassagemBlock(form) : null;
+  const c = bloco?.campos;
 
   return (
     <Link href={`/psgo/${patient.id}`} className="block">
@@ -41,12 +56,26 @@ export function PsgoPatientCard({ patient }: { patient: Patient }) {
             {patient.parity && (
               <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{patient.parity}</span>
             )}
+            {patient.bloodType && (
+              <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{patient.bloodType}</span>
+            )}
           </div>
 
-          {patient.riskFactors.length > 0 && (
-            <p className="line-clamp-2 text-xs text-muted-foreground">
-              {patient.riskFactors.join(" · ")}
-            </p>
+          {/* Passagem estruturada (hipóteses, último USG/lab/CTG/toque) */}
+          {c && (c.hd || c.usg || c.lab || c.ctg || c.toque) ? (
+            <div className="space-y-1 border-t pt-2">
+              {c.hd && <Row label="HD" value={c.hd} />}
+              {c.usg && <Row label="USG" value={c.usg} />}
+              {c.lab && <Row label="Lab" value={c.lab} />}
+              {c.ctg && <Row label="CTG" value={c.ctg} clamp={1} />}
+              {c.toque && <Row label="Toque" value={c.toque} />}
+            </div>
+          ) : (
+            patient.riskFactors.length > 0 && (
+              <p className="line-clamp-2 border-t pt-2 text-xs text-muted-foreground">
+                {patient.riskFactors.join(" · ")}
+              </p>
+            )
           )}
         </CardContent>
       </Card>
