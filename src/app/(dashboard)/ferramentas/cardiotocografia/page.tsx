@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { FileUp, Printer, Trash2, HeartPulse, Plus, X } from "lucide-react";
+import { FileUp, Printer, Trash2, HeartPulse, Plus, X, MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,11 +23,25 @@ import {
   type Stimulus,
   type StimulusKind,
 } from "@/core/ctg/stimuli";
+import {
+  annotationRange,
+  annotationsFor,
+  type TraceAnnotation,
+} from "@/core/ctg/annotations";
+import { analyzeTrace, presenceOf } from "@/core/ctg/analysis";
+import { CtgLaudoForm, type LaudoFields } from "./_components/ctg-laudo-form";
 
 type Failed = { fileName: string; error: string };
 type StimMode = "tempo" | "hora";
 type ViewMode = "exame" | "lote";
 type BatchRow = { rg: string; nome: string; selected: boolean };
+/** Período em seleção (arraste na prévia) de uma gravação. */
+type Selection = { traceIdx: number; startSec: number; endSec: number };
+
+const newId = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : String(Date.now() + Math.random());
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -62,19 +76,25 @@ function Seg<T extends string>({
 }
 
 /**
- * Prévia do traçado com os selos de estímulo (EM/ES) arrastáveis: ao soltar,
- * o estímulo passa a valer no instante correspondente ao ponto onde foi solto.
+ * Prévia do traçado, com duas interações de arraste:
+ *  • sobre um selo de estímulo (EM/ES) → reposiciona o estímulo no instante em
+ *    que for solto;
+ *  • sobre qualquer outro ponto → SELECIONA UM PERÍODO, para anexar uma
+ *    observação àquele intervalo de tempo.
  * Os movimentos fetais (setas) vêm do aparelho e não são arrastáveis.
  */
 function TracePreview({
   svg,
   onMoveStimulus,
+  onSelect,
 }: {
   svg: string;
   onMoveStimulus: (id: string, positionSec: number) => void;
+  onSelect: (startSec: number, endSec: number) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<string | null>(null);
+  const anchorRef = useRef<number | null>(null);
 
   // Converte a posição do ponteiro (px) em segundos do traçado.
   const secAt = (clientX: number): number | null => {
@@ -94,26 +114,40 @@ function TracePreview({
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const g = (e.target as Element).closest?.("[data-stim]");
     const id = g?.getAttribute("data-stim");
-    if (!id) return;
-    dragRef.current = id;
+    if (id) {
+      dragRef.current = id;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+    // Fora dos selos: inicia a seleção de um período.
+    const sec = secAt(e.clientX);
+    if (sec == null) return;
+    anchorRef.current = sec;
+    onSelect(sec, sec);
     e.currentTarget.setPointerCapture(e.pointerId);
     e.preventDefault();
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
     const sec = secAt(e.clientX);
-    if (sec != null) onMoveStimulus(dragRef.current, sec);
+    if (sec == null) return;
+    if (dragRef.current) return onMoveStimulus(dragRef.current, sec);
+    if (anchorRef.current != null) {
+      const a = anchorRef.current;
+      onSelect(Math.min(a, sec), Math.max(a, sec));
+    }
   };
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
+    if (!dragRef.current && anchorRef.current == null) return;
     dragRef.current = null;
+    anchorRef.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
   return (
     <div
       ref={hostRef}
-      className="overflow-x-auto touch-none [&_[data-stim]]:cursor-grab"
+      className="overflow-x-auto touch-none select-none [&_[data-stim]]:cursor-grab"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
@@ -139,6 +173,14 @@ export default function CardiotocografiaToolPage() {
   const dateTimeEdited = useRef(false);
   const rgEdited = useRef(false);
   const nomeEdited = useRef(false);
+
+  // Observações por período: uma lista por gravação (índice = índice do traçado).
+  const [annotations, setAnnotations] = useState<TraceAnnotation[][]>([]);
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [noteText, setNoteText] = useState("");
+  // Texto dos campos mm:ss — mantido à parte para permitir digitação parcial
+  // (o valor só vira seleção quando o formato fica válido).
+  const [periodInput, setPeriodInput] = useState({ start: "", end: "" });
 
   // Modo "lote": uma linha por exame (RG vindo do ID, editável) + nome.
   const [batch, setBatch] = useState<BatchRow[]>([]);
@@ -168,6 +210,8 @@ export default function CardiotocografiaToolPage() {
     setTraces(ok);
     setErrors(bad);
     setBatch(ok.map((t) => ({ rg: t.fileId, nome: t.patientName, selected: true })));
+    setAnnotations(ok.map(() => []));
+    setSelection(null);
 
     const first = ok[0];
     const now = new Date();
@@ -189,10 +233,12 @@ export default function CardiotocografiaToolPage() {
     setTraces([]);
     setErrors([]);
     setBatch([]);
+    setAnnotations([]);
+    setSelection(null);
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const exportExame = () => printHtml(buildCtgTraceHtml(traces, patient, stimuli));
+  const exportExame = () => printHtml(buildCtgTraceHtml(traces, patient, stimuli, annotations));
   const exportBatch = () => {
     const entries = traces
       .map((t, i) => ({ t, r: batch[i] }))
@@ -240,6 +286,89 @@ export default function CardiotocografiaToolPage() {
     setStimValue("");
   };
   const removeStimulus = (id: string) => setStimuli((s) => s.filter((x) => x.id !== id));
+
+  // ---- Observações por período ----------------------------------------------
+  /** Seleção viva enquanto se arrasta sobre a prévia de uma gravação. */
+  const selectPeriod = (traceIdx: number, startSec: number, endSec: number) => {
+    setSelection({ traceIdx, startSec, endSec });
+    setPeriodInput({ start: formatElapsed(startSec), end: formatElapsed(endSec) });
+  };
+
+  /** Ajusta um limite do período pelos campos mm:ss (aceita digitação parcial). */
+  const setSelectionBound = (traceIdx: number, which: "start" | "end", value: string) => {
+    setPeriodInput((p) => ({ ...p, [which]: value }));
+    const sec = parseElapsed(value);
+    if (sec == null) return;
+    setSelection((s) => {
+      const base = s?.traceIdx === traceIdx ? s : { traceIdx, startSec: sec, endSec: sec };
+      return which === "start" ? { ...base, startSec: sec } : { ...base, endSec: sec };
+    });
+  };
+
+  const addAnnotation = (traceIdx: number) => {
+    if (!selection || selection.traceIdx !== traceIdx) return;
+    const text = noteText.trim();
+    if (!text) return;
+    const a: TraceAnnotation = {
+      id: newId(),
+      startSec: Math.round(Math.min(selection.startSec, selection.endSec)),
+      endSec: Math.round(Math.max(selection.startSec, selection.endSec)),
+      text,
+    };
+    if (a.endSec <= a.startSec) return;
+    setAnnotations((rows) => rows.map((r, i) => (i === traceIdx ? [...r, a] : r)));
+    setNoteText("");
+    setSelection(null);
+    setPeriodInput({ start: "", end: "" });
+  };
+
+  const removeAnnotation = (traceIdx: number, id: string) =>
+    setAnnotations((rows) => rows.map((r, i) => (i === traceIdx ? r.filter((a) => a.id !== id) : r)));
+
+  // ---- Análise automática e pré-preenchimento do laudo ------------------------
+  // O laudo se refere à gravação mais longa (a principal do exame).
+  const mainIdx = useMemo(() => {
+    if (!traces.length) return -1;
+    let best = 0;
+    traces.forEach((t, i) => {
+      if (t.samples > traces[best].samples) best = i;
+    });
+    return best;
+  }, [traces]);
+
+  const analysis = useMemo(
+    () => (mainIdx >= 0 ? analyzeTrace(traces[mainIdx]) : null),
+    [traces, mainIdx],
+  );
+
+  /** Campos do laudo derivados do traçado, dos estímulos e das observações. */
+  const suggestedLaudo: LaudoFields = useMemo(() => {
+    const soundCount = stimuli.filter((s) => s.kind === "sonoro").length;
+    const mechCount = stimuli.filter((s) => s.kind === "mecanico").length;
+    const notes = mainIdx >= 0 ? annotationsFor(annotations[mainIdx] ?? [], traces[mainIdx].samples) : [];
+    const notesText = notes.map((a) => `${annotationRange(a)} ${a.text}`).join("; ");
+    return {
+      hd: "",
+      baseline: analysis?.baselineBpm != null ? String(analysis.baselineBpm) : "",
+      variability: analysis?.variability ?? "",
+      accelerations: analysis ? presenceOf(analysis.accelerations.length) : "",
+      atMfRatio: analysis?.atMfRatio ?? "",
+      movements: analysis ? presenceOf(analysis.movements) : "",
+      decelerations: analysis ? presenceOf(analysis.decelerations.length) : "",
+      // Tipo da desaceleração não é inferido automaticamente (ver analysis.ts).
+      decelerationType: "",
+      decelerationCount: analysis && analysis.decelerations.length ? String(analysis.decelerations.length) : "",
+      contractions: analysis ? presenceOf(analysis.contractions.length) : "",
+      soundStimulus: soundCount > 0 ? "done" : "not_done",
+      stimulusCount: soundCount ? String(soundCount) : "",
+      mechanicalStimulus: mechCount > 0 ? "done" : "not_done",
+      mechanicalStimulusCount: mechCount ? String(mechCount) : "",
+      conclusion: "",
+      notes: notesText,
+      cd: "",
+      equipe: "",
+    };
+  }, [analysis, stimuli, annotations, traces, mainIdx]);
 
   /** Arrastar o selo na prévia: reposiciona o estímulo no instante escolhido. */
   const moveStimulus = (id: string, positionSec: number, trace: CtgTrace) => {
@@ -427,25 +556,120 @@ export default function CardiotocografiaToolPage() {
             </CardContent>
           </Card>
 
-          {traces.map((t, i) => (
-            <Card key={`${t.fileName}-${i}`}>
-              <CardContent className="py-4">
-                <div className="mb-3 border-l-4 border-slate-400 pl-3 text-sm font-medium">
-                  {traceSummary(t)}
-                  {t.events.length > 0 && (
-                    <span className="ml-2 font-normal text-muted-foreground">
-                      · {t.events.filter((e) => e.kind === "movimento").length} mov. fetal ·{" "}
-                      {t.events.filter((e) => e.kind === "autozero").length} autozero(s)
-                    </span>
-                  )}
-                </div>
-                <TracePreview
-                  svg={renderCtgTraceSvg(t, { marks: buildMarks(t, stimuli, examStart) })}
-                  onMoveStimulus={(id, sec) => moveStimulus(id, sec, t)}
-                />
-              </CardContent>
-            </Card>
-          ))}
+          {traces.map((t, i) => {
+            const sel = selection?.traceIdx === i ? selection : null;
+            const selStart = sel ? Math.min(sel.startSec, sel.endSec) : 0;
+            const selEnd = sel ? Math.max(sel.startSec, sel.endSec) : 0;
+            const hasPeriod = sel != null && selEnd - selStart >= 1;
+            const notes = annotationsFor(annotations[i] ?? [], t.samples);
+            return (
+              <Card key={`${t.fileName}-${i}`}>
+                <CardContent className="py-4">
+                  <div className="mb-3 border-l-4 border-slate-400 pl-3 text-sm font-medium">
+                    {traceSummary(t)}
+                    {t.events.length > 0 && (
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        · {t.events.filter((e) => e.kind === "movimento").length} mov. fetal ·{" "}
+                        {t.events.filter((e) => e.kind === "autozero").length} autozero(s)
+                      </span>
+                    )}
+                  </div>
+                  <TracePreview
+                    svg={renderCtgTraceSvg(t, {
+                      marks: buildMarks(t, stimuli, examStart),
+                      annotations: annotations[i] ?? [],
+                      selection: sel ? { startSec: selStart, endSec: selEnd } : null,
+                    })}
+                    onMoveStimulus={(id, sec) => moveStimulus(id, sec, t)}
+                    onSelect={(a, b) => selectPeriod(i, a, b)}
+                  />
+
+                  {/* ---- Observação por período ---- */}
+                  <div className="mt-3 space-y-2 rounded-md border bg-muted/20 p-3">
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className="space-y-1">
+                        <Label htmlFor={`per-i-${i}`}>Início</Label>
+                        <Input
+                          id={`per-i-${i}`}
+                          className="w-24"
+                          placeholder="mm:ss"
+                          value={sel ? periodInput.start : ""}
+                          onChange={(e) => setSelectionBound(i, "start", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`per-f-${i}`}>Fim</Label>
+                        <Input
+                          id={`per-f-${i}`}
+                          className="w-24"
+                          placeholder="mm:ss"
+                          value={sel ? periodInput.end : ""}
+                          onChange={(e) => setSelectionBound(i, "end", e.target.value)}
+                        />
+                      </div>
+                      <div className="min-w-52 flex-1 space-y-1">
+                        <Label htmlFor={`per-t-${i}`}>Observação do período</Label>
+                        <Input
+                          id={`per-t-${i}`}
+                          value={selection?.traceIdx === i ? noteText : ""}
+                          onChange={(e) => {
+                            if (selection?.traceIdx !== i) selectPeriod(i, selStart, selEnd);
+                            setNoteText(e.target.value);
+                          }}
+                          onKeyDown={(e) => e.key === "Enter" && addAnnotation(i)}
+                          placeholder="ex.: desaceleração variável após contração"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!hasPeriod || !noteText.trim()}
+                        onClick={() => addAnnotation(i)}
+                      >
+                        <MessageSquarePlus className="h-4 w-4" /> Adicionar
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Arraste sobre o traçado</strong> para marcar o período (ou informe
+                      início/fim em mm:ss) e escreva a observação. Ela aparece numerada na faixa do
+                      traçado e listada abaixo dele no impresso.
+                    </p>
+                    {notes.length > 0 && (
+                      <ol className="space-y-1 text-xs">
+                        {notes.map((a, n) => (
+                          <li key={a.id} className="flex items-start gap-2">
+                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-medium text-background">
+                              {n + 1}
+                            </span>
+                            <span className="font-medium">{annotationRange(a)}</span>
+                            <span className="flex-1">{a.text}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeAnnotation(i, a.id)}
+                              className="text-muted-foreground hover:text-destructive"
+                              aria-label="Remover observação"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+
+          {/* ---- Laudo (migrado do pré-parto), preenchido pelo traçado ---- */}
+          {traces.length > 0 && (
+            <CtgLaudoForm
+              suggested={suggestedLaudo}
+              suggestionKey={traces.map((t) => t.fileName).join("|")}
+              analysis={analysis}
+              patient={patient}
+            />
+          )}
         </>
       ) : (
         /* ---- Modo LOTE: lista de exames + exportação em arquivo único ---- */

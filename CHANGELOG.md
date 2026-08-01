@@ -246,6 +246,29 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 ### Ferramentas — Cardiotocografia (leitor de .trc do Edan)
 
 - Nova aba **Ferramentas** no painel geral, com o utilitário **Cardiotocografia**.
+- **Observações por período**: selecione um intervalo de tempo **arrastando sobre o
+  traçado** (ou informe início/fim em `mm:ss`) e anexe uma observação àquele
+  trecho. Cada período vira uma **faixa numerada** sobre os dois painéis (com
+  colchete e bordas tracejadas) e é **listado por extenso abaixo do traçado** no
+  impresso. As observações também alimentam o campo *Observações* do laudo.
+- **Laudar CTG dentro da ferramenta**: o formulário de laudo (linha de base,
+  variabilidade, acelerações, AT/MF, movimentação, desacelerações, contrações,
+  estímulos, escore 0–5 e conclusão) passou a viver na página da CTG e imprime no
+  **modelo do HC-UFTM**, com a identificação já preenchida.
+- **Análise automática do traçado** (`src/core/ctg/analysis.ts`) pré-preenche o
+  laudo — tudo **editável**. Segue as definições **NICHD 2008** (ACOG PB 106/216)
+  e **FIGO 2015**: linha de base (média em trecho estável, excluindo excursões,
+  arredondada a 5 bpm, exigindo ≥ 2 min estáveis), variabilidade (amplitude
+  pico-a-vale por janela de 1 min, robusta a artefatos), acelerações (≥ 15 bpm por
+  ≥ 15 s; ≥ 2 min contadas como prolongadas), desacelerações (≥ 15 bpm por ≥ 15 s),
+  movimentos fetais (eventos do aparelho), relação AT/MF e contrações estimadas do
+  TOCO. Campos automáticos ficam **sincronizados** com o traçado, os estímulos e as
+  observações até serem editados à mão; o botão *Preencher do traçado* repõe tudo.
+- **Pendências sinalizadas, nunca inventadas**: o **tipo** da desaceleração
+  (precoce/tardia/variável) e o padrão **sinusoidal** não são inferidos
+  automaticamente e ficam em branco com aviso; a tocodinamometria **externa não é
+  quantitativa**, então as contrações saem marcadas como estimativa a confirmar.
+  Perda de sinal alta e ausência de trecho estável também geram aviso.
 - Leitor dos arquivos **`.trc`** dos monitores fetais **Edan (F2/F3)** (formato
   binário proprietário, decodificado por engenharia reversa): reconstrói os canais
   **FHR** e **TOCO** (1 amostra/s; `0xFF` = perda de sinal) e extrai data, horário,

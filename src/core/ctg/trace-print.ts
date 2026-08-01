@@ -8,6 +8,7 @@ import type { CtgTrace } from "./trc";
 import { traceSummary } from "./trc";
 import { renderCtgTrace } from "./trace-svg";
 import { buildMarks, examStartSec, type Stimulus, type TraceMark } from "./stimuli";
+import { annotationRange, annotationsFor, type TraceAnnotation } from "./annotations";
 
 export interface LaudoPatient {
   nome?: string;
@@ -41,8 +42,24 @@ function identBlock(patient: LaudoPatient): string {
   );
 }
 
-function section(trace: CtgTrace, patient: LaudoPatient, marks: TraceMark[], last: boolean): string {
-  const { svg } = renderCtgTrace(trace, { marks });
+function section(
+  trace: CtgTrace,
+  patient: LaudoPatient,
+  marks: TraceMark[],
+  last: boolean,
+  annotations: TraceAnnotation[] = [],
+): string {
+  const { svg } = renderCtgTrace(trace, { marks, annotations });
+  // As observações por período entram numeradas abaixo do traçado, na mesma
+  // ordem dos números desenhados sobre os painéis.
+  const notes = annotationsFor(annotations, trace.samples);
+  const notesHtml = notes.length
+    ? `<ol class="notes">` +
+      notes
+        .map((a) => `<li><b>${escapeHtml(annotationRange(a))}</b> — ${escapeHtml(a.text)}</li>`)
+        .join("") +
+      `</ol>`
+    : "";
   return `
       <section class="rec"${last ? "" : ' style="page-break-after:always"'}>
         <div class="hdr">
@@ -51,6 +68,7 @@ function section(trace: CtgTrace, patient: LaudoPatient, marks: TraceMark[], las
           <span class="meta">${escapeHtml(traceSummary(trace))}</span>
         </div>
         ${svg}
+        ${notesHtml}
       </section>`;
 }
 
@@ -72,6 +90,8 @@ function document_(sections: string): string {
   .ident .val { display: inline-block; min-width: 30mm; border-bottom: 0.2mm solid #999; }
   .meta { display: block; font-size: 10px; color: #333; }
   svg { display: block; }
+  .notes { margin: 2mm 0 0; padding-left: 6mm; font-size: 10px; }
+  .notes li { margin: 0.6mm 0; }
 </style>
 </head>
 <body>
@@ -85,11 +105,18 @@ export function buildCtgTraceHtml(
   traces: CtgTrace[],
   patient: LaudoPatient = {},
   stimuli: Stimulus[] = [],
+  annotationsByTrace: TraceAnnotation[][] = [],
 ): string {
   const examStart = examStartSec(traces);
   const sections = traces
     .map((t, i) =>
-      section(t, patient, buildMarks(t, stimuli, examStart), i === traces.length - 1),
+      section(
+        t,
+        patient,
+        buildMarks(t, stimuli, examStart),
+        i === traces.length - 1,
+        annotationsByTrace[i] ?? [],
+      ),
     )
     .join("");
   return document_(sections);

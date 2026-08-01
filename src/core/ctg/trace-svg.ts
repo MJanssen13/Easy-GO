@@ -9,6 +9,7 @@
 
 import type { CtgTrace } from "./trc";
 import type { TraceMark } from "./stimuli";
+import { annotationsFor, type TraceAnnotation } from "./annotations";
 
 export interface TraceSvgOptions {
   /** Milímetros por minuto (velocidade do papel). Padrão 10 (= 1 cm/min). */
@@ -17,6 +18,10 @@ export interface TraceSvgOptions {
   maxTraceWidthMM?: number;
   /** Marcas a desenhar. Se ausente, deriva dos eventos do próprio arquivo. */
   marks?: TraceMark[];
+  /** Observações por período, desenhadas como faixas numeradas sobre os painéis. */
+  annotations?: TraceAnnotation[];
+  /** Período em seleção (arraste em curso), destacado enquanto o usuário escolhe. */
+  selection?: { startSec: number; endSec: number } | null;
 }
 
 // A4 paisagem: 297 mm − 2×8 mm de margem = 281 mm úteis; menos os eixos.
@@ -147,6 +152,24 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
     }
   }
 
+  // ---- faixas das observações por período (fundo) ----
+  // Desenhadas ANTES dos traçados para não encobrir o sinal; a numeração e os
+  // colchetes vão por cima, depois das marcas.
+  const notes = annotationsFor(opts.annotations ?? [], trace.samples);
+  const bandX = (sec: number) => clamp(xAt(sec), LEFT, LEFT + traceW);
+  for (const a of notes) {
+    const x1 = bandX(a.startSec);
+    const x2 = bandX(a.endSec);
+    out.push(`<rect x="${f(x1)}" y="${f(fTop)}" width="${f(Math.max(0.2, x2 - x1))}" height="${f(FHR_H)}" fill="#000" fill-opacity="0.055"/>`);
+    out.push(`<rect x="${f(x1)}" y="${f(tTop)}" width="${f(Math.max(0.2, x2 - x1))}" height="${f(TOCO_H)}" fill="#000" fill-opacity="0.055"/>`);
+  }
+  if (opts.selection && opts.selection.endSec > opts.selection.startSec) {
+    const x1 = bandX(opts.selection.startSec);
+    const x2 = bandX(opts.selection.endSec);
+    out.push(`<rect x="${f(x1)}" y="${f(fTop)}" width="${f(Math.max(0.2, x2 - x1))}" height="${f(FHR_H)}" fill="#000" fill-opacity="0.1"/>`);
+    out.push(`<rect x="${f(x1)}" y="${f(tTop)}" width="${f(Math.max(0.2, x2 - x1))}" height="${f(TOCO_H)}" fill="#000" fill-opacity="0.1"/>`);
+  }
+
   // ---- traçados (finos) ----
   for (const d of segments(trace.fhr, mmPerSec, yFhr)) {
     out.push(`<path d="${d}" fill="none" stroke="${TRACE}" stroke-width="${FHR_SW}" stroke-linejoin="round"/>`);
@@ -226,6 +249,21 @@ export function renderCtgTrace(trace: CtgTrace, opts: TraceSvgOptions = {}): Ren
     out.push(`<text x="${f(bx)}" y="${f(STIM_CY)}" font-size="${FS}" text-anchor="middle" dominant-baseline="central" fill="#fff">${TAG[s.kind]}</text>`);
     out.push(`</g>`);
   }
+
+  // ---- observações por período: colchete + número (por cima do traçado) ----
+  // O texto não vai no gráfico (não caberia sem encobrir o sinal): cada período
+  // recebe um NÚMERO, e o texto correspondente é listado abaixo do traçado.
+  notes.forEach((a, i) => {
+    const x1 = bandX(a.startSec);
+    const x2 = bandX(a.endSec);
+    const by = fTop + 2.2; // colchete logo abaixo da borda superior do painel FHR
+    out.push(`<path d="M ${f(x1)} ${f(by + 1.3)} L ${f(x1)} ${f(by)} L ${f(x2)} ${f(by)} L ${f(x2)} ${f(by + 1.3)}" fill="none" stroke="#000" stroke-width="0.25"/>`);
+    out.push(`<line x1="${f(x1)}" y1="${f(fTop)}" x2="${f(x1)}" y2="${f(fTop + FHR_H)}" stroke="#000" stroke-width="0.18" stroke-dasharray="0.8 0.6"/>`);
+    out.push(`<line x1="${f(x2)}" y1="${f(fTop)}" x2="${f(x2)}" y2="${f(fTop + FHR_H)}" stroke="#000" stroke-width="0.18" stroke-dasharray="0.8 0.6"/>`);
+    const cxN = (x1 + x2) / 2;
+    out.push(`<circle cx="${f(cxN)}" cy="${f(by)}" r="1.7" fill="#000"/>`);
+    out.push(`<text x="${f(cxN)}" y="${f(by)}" font-size="2" text-anchor="middle" dominant-baseline="central" fill="#fff">${i + 1}</text>`);
+  });
 
   // ---- rótulos dos painéis, escala e legenda ----
   out.push(`<text x="1" y="${f(fTop + 4)}" font-size="2.6" fill="${LABEL}">FHR</text>`);
