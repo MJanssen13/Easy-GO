@@ -282,14 +282,23 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
   Movimentos fetais e estímulos são desenhados com **linha indicativa vertical**
   e um **selo circular preto com a sigla em branco** (MF/EM/ES) no espaço de
   **1 cm entre os gráficos** (distância aumentada para acomodá-los).
-- **Nome da paciente x ID separados corretamente.** O campo de texto do aparelho
-  (0x89) é o **nome da paciente** e passa a preencher o campo **Nome** — antes ia,
-  errado, para o **RG**. Ex.: arquivo com "NAIARA" → Nome **NAIARA**.
-- **RG/prontuário** só é preenchido a partir do nome do arquivo quando o trecho
-  fora do carimbo de data/hora é **puramente numérico** (ex.:
-  `1247816-20260713185259.trc` → RG **1247816**). Códigos hexadecimais de
+- **Nome e RG lidos dos campos certos do arquivo.** O aparelho grava o **RG/
+  prontuário em `0x61`** e o **nome da paciente em `0x89`** — ambos passam a
+  preencher os campos correspondentes (antes o nome ia, errado, para o RG). Ex.:
+  arquivo com "ANA MARIA DOS SANTOS SILVA" / "8576480" → Nome e RG corretos.
+- **RG pelo nome do arquivo** como reserva, quando o campo do aparelho vem vazio:
+  aceita apenas o trecho **puramente numérico** fora do carimbo de data/hora (ex.:
+  `891ca056-202607260847418576480.trc` → RG **8576480**). Códigos hexadecimais de
   exportação (ex.: `8a1f7328`) **não** são o prontuário e são ignorados — nesses
   casos o RG fica em **branco** para digitação.
+- **Gravações com menos de 5 min ficam ocultas por padrão** (testes/registros
+  abortados), desmarcadas no lote e fora da exportação — com a opção *Mostrar
+  mesmo assim* para exibi-las, marcadas com o selo "gravação curta".
+- **Abrir um único exame da lista**: no modo Lote, o botão 👁 abre só aquele
+  exame, já com o nome, RG, data e hora dele, para conferir o traçado, anotar
+  períodos e laudar; *Voltar à lista* retorna ao lote.
+- Lista do lote em **ordem cronológica** (data + horário) — antes ordenava só
+  pelo horário, misturando exames de dias diferentes.
 - **Data, hora e ID lidos do nome do arquivo**, que é a fonte canônica do aparelho
   — o carimbo interno vira apenas reserva. Reconhece o carimbo `AAAAMMDDHHMMSS`
   com ou sem separadores (`20260714-040418-…` ou `20260713185259`). Corrige

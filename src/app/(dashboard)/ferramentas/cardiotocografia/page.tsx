@@ -1,7 +1,17 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { FileUp, Printer, Trash2, HeartPulse, Plus, X, MessageSquarePlus } from "lucide-react";
+import {
+  FileUp,
+  Printer,
+  Trash2,
+  HeartPulse,
+  Plus,
+  X,
+  MessageSquarePlus,
+  Eye,
+  ArrowLeft,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -42,6 +52,13 @@ const newId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : String(Date.now() + Math.random());
+
+/**
+ * Gravações muito curtas costumam ser testes/registros abortados no aparelho.
+ * Ficam ocultas por padrão (e desmarcadas no lote), mas podem ser exibidas.
+ */
+const SHORT_TRACE_MAX_SEC = 5 * 60;
+const isShortTrace = (t: CtgTrace) => t.stats.durationSec < SHORT_TRACE_MAX_SEC;
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -184,6 +201,10 @@ export default function CardiotocografiaToolPage() {
 
   // Modo "lote": uma linha por exame (RG vindo do ID, editável) + nome.
   const [batch, setBatch] = useState<BatchRow[]>([]);
+  /** Exibir também as gravações com menos de 5 min. */
+  const [showShort, setShowShort] = useState(false);
+  /** Exame aberto isoladamente a partir da lista do lote (índice do traçado). */
+  const [soloIdx, setSoloIdx] = useState<number | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const examStart = useMemo(() => examStartSec(traces), [traces]);
@@ -202,18 +223,27 @@ export default function CardiotocografiaToolPage() {
         bad.push({ fileName: file.name, error: msg });
       }
     }
+    // Cronológica: data + horário (só o horário confundiria exames de dias diferentes).
+    const chrono = (t: CtgTrace) => {
+      const d = t.date;
+      const day = d ? `${d.year}${pad2(d.month)}${pad2(d.day)}` : "00000000";
+      return `${day} ${t.startTime ?? ""}`;
+    };
     ok.sort((a, b) => {
-      const ta = a.startTime ?? "";
-      const tb = b.startTime ?? "";
-      return ta === tb ? a.fileName.localeCompare(b.fileName) : ta.localeCompare(tb);
+      const ka = chrono(a);
+      const kb = chrono(b);
+      return ka === kb ? a.fileName.localeCompare(b.fileName) : ka.localeCompare(kb);
     });
     setTraces(ok);
     setErrors(bad);
-    setBatch(ok.map((t) => ({ rg: t.fileId, nome: t.patientName, selected: true })));
+    // Gravações curtas entram desmarcadas (ficam ocultas por padrão).
+    setBatch(ok.map((t) => ({ rg: t.fileId, nome: t.patientName, selected: !isShortTrace(t) })));
     setAnnotations(ok.map(() => []));
     setSelection(null);
+    setSoloIdx(null);
 
-    const first = ok[0];
+    // A identificação vem da 1ª gravação "de verdade" (ignora as curtas).
+    const first = ok.find((t) => !isShortTrace(t)) ?? ok[0];
     const now = new Date();
     if (!dateTimeEdited.current) {
       const data =
@@ -235,13 +265,56 @@ export default function CardiotocografiaToolPage() {
     setBatch([]);
     setAnnotations([]);
     setSelection(null);
+    setSoloIdx(null);
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const exportExame = () => printHtml(buildCtgTraceHtml(traces, patient, stimuli, annotations));
+  // ---- Visibilidade: curtas ocultas por padrão; "solo" abre um exame só -------
+  const shortCount = useMemo(() => traces.filter(isShortTrace).length, [traces]);
+  /** Índices exibidos na lista (respeita o filtro de gravações curtas). */
+  const listIdxs = useMemo(
+    () => traces.map((_, i) => i).filter((i) => showShort || !isShortTrace(traces[i])),
+    [traces, showShort],
+  );
+  /** Índices exibidos agora: só o exame aberto, se houver; senão, a lista. */
+  const shownIdxs = useMemo(
+    () => (soloIdx != null && traces[soloIdx] ? [soloIdx] : listIdxs),
+    [soloIdx, listIdxs, traces],
+  );
+
+  /** Abre um único exame da lista, trazendo a identificação daquela gravação. */
+  const openSolo = (i: number) => {
+    const t = traces[i];
+    if (!t) return;
+    const row = batch[i];
+    setPatient({
+      nome: row?.nome || t.patientName,
+      rg: row?.rg || t.fileId,
+      data: formatTraceDate(t.date) ?? "",
+      hora: t.startTime ?? "",
+    });
+    setSelection(null);
+    setSoloIdx(i);
+    setMode("exame");
+  };
+  const closeSolo = () => {
+    setSoloIdx(null);
+    setSelection(null);
+    setMode("lote");
+  };
+
+  const exportExame = () =>
+    printHtml(
+      buildCtgTraceHtml(
+        shownIdxs.map((i) => traces[i]),
+        patient,
+        stimuli,
+        shownIdxs.map((i) => annotations[i] ?? []),
+      ),
+    );
   const exportBatch = () => {
-    const entries = traces
-      .map((t, i) => ({ t, r: batch[i] }))
+    const entries = listIdxs
+      .map((i) => ({ t: traces[i], r: batch[i] }))
       .filter((x) => x.r?.selected)
       .map(({ t, r }) => ({
         trace: t,
@@ -264,8 +337,9 @@ export default function CardiotocografiaToolPage() {
 
   const setRow = (i: number, patch: Partial<BatchRow>) =>
     setBatch((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const selectedCount = batch.filter((r) => r.selected).length;
-  const allSelected = batch.length > 0 && selectedCount === batch.length;
+  // Contagens consideram só as linhas exibidas (as curtas ocultas ficam de fora).
+  const selectedCount = listIdxs.filter((i) => batch[i]?.selected).length;
+  const allSelected = listIdxs.length > 0 && selectedCount === listIdxs.length;
 
   const addStimulus = () => {
     setStimError("");
@@ -326,15 +400,11 @@ export default function CardiotocografiaToolPage() {
     setAnnotations((rows) => rows.map((r, i) => (i === traceIdx ? r.filter((a) => a.id !== id) : r)));
 
   // ---- Análise automática e pré-preenchimento do laudo ------------------------
-  // O laudo se refere à gravação mais longa (a principal do exame).
+  // O laudo se refere ao exame aberto ou, na lista, à gravação exibida mais longa.
   const mainIdx = useMemo(() => {
-    if (!traces.length) return -1;
-    let best = 0;
-    traces.forEach((t, i) => {
-      if (t.samples > traces[best].samples) best = i;
-    });
-    return best;
-  }, [traces]);
+    if (!shownIdxs.length) return -1;
+    return shownIdxs.reduce((best, i) => (traces[i].samples > traces[best].samples ? i : best), shownIdxs[0]);
+  }, [traces, shownIdxs]);
 
   const analysis = useMemo(
     () => (mainIdx >= 0 ? analyzeTrace(traces[mainIdx]) : null),
@@ -556,7 +626,38 @@ export default function CardiotocografiaToolPage() {
             </CardContent>
           </Card>
 
-          {traces.map((t, i) => {
+          {/* Exame aberto isoladamente a partir do lote */}
+          {soloIdx != null && traces[soloIdx] && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              <span>
+                Exibindo apenas <strong>{traces[soloIdx].patientName || traces[soloIdx].fileName}</strong>
+                {traces[soloIdx].startTime ? ` · ${traces[soloIdx].startTime}` : ""}
+              </span>
+              <Button type="button" variant="ghost" className="ml-auto" onClick={closeSolo}>
+                <ArrowLeft className="h-4 w-4" /> Voltar à lista
+              </Button>
+            </div>
+          )}
+
+          {/* Aviso das gravações curtas ocultas */}
+          {soloIdx == null && shortCount > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+              {showShort
+                ? `Exibindo também ${shortCount} gravação(ões) com menos de 5 min.`
+                : `${shortCount} gravação(ões) com menos de 5 min ocultada(s).`}
+              <button
+                type="button"
+                onClick={() => setShowShort((v) => !v)}
+                className="font-medium text-foreground underline underline-offset-2"
+              >
+                {showShort ? "Ocultar curtas" : "Mostrar mesmo assim"}
+              </button>
+            </div>
+          )}
+
+          {shownIdxs.map((i) => {
+            const t = traces[i];
             const sel = selection?.traceIdx === i ? selection : null;
             const selStart = sel ? Math.min(sel.startSec, sel.endSec) : 0;
             const selEnd = sel ? Math.max(sel.startSec, sel.endSec) : 0;
@@ -567,6 +668,11 @@ export default function CardiotocografiaToolPage() {
                 <CardContent className="py-4">
                   <div className="mb-3 border-l-4 border-slate-400 pl-3 text-sm font-medium">
                     {traceSummary(t)}
+                    {isShortTrace(t) && (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-normal text-amber-800">
+                        gravação curta
+                      </span>
+                    )}
                     {t.events.length > 0 && (
                       <span className="ml-2 font-normal text-muted-foreground">
                         · {t.events.filter((e) => e.kind === "movimento").length} mov. fetal ·{" "}
@@ -702,7 +808,13 @@ export default function CardiotocografiaToolPage() {
                         <input
                           type="checkbox"
                           checked={allSelected}
-                          onChange={(e) => setBatch((rows) => rows.map((r) => ({ ...r, selected: e.target.checked })))}
+                          onChange={(e) =>
+                            setBatch((rows) =>
+                              rows.map((r, j) =>
+                                listIdxs.includes(j) ? { ...r, selected: e.target.checked } : r,
+                              ),
+                            )
+                          }
                           aria-label="Selecionar todos"
                         />
                       </th>
@@ -711,49 +823,87 @@ export default function CardiotocografiaToolPage() {
                       <th className="px-2 py-2">RG / ID</th>
                       <th className="px-2 py-2">Nome do paciente</th>
                       <th className="px-2 py-2">Exame</th>
+                      <th className="w-10 px-2 py-2" />
                     </tr>
                   </thead>
                   <tbody>
-                    {traces.map((t, i) => (
-                      <tr key={`${t.fileName}-${i}`} className="border-b align-middle">
-                        <td className="px-2 py-1.5">
-                          <input
-                            type="checkbox"
-                            checked={batch[i]?.selected ?? false}
-                            onChange={(e) => setRow(i, { selected: e.target.checked })}
-                            aria-label="Selecionar exame"
-                          />
-                        </td>
-                        <td className="whitespace-nowrap px-2 py-1.5">{formatTraceDate(t.date) ?? "—"}</td>
-                        <td className="whitespace-nowrap px-2 py-1.5">{t.startTime ?? "—"}</td>
-                        <td className="px-2 py-1.5">
-                          <Input
-                            value={batch[i]?.rg ?? ""}
-                            onChange={(e) => setRow(i, { rg: e.target.value })}
-                            className="h-8"
-                            placeholder="ID"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <Input
-                            value={batch[i]?.nome ?? ""}
-                            onChange={(e) => setRow(i, { nome: e.target.value })}
-                            className="h-8 uppercase"
-                            placeholder="Nome"
-                          />
-                        </td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-xs text-muted-foreground">
-                          {Math.round(t.stats.durationSec / 60)} min
-                        </td>
-                      </tr>
-                    ))}
+                    {listIdxs.map((i) => {
+                      const t = traces[i];
+                      return (
+                        <tr key={`${t.fileName}-${i}`} className="border-b align-middle">
+                          <td className="px-2 py-1.5">
+                            <input
+                              type="checkbox"
+                              checked={batch[i]?.selected ?? false}
+                              onChange={(e) => setRow(i, { selected: e.target.checked })}
+                              aria-label="Selecionar exame"
+                            />
+                          </td>
+                          <td className="whitespace-nowrap px-2 py-1.5">{formatTraceDate(t.date) ?? "—"}</td>
+                          <td className="whitespace-nowrap px-2 py-1.5">{t.startTime ?? "—"}</td>
+                          <td className="px-2 py-1.5">
+                            <Input
+                              value={batch[i]?.rg ?? ""}
+                              onChange={(e) => setRow(i, { rg: e.target.value })}
+                              className="h-8"
+                              placeholder="ID"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Input
+                              value={batch[i]?.nome ?? ""}
+                              onChange={(e) => setRow(i, { nome: e.target.value })}
+                              className="h-8 uppercase"
+                              placeholder="Nome"
+                            />
+                          </td>
+                          <td className="whitespace-nowrap px-2 py-1.5 text-xs text-muted-foreground">
+                            {Math.round(t.stats.durationSec / 60)} min
+                            {isShortTrace(t) && (
+                              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+                                curta
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="h-8 px-2"
+                              onClick={() => openSolo(i)}
+                              title="Abrir só este exame"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span className="sr-only">Abrir exame</span>
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
+
+            {shortCount > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                {showShort
+                  ? `Exibindo também ${shortCount} gravação(ões) com menos de 5 min.`
+                  : `${shortCount} gravação(ões) com menos de 5 min ocultada(s) e desmarcada(s).`}
+                <button
+                  type="button"
+                  onClick={() => setShowShort((v) => !v)}
+                  className="font-medium text-foreground underline underline-offset-2"
+                >
+                  {showShort ? "Ocultar curtas" : "Mostrar mesmo assim"}
+                </button>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground">
-              O RG vem preenchido pelo ID do arquivo (editável). Marque os exames e exporte todos em um
-              único arquivo, com um exame por página.
+              O RG e o nome vêm preenchidos pelo próprio arquivo (editáveis). Marque os exames e
+              exporte todos em um único arquivo, com um exame por página — ou clique no{" "}
+              <Eye className="inline h-3 w-3" /> para <strong>abrir apenas um exame</strong> e laudá-lo.
             </p>
           </CardContent>
         </Card>
