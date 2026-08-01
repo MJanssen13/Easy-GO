@@ -705,6 +705,12 @@ export function PsgoGenerator({
       ),
     });
   }
+  /** Move o grupo (USG) para a 1ª posição — passa a ser o exame de datação. */
+  function useForDatingGroup(groupKey: string) {
+    const inGroup = form.imagingExams.filter((e) => (e.groupId ?? e.id) === groupKey);
+    const rest = form.imagingExams.filter((e) => (e.groupId ?? e.id) !== groupKey);
+    update({ imagingExams: [...inGroup, ...rest] });
+  }
   function numOrUndef(v: string): number | undefined {
     return v === "" ? undefined : Number(v);
   }
@@ -1749,535 +1755,367 @@ export function PsgoGenerator({
                 IP-AUmb, IP-ACM, RCP e IP da a. uterina pela FMF (fetalmedicine.org).
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                {/* border-separate p/ cantos arredondados; a coluna (ou grupo) de
-                    datação recebe destaque cinza-claro. Gestação múltipla: a data,
-                    a IG e a origem são células mescladas (colSpan) por grupo; a
-                    biometria é por feto. A 1ª coluna (parâmetros) fica congelada. */}
-                <table className="w-auto border-separate border-spacing-0 text-xs [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-20 [&_th:first-child]:border-r [&_th:first-child]:bg-background [&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:z-10 [&_td:first-child]:border-r [&_td:first-child]:bg-background">
-                  <thead>
-                    <tr>
-                      <th className="border-b p-0.5 text-left font-medium text-muted-foreground">
-                        USG
-                      </th>
-                      {imagingGroups.map((g) => {
-                        const first = g.exams[0];
-                        const isDG = g.key === datingGroupKey;
-                        return (
-                          <th
-                            key={g.key}
-                            colSpan={g.exams.length}
-                            className={`border-b p-0.5 align-top ${isDG ? "rounded-t-lg bg-muted/50" : ""}`}
-                          >
-                            <div className="flex items-center justify-center gap-1">
-                              <DateBRInput
-                                className="h-6 w-28 text-xs"
-                                value={first.date ?? ""}
-                                onChange={(iso) => updateImagingGroup(g.key, { date: iso })}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeImaging(first.id)}
-                                className="text-destructive"
-                                title="Remover USG"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                            {isDG && (
-                              <div className="mt-0.5 flex justify-center">
-                                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary-foreground">
-                                  Datação
-                                </span>
-                              </div>
-                            )}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {form.imagingExams.some((e) => e.groupId) && (
-                      <tr>
-                        <td className="border-b p-0.5 font-medium">Feto</td>
-                        {form.imagingExams.map((e) => (
-                          <td
-                            key={e.id}
-                            className={`border-b p-0.5 text-center text-[10px] font-semibold text-muted-foreground ${isDatingExam(e) ? "bg-muted/50" : ""}`}
-                          >
-                            {e.groupId ? `FETO ${e.fetusIndex}` : ""}
-                          </td>
-                        ))}
-                      </tr>
-                    )}
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">IG (sem / dias)</td>
-                      {imagingGroups.map((g) => {
-                        const first = g.exams[0];
-                        const isDG = g.key === datingGroupKey;
-                        // O USG de datação mantém a IG digitada; os demais, com data
-                        // e datação definida, têm a IG automática (pela data).
-                        const isDating = datingCtx.datingExamId === first.id;
-                        const autoIg = !isDating && datingCtx.edd != null && !!first.date;
-                        const r = resolvedById[first.id];
-                        return (
-                          <td
-                            key={g.key}
-                            colSpan={g.exams.length}
-                            className={`border-b p-0.5 ${isDG ? "bg-muted/50" : ""}`}
-                          >
-                            {autoIg ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="font-medium tabular-nums">
-                                  {r && r.gaWeeks != null
-                                    ? `${r.gaWeeks} sem${r.gaDays ? ` ${r.gaDays} dias` : ""}`
-                                    : "—"}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground">auto</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center gap-1">
-                                <Input
-                                  type="number"
-                                  className="h-6 w-14 text-xs"
-                                  placeholder="sem"
-                                  value={first.gaWeeks ?? ""}
-                                  onChange={(ev) => updateImagingGroup(g.key, { gaWeeks: numOrUndef(ev.target.value) })}
-                                />
-                                <Input
-                                  type="number"
-                                  className="h-6 w-14 text-xs"
-                                  placeholder="d"
-                                  value={first.gaDays ?? ""}
-                                  onChange={(ev) => updateImagingGroup(g.key, { gaDays: numOrUndef(ev.target.value) })}
-                                />
-                                {isDating && (
-                                  <span className="text-[10px] text-muted-foreground">datação</span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">Origem</td>
-                      {imagingGroups.map((g) => {
-                        const first = g.exams[0];
-                        const isDG = g.key === datingGroupKey;
-                        return (
-                          <td
-                            key={g.key}
-                            colSpan={g.exams.length}
-                            className={`border-b p-0.5 ${isDG ? "bg-muted/50" : ""}`}
-                          >
-                            <div className="flex justify-center">
-                              <div className="inline-flex overflow-hidden rounded-full border text-[10px] font-medium">
-                                <button
-                                  type="button"
-                                  onClick={() => updateImagingGroup(g.key, { external: true })}
-                                  className={`px-2 py-0.5 transition-colors ${
-                                    first.external
-                                      ? "bg-primary text-primary-foreground"
-                                      : "text-muted-foreground hover:bg-muted"
-                                  }`}
-                                >
-                                  Externo
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateImagingGroup(g.key, { external: false })}
-                                  className={`border-l px-2 py-0.5 transition-colors ${
-                                    !first.external
-                                      ? "bg-primary text-primary-foreground"
-                                      : "text-muted-foreground hover:bg-muted"
-                                  }`}
-                                >
-                                  Interno
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">Apresentação</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                          <select
-                            className={`${selectClass} h-6 w-28 text-xs`}
-                            value={e.presentation ?? ""}
-                            onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
-                          >
-                            <option value="">—</option>
-                            <option value="CEFÁLICA">Cefálica</option>
-                            <option value="PÉLVICA">Pélvica</option>
-                            <option value="CÓRMICA">Córmica</option>
-                          </select>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">Peso (g)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-6 w-16 text-xs"
-                              inputMode="numeric"
-                              value={e.efw ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.efw}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">Circ. abd. (mm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-6 w-16 text-xs"
-                              inputMode="numeric"
-                              value={e.ac ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.ac}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td colSpan={form.imagingExams.length + 1} className="border-b !bg-muted/30 p-0">
-                        <button
-                          type="button"
-                          onClick={() => setShowEarlyUsg((v) => !v)}
-                          className="flex w-full items-center gap-1 px-1 py-1 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
-                          aria-expanded={showEarlyUsg}
-                        >
-                          <ChevronDown
-                            className={`h-3.5 w-3.5 transition-transform ${showEarlyUsg ? "" : "-rotate-90"}`}
-                          />
-                          GESTAÇÕES INICIAIS
-                          <span className="text-[10px] font-normal">(CCN / SG / VV)</span>
-                        </button>
-                      </td>
-                    </tr>
-                    {showEarlyUsg && (
-                      <>
-                        <tr>
-                          <td className="border-b p-0.5 font-medium">CCN (mm)</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                              <Input
-                                className="h-6 w-16 text-xs"
-                                inputMode="decimal"
-                                value={e.crl ?? ""}
-                                onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-0.5 font-medium">SG (mm)</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                              <Input
-                                className="h-6 w-16 text-xs"
-                                inputMode="decimal"
-                                value={e.gsac ?? ""}
-                                onChange={(ev) => updateImaging(e.id, { gsac: ev.target.value })}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-0.5 font-medium">VV (mm)</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                              <Input
-                                className="h-6 w-16 text-xs"
-                                inputMode="decimal"
-                                value={e.yolkSac ?? ""}
-                                onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                      </>
-                    )}
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">BCF</td>
-                      {form.imagingExams.map((e) => {
-                        const absent = e.fhr === "AUSENTE";
-                        return (
-                          <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                className="h-6 w-16 text-xs"
-                                inputMode="numeric"
-                                placeholder="bpm"
-                                disabled={absent}
-                                value={absent ? "" : (e.fhr ?? "")}
-                                onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })}
-                                className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                                  absent
-                                    ? "border-rose-400 bg-rose-50 text-rose-600"
-                                    : "text-muted-foreground hover:bg-muted"
-                                }`}
-                                title="Marcar BCF ausente"
-                              >
-                                ausente
-                              </button>
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">CC (mm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-6 w-16 text-xs"
-                              inputMode="decimal"
-                              value={e.hc ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {imagingCentiles[e.id]?.hc}
-                            </span>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">Placenta / grau</td>
-                      {form.imagingExams.map((e) => (
-                        <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                          <div className="flex items-center gap-1">
-                            <select
-                              className={`${selectClass} h-6 !w-24 px-2 text-xs`}
-                              value={e.placentaSite ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
-                            >
-                              <option value="">—</option>
-                              <option value="ANTERIOR">Anterior</option>
-                              <option value="POSTERIOR">Posterior</option>
-                              <option value="FÚNDICA">Fúndica</option>
-                              <option value="LATERAL DIREITA">Lateral D</option>
-                              <option value="LATERAL ESQUERDA">Lateral E</option>
-                              <option value="PRÉVIA">Prévia</option>
-                            </select>
-                            <select
-                              className={`${selectClass} h-6 !w-14 px-2 text-xs`}
-                              value={e.placentaGrade ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
-                            >
-                              <option value="">—</option>
-                              <option value="0">0</option>
-                              <option value="I">I</option>
-                              <option value="II">II</option>
-                              <option value="III">III</option>
-                            </select>
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="border-b p-0.5 font-medium">MBV / ILA (cm)</td>
-                      {form.imagingExams.map((e) => (
-                        <td
-                          key={e.id}
-                          className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""} ${!showDopplerUsg && isDatingExam(e) ? "rounded-b-lg" : ""}`}
-                        >
-                          <div className="flex items-center gap-1">
-                            <Input
-                              className="h-6 w-14 text-xs"
-                              inputMode="decimal"
-                              placeholder="MBV"
-                              value={e.mbv ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
-                            />
-                            <span className="text-[10px] text-muted-foreground">/</span>
-                            <Input
-                              className="h-6 w-14 text-xs"
-                              inputMode="decimal"
-                              placeholder="ILA"
-                              value={e.ila ?? ""}
-                              onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })}
-                            />
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td colSpan={form.imagingExams.length + 1} className="border-b !bg-muted/30 p-0">
-                        <button
-                          type="button"
-                          onClick={() => setShowDopplerUsg((v) => !v)}
-                          className="flex w-full items-center gap-1 px-1 py-1 text-left text-xs font-semibold text-muted-foreground hover:bg-muted/60"
-                          aria-expanded={showDopplerUsg}
-                        >
-                          <ChevronDown
-                            className={`h-3.5 w-3.5 transition-transform ${showDopplerUsg ? "" : "-rotate-90"}`}
-                          />
-                          DOPPLER
-                          <span className="text-[10px] font-normal">
-                            (IP AUmb / IP ACM / RCP / IP a. uterina)
-                          </span>
-                        </button>
-                      </td>
-                    </tr>
-                    {showDopplerUsg && (
-                      <>
-                        <tr>
-                          <td className="border-b p-0.5 font-medium">IP AUmb</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  className="h-6 w-16 text-xs"
-                                  inputMode="decimal"
-                                  value={e.uaPi ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
-                                />
-                                <span className="text-[10px] text-muted-foreground">
-                                  {imagingCentiles[e.id]?.uaPi}
-                                </span>
-                              </div>
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-0.5 font-medium">IP ACM</td>
-                          {form.imagingExams.map((e) => (
-                            <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  className="h-6 w-16 text-xs"
-                                  inputMode="decimal"
-                                  value={e.mcaPi ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
-                                />
-                                <span className="text-[10px] text-muted-foreground">
-                                  {imagingCentiles[e.id]?.mcaPi}
-                                </span>
-                              </div>
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-0.5 font-medium">RCP</td>
-                          {form.imagingExams.map((e) => {
-                            const rcp = examCpr(e);
-                            return (
-                              <td key={e.id} className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50" : ""}`}>
-                                <div className="flex items-center gap-1">
-                                  <span className="font-medium tabular-nums">
-                                    {rcp != null ? rcp.toFixed(3).replace(".", ",") : "—"}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {imagingCentiles[e.id]?.cpr}
-                                  </span>
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                        <tr>
-                          <td className="border-b p-0.5 font-medium">IP A. uterina</td>
-                          {form.imagingExams.map((e) => (
-                            <td
-                              key={e.id}
-                              className={`border-b p-0.5 ${isDatingExam(e) ? "bg-muted/50 rounded-b-lg" : ""}`}
-                            >
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  className="h-6 w-16 text-xs"
-                                  inputMode="decimal"
-                                  value={e.utPi ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
-                                />
-                                <span className="text-[10px] text-muted-foreground">
-                                  {imagingCentiles[e.id]?.utPi}
-                                </span>
-                              </div>
-                            </td>
-                          ))}
-                        </tr>
-                      </>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {form.imagingExams.length > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, SG, VV, BCF,
-                biometria, Doppler, IP da a. uterina) aparecem no mesmo US. Os percentis de IP da
-                a. uterina e do Doppler seguem os padrões FMF. A IG da 1ª coluna (usada para
-                datar) é digitada; a dos demais é <strong>automática</strong>, definida pela data
-                de realização conforme o método (DUM/USG) — e é ela que determina os percentis.
-              </p>
-            )}
-
-            {imagingGroups.map((g) => {
-              // Um card por USG (grupo). Gestação múltipla → bloco com FETO 1/2/3.
-              const exams = g.exams.map((e) => resolvedById[e.id] ?? e);
-              const first = g.exams[0];
-              const edited = first.overrideText != null;
-              const computed =
-                exams.length > 1
-                  ? renderImagingGroup(exams, multipleUsgPhrase)
-                  : renderImagingExam(exams[0]);
-              const warns = exams.flatMap((e) => imagingWarnings(e));
-              return (
-                <div key={g.key} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2 px-1">
-                    <span className="text-[10px] font-medium text-muted-foreground">
-                      Prévia editável {edited ? "(editada)" : "(automática)"}
-                    </span>
-                    {edited && (
-                      <button
-                        type="button"
-                        onClick={() => updateImaging(first.id, { overrideText: undefined })}
-                        className="text-[10px] font-medium text-primary hover:underline"
-                        title="Descartar edição e regerar automaticamente"
-                      >
-                        regenerar
-                      </button>
-                    )}
-                  </div>
-                  <AutoGrowTextarea
-                    value={edited ? (first.overrideText ?? "") : computed}
-                    onChange={(v) => updateImaging(first.id, { overrideText: v })}
-                    className="prontuario-text w-full rounded border bg-muted/40 px-2 py-1 text-[11px] uppercase"
-                  />
-                  {warns.map((w, i) => (
-                    <p
-                      key={i}
-                      className="flex items-start gap-1 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800"
-                    >
-                      <Siren className="mt-0.5 h-3 w-3 shrink-0" /> {w}
-                    </p>
-                  ))}
+              <>
+                {/* Campos recolhidos por padrão (mostrar quando houver no laudo) */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Mostrar campos:</span>
+                  <Chip active={showEarlyUsg} onClick={() => setShowEarlyUsg((v) => !v)}>
+                    Gestações iniciais (CCN/SG/VV)
+                  </Chip>
+                  <Chip active={showDopplerUsg} onClick={() => setShowDopplerUsg((v) => !v)}>
+                    Doppler
+                  </Chip>
                 </div>
-              );
-            })}
+
+                {imagingGroups.map((g, idx) => {
+                  const first = g.exams[0];
+                  const isDG = g.key === datingGroupKey;
+                  const isDating = datingCtx.datingExamId === first.id;
+                  const autoIg = !isDating && datingCtx.edd != null && !!first.date;
+                  const r = resolvedById[first.id];
+                  const multi = g.exams.length > 1;
+                  const exams = g.exams.map((e) => resolvedById[e.id] ?? e);
+                  const edited = first.overrideText != null;
+                  const computed = multi
+                    ? renderImagingGroup(exams, multipleUsgPhrase)
+                    : renderImagingExam(exams[0]);
+                  const warns = exams.flatMap((e) => imagingWarnings(e));
+                  return (
+                    <div
+                      key={g.key}
+                      className={`space-y-3 rounded-md border p-2.5 ${isDG ? "border-primary/40 bg-accent/30" : ""}`}
+                    >
+                      {/* Cabeçalho do USG */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          USG {idx + 1}
+                          {isDG && (
+                            <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary-foreground">
+                              datação
+                            </span>
+                          )}
+                        </span>
+                        <DateBRInput
+                          className="h-8 w-32"
+                          value={first.date ?? ""}
+                          onChange={(iso) => updateImagingGroup(g.key, { date: iso })}
+                        />
+                        <label className="flex items-center gap-1.5 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={!!first.external}
+                            onChange={(ev) => updateImagingGroup(g.key, { external: ev.target.checked })}
+                            className="h-3.5 w-3.5 rounded border-input"
+                          />
+                          Externo (EXT)
+                        </label>
+                        <div className="ml-auto flex items-center gap-1">
+                          {!isDG && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => useForDatingGroup(g.key)}
+                            >
+                              Usar para datar
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeImaging(first.id)}
+                            title="Remover USG"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Idade gestacional (1º USG digita; demais automática) */}
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {autoIg ? (
+                          <Field label="IG (automática)" className="col-span-2">
+                            <div className="flex h-8 items-center rounded-md border border-dashed bg-muted/40 px-3 text-sm text-muted-foreground">
+                              {r && r.gaWeeks != null
+                                ? `${r.gaWeeks} sem ${r.gaDays ?? 0} d`
+                                : "— (defina a datação)"}
+                            </div>
+                          </Field>
+                        ) : (
+                          <>
+                            <Field label="IG (sem)">
+                              <Input
+                                className="h-8"
+                                inputMode="numeric"
+                                value={first.gaWeeks ?? ""}
+                                onChange={(ev) =>
+                                  updateImagingGroup(g.key, { gaWeeks: numOrUndef(ev.target.value) })
+                                }
+                              />
+                            </Field>
+                            <Field label="IG (dias)">
+                              <Input
+                                className="h-8"
+                                inputMode="numeric"
+                                value={first.gaDays ?? ""}
+                                onChange={(ev) =>
+                                  updateImagingGroup(g.key, { gaDays: numOrUndef(ev.target.value) })
+                                }
+                              />
+                            </Field>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Biometria por feto (gestação múltipla → um bloco por feto) */}
+                      {g.exams.map((e) => {
+                        const c = imagingCentiles[e.id];
+                        const absent = e.fhr === "AUSENTE";
+                        const rcp = examCpr(e);
+                        return (
+                          <div
+                            key={e.id}
+                            className={`space-y-2 ${multi ? "rounded-md border border-dashed p-2" : ""}`}
+                          >
+                            {multi && (
+                              <p className="text-[11px] font-semibold text-primary">FETO {e.fetusIndex}</p>
+                            )}
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <Field label="Apresentação">
+                                <select
+                                  className={`${selectClass} h-8 w-full`}
+                                  value={e.presentation ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
+                                >
+                                  <option value="">—</option>
+                                  <option value="CEFÁLICA">Cefálica</option>
+                                  <option value="PÉLVICA">Pélvica</option>
+                                  <option value="CÓRMICA">Córmica</option>
+                                </select>
+                              </Field>
+                              <Field label="BCF (bpm)">
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    className="h-8"
+                                    inputMode="numeric"
+                                    placeholder="bpm"
+                                    disabled={absent}
+                                    value={absent ? "" : (e.fhr ?? "")}
+                                    onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })}
+                                    className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                      absent
+                                        ? "border-rose-400 bg-rose-50 text-rose-600"
+                                        : "text-muted-foreground hover:bg-muted"
+                                    }`}
+                                    title="Marcar BCF ausente"
+                                  >
+                                    ausente
+                                  </button>
+                                </div>
+                              </Field>
+                              <Field label="CC (mm)">
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    className="h-8"
+                                    inputMode="decimal"
+                                    value={e.hc ?? ""}
+                                    onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">{c?.hc}</span>
+                                </div>
+                              </Field>
+                              <Field label="Circ. abd. (mm)">
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    className="h-8"
+                                    inputMode="decimal"
+                                    value={e.ac ?? ""}
+                                    onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">{c?.ac}</span>
+                                </div>
+                              </Field>
+                              <Field label="Peso (g)">
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    className="h-8"
+                                    inputMode="numeric"
+                                    value={e.efw ?? ""}
+                                    onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">{c?.efw}</span>
+                                </div>
+                              </Field>
+                              <Field label="MBV (cm)">
+                                <Input
+                                  className="h-8"
+                                  inputMode="decimal"
+                                  value={e.mbv ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
+                                />
+                              </Field>
+                              <Field label="ILA (cm)">
+                                <Input
+                                  className="h-8"
+                                  inputMode="decimal"
+                                  value={e.ila ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })}
+                                />
+                              </Field>
+                              <Field label="Placenta (inserção)">
+                                <select
+                                  className={`${selectClass} h-8 w-full`}
+                                  value={e.placentaSite ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
+                                >
+                                  <option value="">—</option>
+                                  <option value="ANTERIOR">Anterior</option>
+                                  <option value="POSTERIOR">Posterior</option>
+                                  <option value="FÚNDICA">Fúndica</option>
+                                  <option value="LATERAL DIREITA">Lateral D</option>
+                                  <option value="LATERAL ESQUERDA">Lateral E</option>
+                                  <option value="PRÉVIA">Prévia</option>
+                                </select>
+                              </Field>
+                              <Field label="Placenta (grau)">
+                                <select
+                                  className={`${selectClass} h-8 w-full`}
+                                  value={e.placentaGrade ?? ""}
+                                  onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
+                                >
+                                  <option value="">—</option>
+                                  <option value="0">0</option>
+                                  <option value="I">I</option>
+                                  <option value="II">II</option>
+                                  <option value="III">III</option>
+                                </select>
+                              </Field>
+                              {showEarlyUsg && (
+                                <>
+                                  <Field label="CCN (mm)">
+                                    <Input
+                                      className="h-8"
+                                      inputMode="decimal"
+                                      value={e.crl ?? ""}
+                                      onChange={(ev) => updateImaging(e.id, { crl: ev.target.value })}
+                                    />
+                                  </Field>
+                                  <Field label="SG (mm)">
+                                    <Input
+                                      className="h-8"
+                                      inputMode="decimal"
+                                      value={e.gsac ?? ""}
+                                      onChange={(ev) => updateImaging(e.id, { gsac: ev.target.value })}
+                                    />
+                                  </Field>
+                                  <Field label="VV (mm)">
+                                    <Input
+                                      className="h-8"
+                                      inputMode="decimal"
+                                      value={e.yolkSac ?? ""}
+                                      onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
+                                    />
+                                  </Field>
+                                </>
+                              )}
+                              {showDopplerUsg && (
+                                <>
+                                  <Field label="IP AUmb">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        className="h-8"
+                                        inputMode="decimal"
+                                        value={e.uaPi ?? ""}
+                                        onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">{c?.uaPi}</span>
+                                    </div>
+                                  </Field>
+                                  <Field label="IP ACM">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        className="h-8"
+                                        inputMode="decimal"
+                                        value={e.mcaPi ?? ""}
+                                        onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">{c?.mcaPi}</span>
+                                    </div>
+                                  </Field>
+                                  <Field label="RCP">
+                                    <div className="flex h-8 items-center gap-1 px-1">
+                                      <span className="font-medium tabular-nums">
+                                        {rcp != null ? rcp.toFixed(3).replace(".", ",") : "—"}
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground">{c?.cpr}</span>
+                                    </div>
+                                  </Field>
+                                  <Field label="IP a. uterina">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        className="h-8"
+                                        inputMode="decimal"
+                                        value={e.utPi ?? ""}
+                                        onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">{c?.utPi}</span>
+                                    </div>
+                                  </Field>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Prévia editável + avisos */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2 px-1">
+                          <span className="text-[10px] font-medium text-muted-foreground">
+                            Prévia editável {edited ? "(editada)" : "(automática)"}
+                          </span>
+                          {edited && (
+                            <button
+                              type="button"
+                              onClick={() => updateImaging(first.id, { overrideText: undefined })}
+                              className="text-[10px] font-medium text-primary hover:underline"
+                              title="Descartar edição e regerar automaticamente"
+                            >
+                              regenerar
+                            </button>
+                          )}
+                        </div>
+                        <AutoGrowTextarea
+                          value={edited ? (first.overrideText ?? "") : computed}
+                          onChange={(v) => updateImaging(first.id, { overrideText: v })}
+                          className="prontuario-text w-full rounded border bg-muted/40 px-2 py-1 text-[11px] uppercase"
+                        />
+                        {warns.map((w, i) => (
+                          <p
+                            key={i}
+                            className="flex items-start gap-1 rounded bg-amber-50 px-2 py-1 text-[11px] text-amber-800"
+                          >
+                            <Siren className="mt-0.5 h-3 w-3 shrink-0" /> {w}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <p className="text-[11px] text-muted-foreground">
+                  Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, SG, VV, BCF,
+                  biometria, Doppler, IP da a. uterina) aparecem no mesmo US. A IG do 1º USG (usado
+                  para datar) é digitada; a dos demais é <strong>automática</strong>, definida pela
+                  data conforme o método (DUM/USG) — e determina os percentis.
+                </p>
+              </>
+            )}
 
             {/* Outros exames de imagem (RX, TC, RM…) — texto livre, datado. */}
             <div className="space-y-1 border-t pt-3">
