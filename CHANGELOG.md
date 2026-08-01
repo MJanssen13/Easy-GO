@@ -5,18 +5,30 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### PSGO — Passagem de plantão (colagem formatada)
+
+- Botão **"Passagem"** no quadro do PSGO: gera a **passagem de plantão** de todas
+  as pacientes ativas no formato do documento do serviço — **nome + RG em negrito**
+  e, em linhas com "-", **idade/paridade/tipo sanguíneo/Robson**, **hipóteses
+  diagnósticas**, **último USG**, **último laboratorial**, **última CTG** e
+  **último toque**. Características indisponíveis são **omitidas**.
+- A cópia mantém a **formatação** (HTML Calibri 9pt com o nome em negrito): ao
+  colar no documento (Word/Docs) o negrito e a estrutura são preservados.
+
 ### PSGO — USG em cartões (como no pré-natal)
 
 - O quadro de **exames de imagem (USG)** do PSGO deixou de ser uma **tabela
   horizontal** (colunas por exame) e passou a usar **cartões verticais**, um por
   USG, como no pré-natal: cabeçalho com data, "Externo (EXT)", selo de
-  **datação** e botão **"Usar para datar"**; campos de biometria em grade com os
+  **datação** e botão **"Usar para datar"**; campos de biometria com os
   **percentis inline** (Hadlock/FMF) e **prévia editável** por USG dentro do
   próprio cartão.
+- **Todos os campos aparecem**, **organizados por contexto**: *Biometria fetal*,
+  *Gestação inicial* (CCN/SG/VV), *Líquido e placenta* e *Doppler (FMF)* — sem
+  alternadores.
 - Recursos do PSGO preservados: **gestação múltipla** (um bloco por **FETO** no
-  cartão), campos de **gestações iniciais (CCN/SG/VV)** e **Doppler** revelados
-  por alternadores ("Mostrar campos"), BCF ausente, IG automática dos USGs que
-  não datam e "Outros exames de imagem".
+  cartão), BCF ausente, IG automática dos USGs que não datam e "Outros exames
+  de imagem".
 
 ### Receita — Modelos por situação/patologia
 

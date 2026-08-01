@@ -374,8 +374,6 @@ export function PsgoGenerator({
   // Seção de datação/USG controlada (o botão "+ USG" a abre ao adicionar exame).
   const [usgOpen, setUsgOpen] = useState(false);
   // Grupos recolhíveis do quadro de USG (recolhidos por padrão).
-  const [showEarlyUsg, setShowEarlyUsg] = useState(false); // Gestações iniciais (CCN/SG/VV)
-  const [showDopplerUsg, setShowDopplerUsg] = useState(false); // Doppler (IPs e RCP)
   // Montador de HPMA (estado transitório; só o texto final vai para form.hpma)
   const [hpmaSel, setHpmaSel] = useState<string[]>([]);
   const [hpmaVals, setHpmaVals] = useState<Record<string, string>>({});
@@ -1756,17 +1754,6 @@ export function PsgoGenerator({
               </p>
             ) : (
               <>
-                {/* Campos recolhidos por padrão (mostrar quando houver no laudo) */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Mostrar campos:</span>
-                  <Chip active={showEarlyUsg} onClick={() => setShowEarlyUsg((v) => !v)}>
-                    Gestações iniciais (CCN/SG/VV)
-                  </Chip>
-                  <Chip active={showDopplerUsg} onClick={() => setShowDopplerUsg((v) => !v)}>
-                    Doppler
-                  </Chip>
-                </div>
-
                 {imagingGroups.map((g, idx) => {
                   const first = g.exams[0];
                   const isDG = g.key === datingGroupKey;
@@ -1881,122 +1868,91 @@ export function PsgoGenerator({
                             {multi && (
                               <p className="text-[11px] font-semibold text-primary">FETO {e.fetusIndex}</p>
                             )}
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                              <Field label="Apresentação">
-                                <select
-                                  className={`${selectClass} h-8 w-full`}
-                                  value={e.presentation ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
-                                >
-                                  <option value="">—</option>
-                                  <option value="CEFÁLICA">Cefálica</option>
-                                  <option value="PÉLVICA">Pélvica</option>
-                                  <option value="CÓRMICA">Córmica</option>
-                                </select>
-                              </Field>
-                              <Field label="BCF (bpm)">
-                                <div className="flex items-center gap-1">
-                                  <Input
-                                    className="h-8"
-                                    inputMode="numeric"
-                                    placeholder="bpm"
-                                    disabled={absent}
-                                    value={absent ? "" : (e.fhr ?? "")}
-                                    onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })}
-                                    className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                                      absent
-                                        ? "border-rose-400 bg-rose-50 text-rose-600"
-                                        : "text-muted-foreground hover:bg-muted"
-                                    }`}
-                                    title="Marcar BCF ausente"
-                                  >
-                                    ausente
-                                  </button>
+                            <div className="space-y-2.5">
+                              {/* Biometria fetal */}
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Biometria fetal
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                  <Field label="Apresentação">
+                                    <select
+                                      className={`${selectClass} h-8 w-full`}
+                                      value={e.presentation ?? ""}
+                                      onChange={(ev) => updateImaging(e.id, { presentation: ev.target.value })}
+                                    >
+                                      <option value="">—</option>
+                                      <option value="CEFÁLICA">Cefálica</option>
+                                      <option value="PÉLVICA">Pélvica</option>
+                                      <option value="CÓRMICA">Córmica</option>
+                                    </select>
+                                  </Field>
+                                  <Field label="BCF (bpm)">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        className="h-8"
+                                        inputMode="numeric"
+                                        placeholder="bpm"
+                                        disabled={absent}
+                                        value={absent ? "" : (e.fhr ?? "")}
+                                        onChange={(ev) => updateImaging(e.id, { fhr: ev.target.value })}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => updateImaging(e.id, { fhr: absent ? "" : "AUSENTE" })}
+                                        className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                          absent
+                                            ? "border-rose-400 bg-rose-50 text-rose-600"
+                                            : "text-muted-foreground hover:bg-muted"
+                                        }`}
+                                        title="Marcar BCF ausente"
+                                      >
+                                        ausente
+                                      </button>
+                                    </div>
+                                  </Field>
+                                  <Field label="CC (mm)">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        className="h-8"
+                                        inputMode="decimal"
+                                        value={e.hc ?? ""}
+                                        onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">{c?.hc}</span>
+                                    </div>
+                                  </Field>
+                                  <Field label="Circ. abd. (mm)">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        className="h-8"
+                                        inputMode="decimal"
+                                        value={e.ac ?? ""}
+                                        onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">{c?.ac}</span>
+                                    </div>
+                                  </Field>
+                                  <Field label="Peso (g)">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        className="h-8"
+                                        inputMode="numeric"
+                                        value={e.efw ?? ""}
+                                        onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">{c?.efw}</span>
+                                    </div>
+                                  </Field>
                                 </div>
-                              </Field>
-                              <Field label="CC (mm)">
-                                <div className="flex items-center gap-1">
-                                  <Input
-                                    className="h-8"
-                                    inputMode="decimal"
-                                    value={e.hc ?? ""}
-                                    onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
-                                  />
-                                  <span className="text-[10px] text-muted-foreground">{c?.hc}</span>
-                                </div>
-                              </Field>
-                              <Field label="Circ. abd. (mm)">
-                                <div className="flex items-center gap-1">
-                                  <Input
-                                    className="h-8"
-                                    inputMode="decimal"
-                                    value={e.ac ?? ""}
-                                    onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
-                                  />
-                                  <span className="text-[10px] text-muted-foreground">{c?.ac}</span>
-                                </div>
-                              </Field>
-                              <Field label="Peso (g)">
-                                <div className="flex items-center gap-1">
-                                  <Input
-                                    className="h-8"
-                                    inputMode="numeric"
-                                    value={e.efw ?? ""}
-                                    onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
-                                  />
-                                  <span className="text-[10px] text-muted-foreground">{c?.efw}</span>
-                                </div>
-                              </Field>
-                              <Field label="MBV (cm)">
-                                <Input
-                                  className="h-8"
-                                  inputMode="decimal"
-                                  value={e.mbv ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
-                                />
-                              </Field>
-                              <Field label="ILA (cm)">
-                                <Input
-                                  className="h-8"
-                                  inputMode="decimal"
-                                  value={e.ila ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })}
-                                />
-                              </Field>
-                              <Field label="Placenta (inserção)">
-                                <select
-                                  className={`${selectClass} h-8 w-full`}
-                                  value={e.placentaSite ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
-                                >
-                                  <option value="">—</option>
-                                  <option value="ANTERIOR">Anterior</option>
-                                  <option value="POSTERIOR">Posterior</option>
-                                  <option value="FÚNDICA">Fúndica</option>
-                                  <option value="LATERAL DIREITA">Lateral D</option>
-                                  <option value="LATERAL ESQUERDA">Lateral E</option>
-                                  <option value="PRÉVIA">Prévia</option>
-                                </select>
-                              </Field>
-                              <Field label="Placenta (grau)">
-                                <select
-                                  className={`${selectClass} h-8 w-full`}
-                                  value={e.placentaGrade ?? ""}
-                                  onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
-                                >
-                                  <option value="">—</option>
-                                  <option value="0">0</option>
-                                  <option value="I">I</option>
-                                  <option value="II">II</option>
-                                  <option value="III">III</option>
-                                </select>
-                              </Field>
-                              {showEarlyUsg && (
-                                <>
+                              </div>
+
+                              {/* Gestação inicial */}
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Gestação inicial
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                   <Field label="CCN (mm)">
                                     <Input
                                       className="h-8"
@@ -2021,10 +1977,68 @@ export function PsgoGenerator({
                                       onChange={(ev) => updateImaging(e.id, { yolkSac: ev.target.value })}
                                     />
                                   </Field>
-                                </>
-                              )}
-                              {showDopplerUsg && (
-                                <>
+                                </div>
+                              </div>
+
+                              {/* Líquido e placenta */}
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Líquido e placenta
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                  <Field label="MBV (cm)">
+                                    <Input
+                                      className="h-8"
+                                      inputMode="decimal"
+                                      value={e.mbv ?? ""}
+                                      onChange={(ev) => updateImaging(e.id, { mbv: ev.target.value })}
+                                    />
+                                  </Field>
+                                  <Field label="ILA (cm)">
+                                    <Input
+                                      className="h-8"
+                                      inputMode="decimal"
+                                      value={e.ila ?? ""}
+                                      onChange={(ev) => updateImaging(e.id, { ila: ev.target.value })}
+                                    />
+                                  </Field>
+                                  <Field label="Placenta (inserção)">
+                                    <select
+                                      className={`${selectClass} h-8 w-full`}
+                                      value={e.placentaSite ?? ""}
+                                      onChange={(ev) => updateImaging(e.id, { placentaSite: ev.target.value })}
+                                    >
+                                      <option value="">—</option>
+                                      <option value="ANTERIOR">Anterior</option>
+                                      <option value="POSTERIOR">Posterior</option>
+                                      <option value="FÚNDICA">Fúndica</option>
+                                      <option value="LATERAL DIREITA">Lateral D</option>
+                                      <option value="LATERAL ESQUERDA">Lateral E</option>
+                                      <option value="PRÉVIA">Prévia</option>
+                                    </select>
+                                  </Field>
+                                  <Field label="Placenta (grau)">
+                                    <select
+                                      className={`${selectClass} h-8 w-full`}
+                                      value={e.placentaGrade ?? ""}
+                                      onChange={(ev) => updateImaging(e.id, { placentaGrade: ev.target.value })}
+                                    >
+                                      <option value="">—</option>
+                                      <option value="0">0</option>
+                                      <option value="I">I</option>
+                                      <option value="II">II</option>
+                                      <option value="III">III</option>
+                                    </select>
+                                  </Field>
+                                </div>
+                              </div>
+
+                              {/* Doppler (padrões FMF) */}
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Doppler (FMF)
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                   <Field label="IP AUmb">
                                     <div className="flex items-center gap-1">
                                       <Input
@@ -2066,8 +2080,8 @@ export function PsgoGenerator({
                                       <span className="text-[10px] text-muted-foreground">{c?.utPi}</span>
                                     </div>
                                   </Field>
-                                </>
-                              )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );

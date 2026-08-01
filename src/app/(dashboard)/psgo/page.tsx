@@ -5,7 +5,10 @@ import { listPatients, purgeExpiredDischarges } from "@/core/patients/repository
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient } from "@/core/patients/types";
 import { buttonVariants } from "@/components/ui/button";
+import { patientToPsgoForm } from "@/core/psgo/patient-mapper";
+import { buildPassagemBlock, passagemText, passagemHtml } from "@/core/psgo/passagem";
 import { PsgoPatientCard } from "./_components/psgo-patient-card";
+import { PassagemButton } from "./_components/passagem-button";
 
 export const metadata: Metadata = { title: "PSGO" };
 
@@ -23,6 +26,16 @@ export default async function PsgoBoard() {
   const active = patients.filter((p) => !RESOLVED_STATUSES.includes(p.status));
   const resolved = patients.filter((p) => RESOLVED_STATUSES.includes(p.status));
 
+  // Passagem de plantão (colagem formatada) das pacientes ativas.
+  const passagemBlocks = active
+    .map((p) => {
+      const f = patientToPsgoForm(p);
+      return f ? buildPassagemBlock(f) : null;
+    })
+    .filter((b): b is NonNullable<typeof b> => b != null);
+  const passText = passagemText(passagemBlocks);
+  const passHtml = passagemHtml(passagemBlocks);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -37,9 +50,12 @@ export default async function PsgoBoard() {
             </p>
           </div>
         </div>
-        <Link href="/psgo/admissao" className={buttonVariants()}>
-          <Plus className="h-4 w-4" /> Nova admissão
-        </Link>
+        <div className="flex items-center gap-2">
+          <PassagemButton text={passText} html={passHtml} count={passagemBlocks.length} />
+          <Link href="/psgo/admissao" className={buttonVariants()}>
+            <Plus className="h-4 w-4" /> Nova admissão
+          </Link>
+        </div>
       </div>
 
       {loadError && (
