@@ -5,6 +5,28 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Onco-Ginecologia — módulo novo
+
+- **Quadro de leitos** (diagnóstico, DPO, "evoluída hoje"), **admissão**,
+  **alta/reabrir**, **transferência para o PSGO** e remoção com confirmação.
+- **Tela de trabalho** com índice de seções e prontuário ao vivo na estrutura da
+  Enfermaria GO Geral adaptada: diagnóstico oncológico/histologia/estadiamento,
+  tratamento prévio, contexto da internação gerado, evolução por atalhos (dor com
+  EVA, náuseas, dieta, diurese, intestino, deambulação, sangramento, febre),
+  **ECOG** (Oken 1982), exame físico com FO, **dispositivos/débitos**, parâmetros
+  da enfermagem (24 h), HD com **Nº DPO** automático, plano marcável e CD de alta.
+- Antecedentes importados da admissão do PSGO; evolução do dia parte da anterior.
+- Dados em `clinical_summary.onco`; lógica em `src/core/oncogineco/`.
+
+### Refatorações e correções
+
+- `Field`, `Chip` e `ExamLine` compartilhados (`src/components/form-controls.tsx`);
+  utilitários de enfermaria em `src/core/prontuario/ward.ts`; importação de
+  antecedentes do PSGO em `src/core/prontuario/psgo-history.ts`.
+- Datas sem hora (ex.: data da cirurgia) eram exibidas **um dia antes** (lidas
+  como UTC) — corrigido.
+- Removido o placeholder de módulo (Puerpério e Onco agora existem).
+
 ### Puerpério — módulo novo (Enfermaria GO Geral)
 
 - **Quadro de leitos** do puerpério: DPP, via de parto, RN, pendências (TS do RN,

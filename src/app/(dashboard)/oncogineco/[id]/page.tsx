@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ClipboardList, LogOut, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, CheckCircle2, ClipboardList, LogOut, RotateCcw, Trash2 } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
-import { DELIVERY_LABELS, readPuerperio } from "@/core/puerperio/types";
-import { postpartumDay, puerperiumPhase } from "@/core/puerperio/render";
+import { readOnco } from "@/core/oncogineco/types";
+import { oncoDiagnosisLine, postOpDay } from "@/core/oncogineco/render";
 import { historyFromPsgo } from "@/core/prontuario/psgo-history";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CopyButton } from "@/components/copy-button";
 import { ConfirmSubmit } from "@/components/confirm-submit";
-import { PuerperioWorkspace } from "../_components/puerperio-workspace";
-import { dischargePuerperio, removeEvolution, removePuerperio, reopenPuerperio } from "../actions";
+import { OncoWorkspace } from "../_components/onco-workspace";
+import { dischargeOnco, removeOnco, removeOncoEvolution, reopenOnco, transferOncoToPsgo } from "../actions";
 
-export const metadata: Metadata = { title: "Puerpério" };
+export const metadata: Metadata = { title: "Onco-Ginecologia" };
 
 function when(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
@@ -27,55 +27,62 @@ function when(iso: string): string {
   });
 }
 
-export default async function PuerperioPatientPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OncoPatientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const patient = await getPatient(id);
   if (!patient) notFound();
 
-  const summary = readPuerperio(patient.clinicalSummary);
-  // Veio direto do PSGO (sem passar pelo Pré-Parto): importa os antecedentes.
-  if (!Object.values(summary.history).some((v) => v.trim())) {
-    summary.history = historyFromPsgo(patient.clinicalSummary);
+  const summary = readOnco(patient.clinicalSummary);
+  // Veio do PSGO: importa os antecedentes da admissão do PS.
+  if (![summary.history.cmb, summary.history.meu, summary.history.allergies, summary.history.hcv].some((v) => v.trim())) {
+    const ps = historyFromPsgo(patient.clinicalSummary);
+    summary.history = {
+      ...summary.history,
+      origin: summary.history.origin || ps.origin,
+      cmb: ps.cmb,
+      meu: ps.meu,
+      pastMeds: ps.pastMeds,
+      surgeries: ps.surgeries,
+      allergies: ps.allergies,
+      hcv: ps.hcv,
+    };
   }
   const resolved = RESOLVED_STATUSES.includes(patient.status);
-  const day = postpartumDay(summary.delivery.at);
+  const pod = postOpDay(summary.history);
   const today = new Date().toDateString();
   const evolvedToday = summary.evolutions.some((e) => new Date(e.at).toDateString() === today);
+  const dx = oncoDiagnosisLine(summary.history);
 
   return (
     <div className="space-y-5">
       <Link
-        href="/puerperio"
+        href="/oncogineco"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
       </Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <Badge variant={resolved ? "outline" : "success"}>
-              {resolved ? "Alta" : `Puerpério ${puerperiumPhase(day).toLowerCase()} · ${day}º DPP`}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <Badge variant={resolved ? "outline" : "secondary"}>{resolved ? "Alta" : "Internada"}</Badge>
+          {pod != null && !resolved && <Badge variant="warning">{pod}º DPO</Badge>}
+          {evolvedToday ? (
+            <Badge variant="success">
+              <CheckCircle2 className="mr-1 h-3 w-3" /> Evoluída hoje
             </Badge>
-            <Badge variant="secondary">{DELIVERY_LABELS[summary.delivery.type]}</Badge>
-            {evolvedToday ? (
-              <Badge variant="success">
-                <CheckCircle2 className="mr-1 h-3 w-3" /> Evoluída hoje
-              </Badge>
-            ) : (
-              !resolved && <Badge variant="warning">Evolução de hoje pendente</Badge>
-            )}
-            <span className="text-sm text-muted-foreground">
-              {[patient.bed && `Leito ${patient.bed}`, patient.medicalRecordNumber && `RG ${patient.medicalRecordNumber}`]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </div>
+          ) : (
+            !resolved && <Badge variant="warning">Evolução de hoje pendente</Badge>
+          )}
+          <span className="text-sm text-muted-foreground">
+            {[patient.bed && `Leito ${patient.bed}`, patient.medicalRecordNumber && `RG ${patient.medicalRecordNumber}`, dx]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
         </div>
       </div>
 
-      <PuerperioWorkspace patient={patient} summary={summary} observations={patient.observations ?? []} />
+      <OncoWorkspace patient={patient} summary={summary} observations={patient.observations ?? []} />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -99,7 +106,7 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
                       </span>
                       <span className="flex items-center gap-1">
                         <CopyButton text={e.text} />
-                        <form action={removeEvolution}>
+                        <form action={removeOncoEvolution}>
                           <input type="hidden" name="patientId" value={patient.id} />
                           <input type="hidden" name="evolutionId" value={e.id} />
                           <ConfirmSubmit
@@ -126,16 +133,15 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Alta</CardTitle>
+            <CardTitle className="text-base">Alta e transferência</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {resolved ? (
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span>
-                  Alta em{" "}
-                  <strong>{patient.dischargeTime ? when(patient.dischargeTime) : "—"}</strong>
+                  Alta em <strong>{patient.dischargeTime ? when(patient.dischargeTime) : "—"}</strong>
                 </span>
-                <form action={reopenPuerperio}>
+                <form action={reopenOnco}>
                   <input type="hidden" name="id" value={patient.id} />
                   <Button type="submit" size="sm" variant="outline">
                     <RotateCcw className="h-4 w-4" /> Reabrir
@@ -143,22 +149,28 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
                 </form>
               </div>
             ) : (
-              <form action={dischargePuerperio} className="flex flex-wrap items-end gap-2">
-                <input type="hidden" name="id" value={patient.id} />
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Data/hora (opcional)</span>
-                  <Input type="datetime-local" name="dischargeTime" className="w-52" />
-                </div>
-                <ConfirmSubmit size="sm" message={`Registrar a alta de ${patient.name}?`}>
-                  <LogOut className="h-4 w-4" /> Dar alta
-                </ConfirmSubmit>
-              </form>
+              <>
+                <form action={dischargeOnco} className="flex flex-wrap items-end gap-2">
+                  <input type="hidden" name="id" value={patient.id} />
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">Data/hora (opcional)</span>
+                    <Input type="datetime-local" name="dischargeTime" className="w-52" />
+                  </div>
+                  <ConfirmSubmit size="sm" message={`Registrar a alta de ${patient.name}?`}>
+                    <LogOut className="h-4 w-4" /> Dar alta
+                  </ConfirmSubmit>
+                </form>
+                <form action={transferOncoToPsgo} className="space-y-2 border-t pt-3">
+                  <input type="hidden" name="id" value={patient.id} />
+                  <Input name="reason" placeholder="Motivo da transferência ao PSGO (opcional)" />
+                  <ConfirmSubmit size="sm" variant="outline" message="Transferir a paciente para o PSGO?">
+                    <ArrowRightLeft className="h-4 w-4" /> Transferir para o PSGO
+                  </ConfirmSubmit>
+                </form>
+              </>
             )}
-            <p className="text-[11px] text-muted-foreground">
-              Para a CD de alta, use &quot;Alta hospitalar&quot; na Conduta antes de salvar a evolução.
-            </p>
             <div className="flex justify-end border-t pt-3">
-              <form action={removePuerperio}>
+              <form action={removeOnco}>
                 <input type="hidden" name="id" value={patient.id} />
                 <ConfirmSubmit
                   variant="ghost"

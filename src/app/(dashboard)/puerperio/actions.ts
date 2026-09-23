@@ -19,7 +19,7 @@ import {
   type PuerperioSummary,
   type WardHistory,
 } from "@/core/puerperio/types";
-import { historyFromPsgo } from "@/core/puerperio/history";
+import { historyFromPsgo } from "@/core/prontuario/psgo-history";
 import { draftContext } from "@/core/puerperio/render";
 import { gaFromLMP } from "@/core/obstetric/gestational-age";
 

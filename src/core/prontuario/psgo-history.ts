@@ -1,10 +1,10 @@
 /**
  * Importa os antecedentes da admissão do PSGO (`clinical_summary.form`) para o
- * cabeçalho da Enfermaria GO Geral — a paciente não precisa ser redigitada.
+ * cabeçalho das enfermarias (Puerpério, Onco) — a paciente não é redigitada.
  */
 import type { PsgoForm } from "@/core/psgo/types";
 import { renderPsgo } from "@/core/psgo/render";
-import { emptyHistory, type WardHistory } from "./types";
+import { emptyHistory, type WardHistory } from "@/core/puerperio/types";
 
 /** Valor após "RÓTULO:" + linhas indentadas seguintes (MEU / FEZ USO). */
 function field(lines: string[], label: string): string {

@@ -9,6 +9,9 @@ import {
   type Newborn,
 } from "@/core/puerperio/types";
 import { cn } from "@/lib/utils";
+import { Chip, Field } from "@/components/form-controls";
+
+export { Chip, Field };
 
 /** ISO → "YYYY-MM-DDTHH:mm" local (datetime-local). */
 export function toLocalInput(iso: string): string {
@@ -16,51 +19,6 @@ export function toLocalInput(iso: string): string {
   if (Number.isNaN(d.getTime())) return "";
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 16);
-}
-
-/** Rótulo + campo associados (clicar no rótulo foca o campo). */
-export function Field({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <label className={cn("block space-y-1", className)}>
-      <span className="text-xs font-medium leading-none">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-export function Chip({
-  active,
-  onClick,
-  children,
-  className,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-        active ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
 }
 
 function NewbornFields({

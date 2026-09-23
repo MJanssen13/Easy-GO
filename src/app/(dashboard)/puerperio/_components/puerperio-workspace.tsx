@@ -32,7 +32,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
 import { saveWorkspace, type Basics } from "../actions";
-import { Chip, DeliveryFields, Field } from "./delivery-fields";
+import { Chip, ExamLine, Field } from "@/components/form-controls";
+import { DeliveryFields } from "./delivery-fields";
 import { HistoryFields } from "./history-fields";
 
 const PRECEPTOR_KEY = "easygo.preceptor";
@@ -534,30 +535,5 @@ export function PuerperioWorkspace({
         </Card>
       </div>
     </SectionNavProvider>
-  );
-}
-
-function ExamLine({
-  label,
-  value,
-  onChange,
-  hint,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  hint?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-        <span className="w-14 shrink-0 text-xs font-semibold text-muted-foreground">{label}</span>
-        <Input className="h-8 text-xs" value={value} onChange={(e) => onChange(e.target.value)} />
-        {hint && <span className="shrink-0 text-[10px] text-muted-foreground">{hint}</span>}
-      </div>
-      {children && <div className="flex flex-wrap gap-1.5 sm:pl-16">{children}</div>}
-    </div>
   );
 }
