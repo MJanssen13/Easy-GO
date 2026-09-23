@@ -140,6 +140,15 @@ export function renderShiftEvolution(
   narrative.push(
     `ASSUMO PLANTÃO ${input.shift === "noturno" ? "NOTURNO" : "DIURNO"} AS ${hora} DIA ${dateShort(input.noteDate)}, PACIENTE INTERNADA EM ${dateShort(input.admissionDate)} DEVIDO A GESTAÇÃO DE ${gaStr}${comorb ? ` + ${comorb}` : ""}, ADMITIDA PARA ${input.reason}, A FIM DE PROSSEGUIR ASSISTÊNCIA A MESMA.`,
   );
+  // Partograma aberto (como na plataforma original: "ABERTO PARTOGRAMA ... HS").
+  const pg = patient.partogramData as { openedAt?: string; startTime?: string } | null | undefined;
+  const pgAt = pg?.openedAt ?? pg?.startTime;
+  if (pgAt && !Number.isNaN(new Date(pgAt).getTime())) {
+    const d = new Date(pgAt);
+    narrative.push(
+      `ABERTO PARTOGRAMA EM ${dateShort(pgAt)} ÀS ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} HS.`,
+    );
+  }
   if (input.clinicalText.trim()) narrative.push(input.clinicalText.trim());
 
   if (input.induction.mode !== "none") {

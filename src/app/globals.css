@@ -122,3 +122,16 @@
     @apply whitespace-pre-wrap break-words font-mono text-sm leading-relaxed;
   }
 }
+
+/* Partograma: automático (das aferições) em azul na tela, preto na impressão. */
+.pg-ink { fill: #000; }
+.pg-ink-stroke { stroke: #000; }
+.pg-auto { fill: #1d4ed8; }
+.pg-auto-stroke { stroke: #1d4ed8; }
+.pg-auto-text { color: #1d4ed8; }
+@media print {
+  .pg-auto { fill: #000; }
+  .pg-auto-stroke { stroke: #000; }
+  .pg-auto-text { color: #000 !important; }
+  body { background: #fff !important; }
+}

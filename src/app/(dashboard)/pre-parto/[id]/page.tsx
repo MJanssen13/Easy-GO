@@ -14,6 +14,7 @@ import {
   Stethoscope,
   AlertTriangle,
   SkipForward,
+  FileChartLine,
 } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
@@ -29,6 +30,7 @@ import { renderObservationLine } from "@/core/prontuario/preparto";
 import { upcomingTasks, overdueTasks, taskUrgency } from "@/core/schedule/planner";
 import { latestValues } from "@/core/patients/stats";
 import { vitalAlerts } from "@/core/obstetric/alerts";
+import { readPartogram } from "@/core/partogram/types";
 import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,6 +118,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
   ];
 
   const now = new Date();
+  const partogramOpen = !!readPartogram(patient.partogramData);
   const resolved = RESOLVED_STATUSES.includes(patient.status);
   const schedule = patient.schedule ?? [];
   const overdue = overdueTasks(schedule, now);
@@ -172,6 +175,11 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
               </Button>
             </Link>
           )}
+          <Link href={`/pre-parto/${patient.id}/partograma`}>
+            <Button variant={partogramOpen ? "secondary" : "outline"}>
+              <FileChartLine className="h-4 w-4" /> {partogramOpen ? "Partograma" : "Abrir partograma"}
+            </Button>
+          </Link>
           <Link href={`/pre-parto/${patient.id}/rotina`}>
             <Button variant="outline">
               <CalendarClock className="h-4 w-4" /> Rotina

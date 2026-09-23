@@ -5,6 +5,31 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Pré-Parto — partograma (OMS 2020 + ficha HC-UFTM)
+
+- **Abrir partograma** (página da paciente → "Abrir partograma"): hora de
+  abertura (coluna 0) e modelo preferido; a paciente passa a "Partograma aberto"
+  e a evolução de plantão ganha a linha **"ABERTO PARTOGRAMA EM … ÀS … HS"**.
+- **Preenchimento automático a partir da abertura**: cada aferição registrada
+  depois entra sozinha na coluna da hora certa — dilatação, De Lee, BCF (no
+  minuto), dinâmica (nº × duração → intensidade), bolsa/LA, ocitocina,
+  medicações e examinador. Na tela, o automático aparece em **azul** (corrige-se
+  na aferição); o lançado na folha fica em preto e prevalece. Salvamento
+  automático; impressão em A4.
+- **Modelo OMS — Labour Care Guide (2020)**: seções de cuidados de suporte, bebê,
+  mulher, progresso, medicação e avaliação/plano; 1ª fase em meias horas (12 h)
+  e **2º período** em 15 min com alerta de duração (≥ 3 h nulípara / ≥ 2 h
+  multípara). Células fora do limiar da coluna **"Alerta"** ficam vermelhas e
+  entram na lista de alertas; colo parado por 5 cm ≥ 6 h … 9 cm ≥ 2 h
+  (`src/core/partogram/lcg.ts`, fonte citada).
+- **Ficha de Trabalho de Parto HC-UFTM (modelo antigo)** portada da plataforma
+  original (`MJanssen13/Preparto`): mesma folha e coordenadas, menus de exame
+  (dilatação + De Lee + variedade de posição com rotação), BCF por minuto,
+  contrações por intensidade, tabela (bolsa, LA, ocitocina, medicamentos,
+  examinador), observações e linhas de alerta/ação (auto no 1º ponto ≥ 4 cm ou
+  hora escolhida). Os dados ficam em `patients.partogram_data` no mesmo formato
+  da plataforma original.
+
 ### Página inicial — visão do plantão
 
 - **Resumo por módulo** (Pré-Parto, Puerpério, Onco, PSGO): nº de pacientes e a

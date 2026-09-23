@@ -58,6 +58,7 @@ export function dbToPatient(row: PatientRow): Patient {
     magnesiumSulfateEndTime: row.magnesium_sulfate_end_time,
     schedule: asObject<ScheduledTask[]>(row.schedule, []),
     clinicalSummary: (row.clinical_summary as Record<string, unknown> | null) ?? null,
+    partogramData: (row.partogram_data as Record<string, unknown> | null) ?? null,
     admissionDate: row.admission_date,
     dischargeTime: row.discharge_time,
     createdAt: row.created_at,
@@ -125,6 +126,8 @@ export function updatePatientToDb(input: UpdatePatientInput): PatientUpdate {
   if (input.outcome !== undefined) p.outcome = input.outcome;
   if (input.dischargeTime !== undefined) p.discharge_time = input.dischargeTime;
   if (input.schedule !== undefined) p.schedule = toJson(input.schedule);
+  if (input.partogramData !== undefined)
+    p.partogram_data = input.partogramData ? toJson(input.partogramData) : null;
   return p;
 }
 
