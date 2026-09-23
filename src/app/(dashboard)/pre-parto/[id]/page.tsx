@@ -39,6 +39,7 @@ import { CopyButton } from "@/components/copy-button";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { ShiftEvolution } from "../_components/shift-evolution";
 import { VitalCharts } from "../_components/vital-charts";
+import { TransferToPuerperio } from "../_components/transfer-puerperio";
 import {
   removePatient,
   removeCtg,
@@ -297,9 +298,14 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Desfecho e alta</CardTitle>
+          <CardTitle className="text-base">Parto, desfecho e alta</CardTitle>
         </CardHeader>
         <CardContent>
+          {!resolved && (
+            <div className="mb-4">
+              <TransferToPuerperio patientId={patient.id} bed={patient.bed} />
+            </div>
+          )}
           {resolved ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm">

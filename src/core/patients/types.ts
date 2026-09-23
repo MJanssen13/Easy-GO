@@ -161,6 +161,9 @@ export interface UpdatePatientInput {
   magnesiumSulfateStartTime?: string | null;
   magnesiumSulfateEndTime?: string | null;
   clinicalSummary?: Record<string, unknown> | null;
+  outcome?: PatientOutcome;
+  dischargeTime?: string | null;
+  schedule?: ScheduledTask[];
 }
 
 export interface NewObservationInput {

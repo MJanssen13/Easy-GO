@@ -122,6 +122,9 @@ export function updatePatientToDb(input: UpdatePatientInput): PatientUpdate {
     p.magnesium_sulfate_end_time = input.magnesiumSulfateEndTime;
   if (input.clinicalSummary !== undefined)
     p.clinical_summary = input.clinicalSummary ? toJson(input.clinicalSummary) : null;
+  if (input.outcome !== undefined) p.outcome = input.outcome;
+  if (input.dischargeTime !== undefined) p.discharge_time = input.dischargeTime;
+  if (input.schedule !== undefined) p.schedule = toJson(input.schedule);
   return p;
 }
 

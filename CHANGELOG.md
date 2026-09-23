@@ -5,6 +5,29 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Puerpério — módulo novo (Enfermaria GO Geral)
+
+- **Quadro de leitos** do puerpério: DPP, via de parto, RN, pendências (TS do RN,
+  anti-D se mãe Rh−, sorologias) e **"evoluída hoje" / "evolução pendente"**.
+- **Pré-Parto → Puerpério** em um passo: no card "Parto, desfecho e alta" da
+  paciente, registra via de parto, hora, IG e RN(s) e transfere (mesmo registro
+  de paciente, `module = "puerperio"`, auditado em `patient_transfers`; desfecho
+  gravado e aferições pendentes limpas). Também há **admissão direta**.
+- **Tela de trabalho da puérpera** com índice de seções e prontuário ao vivo no
+  **modelo "ENFERMARIA GO GERAL" do serviço**: cabeçalho (paridade, TS/CI, TS RN/
+  CD, CMB, MEU, fez uso, cirurgias, alergias, HCV, consultas, sorologias),
+  CONTEXTO INTERNAÇÃO gerado a partir do parto, EVOLUÇÃO por atalhos, exame
+  físico com as frases padrão, **parâmetros da enfermagem** (faixas das últimas
+  24 h), parâmetros da equipe de GO, HD "PUERPÉRIO IMEDIATO (Nº DIA PÓS PARTO)"
+  com as orientações marcáveis e **CD de alta** do modelo por via de parto
+  (normal × cesárea), com método/ACO/ferro.
+- **Antecedentes importados da admissão do PSGO** (CMB, MEU, cirurgias,
+  alergias, HCV, consultas, CI, procedência) — sem redigitar.
+- A evolução do dia seguinte **parte da anterior** (exame e plano repetem; vitais
+  e queixas zeram). Histórico de evoluções com copiar/apagar; alta/reabrir.
+- Dados do módulo em `clinical_summary.puerperio`; vitais como `observations`
+  (Regra de Ouro). Lógica pura em `src/core/puerperio/`.
+
 ### Pré-Parto — cronograma e quadro de leitos
 
 - **Cronograma agrupado por horário**: um cabeçalho por hora (atrasada/agora em
