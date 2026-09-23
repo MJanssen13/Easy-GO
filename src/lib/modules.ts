@@ -11,11 +11,17 @@ export interface ModuleDef {
   accent: string;
   /** Rótulo do selo no hub (sobrepõe o padrão "Armazena dados"/"Gera prontuário"). */
   badge?: string;
+  /** Gradiente do ícone do módulo (navegação, cabeçalhos). */
+  tile: string;
+  /** Agrupamento na navegação. */
+  group: "Internação" | "Atendimento" | "Utilitários";
 }
 
 export const MODULES: ModuleDef[] = [
   {
     slug: "pre-parto",
+    tile: "from-pink-500 to-rose-500",
+    group: "Internação",
     label: "Pré-Parto",
     short: "Trabalho de parto",
     description:
@@ -26,6 +32,8 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "pre-natal",
+    tile: "from-teal-500 to-emerald-500",
+    group: "Atendimento",
     label: "Pré-Natal",
     short: "Consulta por trimestre",
     description:
@@ -36,6 +44,8 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "psgo",
+    tile: "from-red-500 to-orange-500",
+    group: "Atendimento",
     label: "PSGO",
     short: "Pronto-socorro obstétrico",
     description:
@@ -46,6 +56,8 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "puerperio",
+    tile: "from-fuchsia-500 to-pink-500",
+    group: "Internação",
     label: "Puerpério",
     short: "Evolução de enfermaria",
     description:
@@ -56,6 +68,8 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "oncogineco",
+    tile: "from-violet-500 to-purple-600",
+    group: "Internação",
     label: "Onco-Ginecologia",
     short: "Enfermaria oncológica",
     description:
@@ -66,6 +80,8 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "ferramentas",
+    tile: "from-slate-500 to-slate-700",
+    group: "Utilitários",
     label: "Ferramentas",
     short: "Utilitários clínicos",
     description:

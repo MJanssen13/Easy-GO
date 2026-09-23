@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, HeartPulse, Pill, FileText } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
 
 interface Tool {
   slug: string;
@@ -33,16 +34,14 @@ const TOOLS: Tool[] = [
 export default function FerramentasPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Ferramentas</h1>
-      </div>
+      <PageHeader module="ferramentas" title="Ferramentas" subtitle="Utilitários clínicos — não armazenam dados" />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {TOOLS.map((t) => {
           const Icon = t.icon;
           return (
             <Link key={t.slug} href={`/ferramentas/${t.slug}`} className="group">
-              <Card className="h-full transition-shadow group-hover:shadow-md">
+              <Card className="h-full transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-slate-600 ring-1 ring-inset ring-border">

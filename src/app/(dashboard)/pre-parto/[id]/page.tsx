@@ -52,7 +52,7 @@ import {
 } from "../actions";
 
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 function hhmm(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
@@ -531,11 +531,11 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </CardHeader>
         <CardContent>
           {patient.observations && patient.observations.length > 0 ? (
-            <ul className="space-y-2">
-              {patient.observations.map((o) => {
+            (() => {
+              const item = (o: (typeof patient.observations)[number]) => {
                 const line = renderObservationLine(o);
                 return (
-                  <li key={o.id} className="flex items-start justify-between gap-2 rounded-md border px-3 py-2">
+                  <li key={o.id} className="flex items-start justify-between gap-2 rounded-xl border bg-muted/20 px-3 py-2">
                     <div className="min-w-0">
                       <pre className="prontuario-text text-xs">{line}</pre>
                       {o.examinerName && (
@@ -545,8 +545,23 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                     <CopyButton text={line} />
                   </li>
                 );
-              })}
-            </ul>
+              };
+              const obs = patient.observations!;
+              return (
+                <div className="space-y-2">
+                  <ul className="space-y-2">{obs.slice(0, 5).map(item)}</ul>
+                  {obs.length > 5 && (
+                    <details className="group">
+                      <summary className="cursor-pointer list-none rounded-lg py-1.5 text-center text-xs font-medium text-primary hover:bg-muted">
+                        <span className="group-open:hidden">Ver as outras {obs.length - 5} evoluções</span>
+                        <span className="hidden group-open:inline">Recolher</span>
+                      </summary>
+                      <ul className="mt-2 space-y-2">{obs.slice(5).map(item)}</ul>
+                    </details>
+                  )}
+                </div>
+              );
+            })()
           ) : (
             <p className="text-sm text-muted-foreground">
               Nenhuma evolução registrada. Use{" "}

@@ -123,8 +123,8 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
                 <Legend iconType="plainline" wrapperStyle={{ fontSize: "11px" }} />
                 <ReferenceLine y={140} stroke="#ef4444" strokeDasharray="3 3" opacity={0.4} />
                 <ReferenceLine y={90} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.4} />
-                <Line type="monotone" dataKey="systolic" name="PAS" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                <Line type="monotone" dataKey="diastolic" name="PAD" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="systolic" name="PAS" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
+                <Line type="monotone" dataKey="diastolic" name="PAD" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
                 <Line
                   type="monotone"
                   dataKey="standingSystolic"

@@ -132,8 +132,8 @@ export function Section({
   }, [unregister, key]);
 
   return (
-    <Card id={id} ref={cardRef} className="scroll-mt-40 md:scroll-mt-32">
-      <div className="flex items-center justify-between gap-2 p-6">
+    <Card id={id} ref={cardRef} className="scroll-mt-32 lg:scroll-mt-24">
+      <div className="flex items-center justify-between gap-2 px-5 py-4 sm:px-6">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
@@ -153,7 +153,7 @@ export function Section({
         {headerExtra && <div className="flex items-center gap-2">{headerExtra}</div>}
       </div>
       {open && (
-        <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>
+        <div className={`px-5 pb-5 sm:px-6 sm:pb-6 ${contentClassName ?? ""}`}>
           {children}
           {/* Botão de recolher a seção (^), ao fim do conteúdo. */}
           <div className="flex justify-center pt-1">
@@ -238,7 +238,7 @@ export function SectionIndex({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "sticky top-[6.25rem] z-10 -mx-1 rounded-xl border bg-background/95 px-2 py-2 shadow-sm backdrop-blur md:top-16",
+        "sticky top-16 z-10 -mx-1 rounded-2xl border bg-white/90 px-2 py-2 shadow-card backdrop-blur-xl lg:top-4",
         className,
       )}
     >

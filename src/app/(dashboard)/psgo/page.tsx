@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Siren, Plus, AlertTriangle } from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 import { listPatients, purgeExpiredDischarges } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient } from "@/core/patients/types";
@@ -9,6 +9,7 @@ import { patientToPsgoForm } from "@/core/psgo/patient-mapper";
 import { buildPassagemBlock, passagemText, passagemHtml } from "@/core/psgo/passagem";
 import { PsgoPatientCard } from "./_components/psgo-patient-card";
 import { PassagemButton } from "./_components/passagem-button";
+import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "PSGO" };
 
@@ -38,22 +39,19 @@ export default async function PsgoBoard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-primary">
-            <Siren className="h-6 w-6" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">PSGO</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <PassagemButton text={passText} html={passHtml} count={passagemBlocks.length} />
-          <Link href="/psgo/admissao" className={buttonVariants()}>
-            <Plus className="h-4 w-4" /> Nova admissão
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        module="psgo"
+        title="PSGO"
+        subtitle={active.length > 0 ? `${active.length} admissão(ões) ativa(s)` : "Pronto-socorro de ginecologia e obstetrícia"}
+        actions={
+          <>
+            <PassagemButton text={passText} html={passHtml} count={passagemBlocks.length} />
+            <Link href="/psgo/admissao" className={buttonVariants()}>
+              <Plus className="h-4 w-4" /> Nova admissão
+            </Link>
+          </>
+        }
+      />
 
       {loadError && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

@@ -18,7 +18,7 @@ export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stat
 
   return (
     <Link href={`/pre-parto/${patient.id}`} className="group block">
-      <Card className="flex h-full flex-col p-4 transition-shadow group-hover:shadow-md">
+      <Card className="flex h-full flex-col p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 text-sm font-semibold">
             <BedDouble className="h-4 w-4 text-muted-foreground" />

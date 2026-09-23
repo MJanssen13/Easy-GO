@@ -100,7 +100,7 @@ import { PsgoTermosButton } from "./psgo-termos-button";
 
 // Largura padronizada das listas suspensas (~ tamanho de um campo de data).
 const selectClass =
-  "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full max-w-[11rem] rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const CTG_CONCLUSIONS = [
   "Feto ativo",
@@ -2984,7 +2984,7 @@ export function PsgoGenerator({
       </div>
 
       {/* ----- Preview ----- */}
-      <div className="lg:sticky lg:top-20 lg:h-fit">
+      <div className="lg:sticky lg:top-6 lg:h-fit">
         <Card>
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3043,7 +3043,7 @@ export function PsgoGenerator({
                 {saveMsg.text}
               </p>
             )}
-            <pre className="prontuario-text max-h-[70vh] overflow-y-auto text-xs">{text}</pre>
+            <pre className="prontuario-text max-h-[70vh] overflow-y-auto rounded-xl bg-slate-50 p-4 text-xs ring-1 ring-inset ring-border/60">{text}</pre>
           </CardContent>
         </Card>
       </div>

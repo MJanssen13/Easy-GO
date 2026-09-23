@@ -228,7 +228,7 @@ export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
 
       {/* Painel de escrita rápida (desktop) */}
       <div className="hidden lg:block">
-        <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border bg-card p-4">
+        <div className="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto rounded-xl border bg-card p-4">
           {selected ? (
             <>
               <div className="mb-3 flex items-center justify-between">

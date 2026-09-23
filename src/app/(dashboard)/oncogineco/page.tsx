@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, BedDouble, CheckCircle2, Microscope, Plus } from "lucide-react";
+import { AlertTriangle, BedDouble, CheckCircle2, Plus } from "lucide-react";
 import { listPatients } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient } from "@/core/patients/types";
@@ -9,6 +9,7 @@ import { oncoDiagnosisLine, postOpDay } from "@/core/oncogineco/render";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Onco-Ginecologia" };
 
@@ -21,7 +22,7 @@ function OncoCard({ patient }: { patient: Patient }) {
   const dx = oncoDiagnosisLine(s.history);
   return (
     <Link href={`/oncogineco/${patient.id}`} className="group block">
-      <Card className="flex h-full flex-col p-4 transition-shadow group-hover:shadow-md">
+      <Card className="flex h-full flex-col p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 text-sm font-semibold">
             <BedDouble className="h-4 w-4 text-muted-foreground" />
@@ -74,24 +75,20 @@ export default async function OncoBoard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-primary">
-            <Microscope className="h-6 w-6" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Onco-Ginecologia</h1>
-            {active.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                {active.length} internada(s) · {pendingToday > 0 ? `${pendingToday} sem evolução hoje` : "todas evoluídas hoje"}
-              </p>
-            )}
-          </div>
-        </div>
-        <Link href="/oncogineco/admissao" className={buttonVariants()}>
-          <Plus className="h-4 w-4" /> Admitir
-        </Link>
-      </div>
+      <PageHeader
+        module="oncogineco"
+        title="Onco-Ginecologia"
+        subtitle={
+          active.length > 0
+            ? `${active.length} internada(s) · ${pendingToday > 0 ? `${pendingToday} sem evolução hoje` : "todas evoluídas hoje"}`
+            : "Enfermaria oncológica"
+        }
+        actions={
+          <Link href="/oncogineco/admissao" className={buttonVariants()}>
+            <Plus className="h-4 w-4" /> Admitir
+          </Link>
+        }
+      />
 
       {loadError && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

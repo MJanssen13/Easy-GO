@@ -100,7 +100,7 @@ import { Section, SectionIndex, SectionNavProvider } from "@/components/form-sec
 import { PrenatalCharts } from "./prenatal-charts";
 
 const selectClass =
-  "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full max-w-[11rem] rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -1893,7 +1893,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
       </div>
 
       {/* ----- Preview ----- */}
-      <div className="lg:sticky lg:top-20 lg:h-fit">
+      <div className="lg:sticky lg:top-6 lg:h-fit">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
@@ -1904,7 +1904,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="prontuario-text max-h-[70vh] overflow-y-auto text-xs">{text}</pre>
+            <pre className="prontuario-text max-h-[70vh] overflow-y-auto rounded-xl bg-slate-50 p-4 text-xs ring-1 ring-inset ring-border/60">{text}</pre>
           </CardContent>
         </Card>
       </div>

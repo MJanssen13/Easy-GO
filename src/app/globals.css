@@ -4,22 +4,23 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 45% 16%;
+    --background: 220 25% 97%;
+    --foreground: 224 40% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222 45% 16%;
+    --card-foreground: 224 40% 12%;
+    --sidebar: 220 24% 95%;
 
-    --secondary: 214 32% 95%;
-    --secondary-foreground: 222 40% 22%;
-    --muted: 214 32% 95%;
-    --muted-foreground: 219 20% 46%;
+    --secondary: 220 20% 94%;
+    --secondary-foreground: 224 35% 20%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 12% 44%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 30% 90%;
-    --input: 214 30% 87%;
-    --radius: 0.85rem;
+    --border: 220 16% 89%;
+    --input: 220 15% 85%;
+    --radius: 0.8rem;
 
     /* Accent principal — ROSA (pré-parto/puerpério é o padrão da plataforma) */
     --primary: 331 74% 51%;
@@ -94,6 +95,10 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
   }
   h1,
   h2,
@@ -103,16 +108,23 @@
 }
 
 @layer components {
-  /* Superfície do app: fundo com atmosfera sutil tingida pela cor do módulo. */
+  /* Superfície do app: fundo neutro com um brilho sutil da cor do módulo. */
   .app-surface {
     background-color: hsl(var(--background));
     background-image: radial-gradient(
-        48rem 48rem at 100% -12%,
-        hsl(var(--primary) / 0.07),
-        transparent 60%
-      ),
-      radial-gradient(40rem 40rem at -12% -6%, hsl(222 47% 32% / 0.05), transparent 55%);
+      60rem 30rem at 85% -10%,
+      hsl(var(--primary) / 0.06),
+      transparent 60%
+    );
     background-attachment: fixed;
+  }
+  /* Rolagem fina e discreta. */
+  .app-surface ::-webkit-scrollbar { width: 10px; height: 10px; }
+  .app-surface ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
   }
 }
 

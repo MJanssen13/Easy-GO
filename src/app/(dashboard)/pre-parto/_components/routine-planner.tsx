@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const selectClass =
-  "flex h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const initialState: RoutineState = {};
 
@@ -348,7 +348,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
         </Card>
 
         {/* ---------------- Linha do tempo ---------------- */}
-        <div className="lg:sticky lg:top-20 lg:h-fit">
+        <div className="lg:sticky lg:top-6 lg:h-fit">
           <Card>
             <CardHeader className="space-y-2 pb-3">
               <CardTitle className="flex items-center justify-between gap-2 text-base">

@@ -18,7 +18,7 @@ import { CopyButton } from "@/components/copy-button";
 import { readShiftTeam, hasAnyTeam } from "@/lib/shift-team";
 
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const TEAM_ROLES: Array<[keyof TeamInput, string]> = [
   ["chefia", "Chefia"],

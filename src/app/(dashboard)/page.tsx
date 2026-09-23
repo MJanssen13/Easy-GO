@@ -10,7 +10,7 @@ import {
   Plus,
   Stethoscope,
 } from "lucide-react";
-import { MODULES, getModule } from "@/lib/modules";
+import { getModule } from "@/lib/modules";
 import { listPatients } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient, PatientModule } from "@/core/patients/types";
@@ -22,6 +22,7 @@ import { readOnco } from "@/core/oncogineco/types";
 import { postOpDay } from "@/core/oncogineco/render";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftTeamCard } from "@/components/shift-team-card";
+import { ModuleTile } from "@/components/module-tile";
 
 export const dynamic = "force-dynamic";
 
@@ -49,8 +50,6 @@ function who(p: Patient): string {
 }
 
 const QUICK = [
-  { href: "/pre-parto/admissao", label: "Admitir no Pré-Parto", icon: Plus },
-  { href: "/psgo/admissao", label: "Nova admissão PSGO", icon: Plus },
   { href: "/pre-natal", label: "Consulta de pré-natal", icon: Stethoscope },
   { href: "/pre-parto/cronograma", label: "Cronograma de aferições", icon: CalendarClock },
   { href: "/ferramentas/receita", label: "Receita", icon: Pill },
@@ -66,6 +65,12 @@ export default async function HubPage() {
     load("psgo"),
   ]);
   const offline = [preParto, puerperio, onco, psgo].every((l) => l == null);
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const shiftLabel = hour >= 7 && hour < 19 ? "diurno" : "noturno";
+  const dateLabel = now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  const totalActive = (preParto?.length ?? 0) + (puerperio?.length ?? 0) + (onco?.length ?? 0);
   const today = new Date().toDateString();
 
   // ------------------------- O que precisa de atenção -------------------------
@@ -137,7 +142,35 @@ export default async function HubPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Plantão</h1>
+      {/* Saudação + turno */}
+      <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(120deg,#0f172a,#1e293b_55%,hsl(var(--grad-from))_140%)] p-6 text-white shadow-lift sm:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[hsl(var(--grad-to)/0.35)] blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-teal-400/20 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-white/60">{dateLabel}</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{greeting}</h1>
+            <p className="mt-2 text-sm text-white/70">
+              Plantão {shiftLabel} · {totalActive} paciente(s) internada(s)
+              {attention.length > 0 ? ` · ${attention.length} pendência(s)` : " · tudo em dia"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/pre-parto/admissao"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-white/90"
+            >
+              <Plus className="h-4 w-4" /> Admitir no Pré-Parto
+            </Link>
+            <Link
+              href="/psgo/admissao"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-inset ring-white/20 backdrop-blur transition hover:bg-white/20"
+            >
+              <Plus className="h-4 w-4" /> Nova admissão PSGO
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {offline && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -150,18 +183,16 @@ export default async function HubPage() {
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {summaries.map((s) => {
           const m = getModule(s.slug)!;
-          const Icon = m.icon;
           return (
             <Link key={s.slug} href={`/${s.slug}`} className="group">
-              <Card className="h-full p-4 transition-shadow group-hover:shadow-md">
+              <Card className="h-full p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift sm:p-5">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-sm font-semibold">
-                    <Icon className={`h-4 w-4 ${m.accent}`} /> {m.label}
-                  </span>
+                  <ModuleTile m={m} />
                   <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
-                <p className="mt-2 text-3xl font-bold">{s.count ?? "—"}</p>
-                <p className="text-xs text-muted-foreground">{s.line}</p>
+                <p className="mt-3 text-sm font-medium text-muted-foreground">{m.label}</p>
+                <p className="text-3xl font-bold tracking-tight">{s.count ?? "—"}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.line}</p>
               </Card>
             </Link>
           );
@@ -233,20 +264,6 @@ export default async function HubPage() {
 
       <ShiftTeamCard />
 
-      <div className="flex flex-wrap gap-2 border-t pt-4">
-        {MODULES.map((m) => {
-          const Icon = m.icon;
-          return (
-            <Link
-              key={m.slug}
-              href={`/${m.slug}`}
-              className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-sm hover:bg-muted"
-            >
-              <Icon className={`h-4 w-4 ${m.accent}`} /> {m.label}
-            </Link>
-          );
-        })}
-      </div>
     </div>
   );
 }

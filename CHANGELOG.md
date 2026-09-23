@@ -5,6 +5,23 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Design — visual moderno
+
+- **Nova navegação**: barra lateral fixa no computador (módulos agrupados em
+  Internação · Atendimento · Utilitários, cada um com seu ícone colorido) e, no
+  celular, **abas inferiores** (Plantão, Pré-Parto, Puerpério, PSGO, Pré-Natal,
+  Mais) — pensado para uso à beira-leito. Sai a faixa superior em gradiente.
+- **Tokens** revisados: fundo neutro, bordas mais suaves, sombras leves
+  (`shadow-card`, `shadow-lift`), foco com anel da cor do módulo; botões,
+  campos, selects e selos com o mesmo acabamento.
+- **Cabeçalho padrão** de página (`PageHeader`) com o ícone do módulo, título,
+  subtítulo com contagem e ações.
+- **Plantão (início)** com saudação, data e turno, e cards de resumo com ícone
+  do módulo; cards clicáveis "sobem" ao passar o mouse.
+- Prontuário gerado em uma "folha" destacada; seções recolhidas mais compactas;
+  histórico de evoluções mostra as 5 últimas (demais sob "Ver as outras").
+- Índice de seções e painéis fixos reposicionados para o novo layout.
+
 ### Pré-Parto — partograma (OMS 2020 + ficha HC-UFTM)
 
 - **Abrir partograma** (página da paciente → "Abrir partograma"): hora de

@@ -372,7 +372,7 @@ export function OncoWorkspace({
         </Section>
       </div>
 
-      <div className="lg:sticky lg:top-20 lg:h-fit">
+      <div className="lg:sticky lg:top-6 lg:h-fit">
         <Card>
           <CardHeader className="space-y-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -412,7 +412,7 @@ export function OncoWorkspace({
                 {msg.ok && <Check className="h-3.5 w-3.5" />} {msg.text}
               </p>
             )}
-            <pre className="prontuario-text max-h-[65vh] overflow-y-auto text-xs">{text}</pre>
+            <pre className="prontuario-text max-h-[65vh] overflow-y-auto rounded-xl bg-slate-50 p-4 text-xs ring-1 ring-inset ring-border/60">{text}</pre>
           </CardContent>
         </Card>
       </div>

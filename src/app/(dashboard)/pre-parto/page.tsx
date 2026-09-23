@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, Plus, AlertTriangle, CalendarClock } from "lucide-react";
+import { Plus, AlertTriangle, CalendarClock } from "lucide-react";
 import { listPatients, listObservationsSince } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import { get24hStats, type Stats24h } from "@/core/patients/stats";
 import type { Patient, Observation } from "@/core/patients/types";
 import { buttonVariants } from "@/components/ui/button";
 import { PatientCard } from "./_components/patient-card";
+import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Pré-Parto" };
 
@@ -41,24 +42,21 @@ export default async function PrePartoBoard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-primary">
-            <Activity className="h-6 w-6" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Pré-Parto</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/pre-parto/cronograma" className={buttonVariants({ variant: "outline" })}>
-            <CalendarClock className="h-4 w-4" /> Cronograma
-          </Link>
-          <Link href="/pre-parto/admissao" className={buttonVariants()}>
-            <Plus className="h-4 w-4" /> Admitir
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        module="pre-parto"
+        title="Pré-Parto"
+        subtitle={active.length > 0 ? `${active.length} paciente(s) em acompanhamento` : "Acompanhamento do trabalho de parto"}
+        actions={
+          <>
+            <Link href="/pre-parto/cronograma" className={buttonVariants({ variant: "outline" })}>
+              <CalendarClock className="h-4 w-4" /> Cronograma
+            </Link>
+            <Link href="/pre-parto/admissao" className={buttonVariants()}>
+              <Plus className="h-4 w-4" /> Admitir
+            </Link>
+          </>
+        }
+      />
 
       {loadError && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

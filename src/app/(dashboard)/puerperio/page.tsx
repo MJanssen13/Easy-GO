@@ -10,6 +10,7 @@ import { puerperioPendings } from "@/core/puerperio/checklist";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = { title: "Puerpério" };
 
@@ -24,7 +25,7 @@ function PuerperaCard({ patient }: { patient: Patient }) {
 
   return (
     <Link href={`/puerperio/${patient.id}`} className="group block">
-      <Card className="flex h-full flex-col p-4 transition-shadow group-hover:shadow-md">
+      <Card className="flex h-full flex-col p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 text-sm font-semibold">
             <BedDouble className="h-4 w-4 text-muted-foreground" />
@@ -95,24 +96,20 @@ export default async function PuerperioBoard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-primary">
-            <Baby className="h-6 w-6" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Puerpério</h1>
-            {active.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                {active.length} puérpera(s) · {pendingToday > 0 ? `${pendingToday} sem evolução hoje` : "todas evoluídas hoje"}
-              </p>
-            )}
-          </div>
-        </div>
-        <Link href="/puerperio/admissao" className={buttonVariants()}>
-          <Plus className="h-4 w-4" /> Admitir
-        </Link>
-      </div>
+      <PageHeader
+        module="puerperio"
+        title="Puerpério"
+        subtitle={
+          active.length > 0
+            ? `${active.length} puérpera(s) · ${pendingToday > 0 ? `${pendingToday} sem evolução hoje` : "todas evoluídas hoje"}`
+            : "Enfermaria GO geral"
+        }
+        actions={
+          <Link href="/puerperio/admissao" className={buttonVariants()}>
+            <Plus className="h-4 w-4" /> Admitir
+          </Link>
+        }
+      />
 
       {loadError && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
