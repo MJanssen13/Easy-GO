@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users } from "lucide-react";
+import { Pencil, Check, Users } from "lucide-react";
 import type { TeamInput } from "@/core/prontuario/preparto-evolution";
-import { readShiftTeam, writeShiftTeam, EMPTY_TEAM } from "@/lib/shift-team";
+import { readShiftTeam, writeShiftTeam, hasAnyTeam, formatShiftTeamInline, EMPTY_TEAM } from "@/lib/shift-team";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,10 +20,14 @@ const ROLES: Array<[keyof TeamInput, string]> = [
 export function ShiftTeamCard() {
   const [team, setTeam] = useState<TeamInput>(EMPTY_TEAM);
   const [loaded, setLoaded] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  // Carrega do localStorage no cliente (evita mismatch de hidratação).
+  // Carrega do localStorage no cliente (evita mismatch de hidratação). Já
+  // preenchida → mostra resumida; vazia → abre para editar.
   useEffect(() => {
-    setTeam(readShiftTeam());
+    const t = readShiftTeam();
+    setTeam(t);
+    setEditing(!hasAnyTeam(t));
     setLoaded(true);
   }, []);
 
@@ -37,9 +42,25 @@ export function ShiftTeamCard() {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="h-4 w-4 text-primary" /> Equipe de plantão
+          {loaded && hasAnyTeam(team) && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="ml-auto"
+              onClick={() => setEditing((e) => !e)}
+            >
+              {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              {editing ? "Pronto" : "Editar"}
+            </Button>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {!editing && loaded && hasAnyTeam(team) ? (
+          <p className="text-sm">{formatShiftTeamInline(team)}</p>
+        ) : (
+        <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {ROLES.map(([k, label]) => (
             <div key={k} className="space-y-1">
@@ -57,6 +78,8 @@ export function ShiftTeamCard() {
           Salva neste dispositivo e usada automaticamente em toda a plataforma (evoluções de
           plantão do Pré-Parto e prontuário do PSGO). Cargos vazios não entram no texto.
         </p>
+        </>
+        )}
       </CardContent>
     </Card>
   );

@@ -5,6 +5,16 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Página inicial — visão do plantão
+
+- **Resumo por módulo** (Pré-Parto, Puerpério, Onco, PSGO): nº de pacientes e a
+  próxima pendência de cada um.
+- **Precisa de atenção**: aferições atrasadas, pacientes sem rotina, anti-D
+  pendente e evoluções do dia por fazer — cada item leva direto à tela certa.
+- **Atalhos** para as tarefas comuns (admitir, PSGO, pré-natal, cronograma,
+  receita, CTG, documentos).
+- **Equipe de plantão** aparece resumida quando já preenchida ("Editar" reabre).
+
 ### Onco-Ginecologia — módulo novo
 
 - **Quadro de leitos** (diagnóstico, DPO, "evoluída hoje"), **admissão**,
