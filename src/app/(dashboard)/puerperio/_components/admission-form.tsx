@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Baby, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { emptyDelivery, emptyHistory, type DeliveryInfo, type WardHistory } from "@/core/puerperio/types";
@@ -42,7 +42,9 @@ export function AdmissionForm() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Parto e RN</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Baby className="h-4 w-4" /> Parto e RN
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <DeliveryFields value={delivery} onChange={setDelivery} />
@@ -50,7 +52,9 @@ export function AdmissionForm() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Paciente e antecedentes</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <User className="h-4 w-4" /> Paciente e antecedentes
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <HistoryFields basics={basics} onBasics={setBasics} history={history} onHistory={setHistory} />

@@ -5,6 +5,24 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Design — sessões com cores marcantes
+
+- **Cor forte por módulo**: Pré-Parto rosa-coral, Puerpério fúcsia (antes igual
+  ao Pré-Parto), Onco violeta, Pré-Natal teal-esmeralda, PSGO vermelho-laranja,
+  Ferramentas índigo; fundo com brilho sutil na cor do módulo.
+- **Banner (hero)** em gradiente em todas as páginas (`PageHeader` e novo
+  `PageHero`): ícone em vidro, "voltar" em pílula, **leito em destaque** nas
+  páginas de paciente e subpáginas (aferição, rotina, CTG, partograma, editar),
+  botões brancos/vidro sobre o gradiente.
+- **Seleções** (chips, índice, segmentos) e botão principal em gradiente do
+  módulo (`.chip-on`).
+- **Seções dos formulários**: marcador colorido (✓ verde quando preenchida),
+  faixa lateral e cabeçalho tingido quando aberta.
+- **Cards dos quadros** com faixa superior (vermelha se há pendência) e leito em
+  quadrado colorido; ícones dos títulos de cards em "bolha" colorida.
+- **Prévia do prontuário** em painel escuro com faixa na cor do módulo
+  (impressão continua preto no branco).
+
 ### Correções do teste de usabilidade
 
 - **PSGO sem admissão duplicada**: após o 1º salvamento automático o endereço

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageHero } from "@/components/page-header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRightLeft, CheckCircle2, ClipboardList, LogOut, RotateCcw, Trash2 } from "lucide-react";
@@ -55,17 +56,14 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-5">
-      <Link
-        href="/oncogineco"
-        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
-      </Link>
-
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <Badge variant={resolved ? "outline" : "secondary"}>{resolved ? "Alta" : "Internada"}</Badge>
+      <PageHero
+        back={{ href: "/oncogineco", label: "Leitos" }}
+        eyebrow="Onco-Ginecologia"
+        bed={patient.bed ?? null}
+        title={patient.name}
+        badges={
+          <>
+            <Badge variant={resolved ? "outline" : "secondary"}>{resolved ? "Alta" : "Internada"}</Badge>
           {pod != null && !resolved && <Badge variant="warning">{pod}º DPO</Badge>}
           {evolvedToday ? (
             <Badge variant="success">
@@ -74,13 +72,10 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
           ) : (
             !resolved && <Badge variant="warning">Evolução de hoje pendente</Badge>
           )}
-          <span className="text-sm text-muted-foreground">
-            {[patient.bed && `Leito ${patient.bed}`, patient.medicalRecordNumber && `RG ${patient.medicalRecordNumber}`, dx]
-              .filter(Boolean)
-              .join(" · ")}
-          </span>
-        </div>
-      </div>
+          </>
+        }
+        meta={[patient.medicalRecordNumber && `RG ${patient.medicalRecordNumber}`, dx].filter(Boolean).join(" · ")}
+      />
 
       <OncoWorkspace patient={patient} summary={summary} observations={patient.observations ?? []} />
 
@@ -135,7 +130,9 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Alta e transferência</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <LogOut className="h-4 w-4" /> Alta e transferência
+          </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {resolved ? (

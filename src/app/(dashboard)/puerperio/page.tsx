@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, Baby, BedDouble, CheckCircle2, Plus } from "lucide-react";
+import { AlertTriangle, Baby, CheckCircle2, Plus } from "lucide-react";
 import { listPatients } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient } from "@/core/patients/types";
@@ -9,6 +9,7 @@ import { postpartumDay } from "@/core/puerperio/render";
 import { puerperioPendings } from "@/core/puerperio/checklist";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { BedAvatar, CardStrip } from "@/components/bed-avatar";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 
@@ -25,15 +26,15 @@ function PuerperaCard({ patient }: { patient: Patient }) {
 
   return (
     <Link href={`/puerperio/${patient.id}`} className="group block">
-      <Card className="flex h-full flex-col p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <BedDouble className="h-4 w-4 text-muted-foreground" />
-            {patient.bed ? `Leito ${patient.bed}` : "Sem leito"}
+      <Card className="relative flex h-full flex-col overflow-hidden p-4 pt-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
+        <CardStrip alert={!resolved && !evolvedToday} />
+        <div className="flex items-center gap-3">
+          <BedAvatar bed={patient.bed} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-extrabold tracking-tight">{patient.name}</p>
+            <div className="mt-1"><Badge variant={resolved ? "outline" : "success"}>{resolved ? "Alta" : `${day}º DPP`}</Badge></div>
           </div>
-          <Badge variant={resolved ? "outline" : "success"}>{resolved ? "Alta" : `${day}º DPP`}</Badge>
         </div>
-        <p className="mt-2 truncate text-base font-bold">{patient.name}</p>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{DELIVERY_LABELS[s.delivery.type]}</span>
           {patient.bloodType && <span>{patient.bloodType}</span>}

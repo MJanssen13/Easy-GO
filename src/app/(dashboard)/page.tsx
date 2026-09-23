@@ -1,15 +1,5 @@
 import Link from "next/link";
-import {
-  AlertTriangle,
-  ArrowRight,
-  CalendarClock,
-  CheckCircle2,
-  FileText,
-  HeartPulse,
-  Pill,
-  Plus,
-  Stethoscope,
-} from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, FileText, HeartPulse, Pill, Plus, Stethoscope, Zap } from "lucide-react";
 import { getModule } from "@/lib/modules";
 import { listPatients } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
@@ -243,7 +233,9 @@ export default async function HubPage() {
         {/* Atalhos */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Atalhos</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <Zap className="h-4 w-4" /> Atalhos
+          </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-1">
             {QUICK.map((q) => {

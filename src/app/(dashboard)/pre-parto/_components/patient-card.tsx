@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BedDouble, Baby, Droplet, HeartPulse, Gauge, CalendarClock, AlertTriangle } from "lucide-react";
+import { Baby, Droplet, HeartPulse, Gauge, CalendarClock, AlertTriangle } from "lucide-react";
 import type { Patient } from "@/core/patients/types";
 import type { Stats24h } from "@/core/patients/stats";
 import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE, RESOLVED_STATUSES } from "@/core/patients/status";
@@ -7,6 +7,7 @@ import { overdueTasks, upcomingTasks } from "@/core/schedule/planner";
 import { currentGaLabel } from "@/core/patients/display";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { BedAvatar, CardStrip } from "@/components/bed-avatar";
 
 export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stats24h | null }) {
   const ga = currentGaLabel(patient);
@@ -18,20 +19,20 @@ export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stat
 
   return (
     <Link href={`/pre-parto/${patient.id}`} className="group block">
-      <Card className="flex h-full flex-col p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <BedDouble className="h-4 w-4 text-muted-foreground" />
-            {patient.bed ? `Leito ${patient.bed}` : "Sem leito"}
+      <Card className="relative flex h-full flex-col overflow-hidden p-4 pt-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
+        <CardStrip alert={overdue.length > 0} />
+        <div className="flex items-center gap-3">
+          <BedAvatar bed={patient.bed} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-extrabold tracking-tight text-foreground">{patient.name}</p>
+            <Badge variant={PATIENT_STATUS_BADGE[patient.status]} className="mt-1">
+              {PATIENT_STATUS_LABELS[patient.status]}
+            </Badge>
           </div>
-          <Badge variant={PATIENT_STATUS_BADGE[patient.status]}>
-            {PATIENT_STATUS_LABELS[patient.status]}
-          </Badge>
         </div>
 
-        <p className="mt-2 truncate text-base font-bold text-foreground">{patient.name}</p>
         {(patient.babyName || patient.babyName2) && (
-          <p className="truncate text-sm text-muted-foreground">
+          <p className="mt-2 truncate text-sm text-muted-foreground">
             <span className="text-amber-500">★</span>{" "}
             {[patient.babyName, patient.babyName2].filter(Boolean).join(" · ")}
           </p>

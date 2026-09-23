@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHero } from "@/components/page-header";
 import { ArrowLeft } from "lucide-react";
 import { listPatients } from "@/core/patients/repository";
 import { pendingTasks } from "@/core/schedule/planner";
@@ -31,16 +32,12 @@ export default async function CronogramaPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 lg:max-w-none">
-      <Link
-        href="/pre-parto"
-        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
-      </Link>
-
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Cronograma do plantão</h1>
-      </div>
+      <PageHero
+        back={{ href: "/pre-parto", label: "Leitos" }}
+        eyebrow="Pré-Parto"
+        title="Cronograma do plantão"
+        meta={"Aferições de todas as pacientes, por horário"}
+      />
 
       {error ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

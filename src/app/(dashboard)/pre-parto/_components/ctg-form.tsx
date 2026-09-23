@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Activity, Calculator, Info, Loader2, Save } from "lucide-react";
+import { Activity, Calculator, Info, Loader2, Save, Gauge, NotebookPen, ClipboardList } from "lucide-react";
 import { saveCtg, type CtgState } from "../actions";
 import type { Patient } from "@/core/patients/types";
 import {
@@ -65,7 +65,9 @@ export function CtgForm({ patient }: { patient: Patient }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Registro</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ClipboardList className="h-4 w-4" /> Registro
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-1.5">
@@ -77,7 +79,9 @@ export function CtgForm({ patient }: { patient: Patient }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Parâmetros</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Gauge className="h-4 w-4" /> Parâmetros
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Linha de base */}
@@ -248,7 +252,9 @@ export function CtgForm({ patient }: { patient: Patient }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Observações</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <NotebookPen className="h-4 w-4" /> Observações
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea aria-label="Observações da CTG" name="notes" rows={2} placeholder="Detalhes adicionais..." />

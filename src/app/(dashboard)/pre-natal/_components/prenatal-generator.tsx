@@ -147,7 +147,7 @@ function Chip({
       onClick={onClick}
       className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
         active
-          ? "border-primary bg-primary text-primary-foreground"
+          ? "chip-on"
           : "bg-background text-muted-foreground"
       }`}
     >
@@ -199,7 +199,7 @@ function Segmented<T extends string>({
             i > 0 ? "border-l" : ""
           } ${
             value === opt.value
-              ? "bg-primary text-primary-foreground"
+              ? "chip-on"
               : "text-muted-foreground hover:bg-muted"
           }`}
         >
@@ -1923,7 +1923,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <JumpToOutput />
         <Card id="prontuario" className="scroll-mt-20">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between gap-2 text-base">
+            <CardTitle className="flex flex-wrap items-center justify-between gap-y-2 gap-2 text-base">
               <span className="flex items-center gap-2">
                 <Stethoscope className="h-4 w-4 text-teal-600" /> Prontuário
               </span>

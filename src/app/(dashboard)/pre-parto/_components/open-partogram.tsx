@@ -75,7 +75,7 @@ export function OpenPartogram({ patientId, compact }: { patientId: string; compa
               onClick={() => setModel(m)}
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-medium",
-                model === m ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
+                model === m ? "chip-on" : "bg-background hover:bg-muted",
               )}
             >
               {label}

@@ -65,7 +65,7 @@ export function PsgoTransfer({ patientId }: { patientId: string }) {
               aria-pressed={target === t.module}
               className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                 target === t.module
-                  ? "border-primary bg-primary text-primary-foreground"
+                  ? "chip-on"
                   : "bg-background text-muted-foreground hover:bg-muted"
               }`}
             >
@@ -94,7 +94,7 @@ export function PsgoTransfer({ patientId }: { patientId: string }) {
                   aria-pressed={status === o.v}
                   className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     status === o.v
-                      ? "border-primary bg-primary text-primary-foreground"
+                      ? "chip-on"
                       : "bg-background text-muted-foreground hover:bg-muted"
                   }`}
                 >

@@ -37,55 +37,65 @@
 
   /* ---- Temas por módulo (aplicados por rota) ---- */
   .theme-pink {
-    --primary: 331 74% 51%;
+    --primary: 336 84% 52%;
     --primary-foreground: 0 0% 100%;
-    --accent: 327 73% 97%;
-    --accent-foreground: 335 78% 38%;
-    --ring: 331 74% 51%;
-    --grad-from: 331 80% 44%;
-    --grad-via: 331 74% 52%;
-    --grad-to: 331 78% 63%;
+    --accent: 330 90% 97%;
+    --accent-foreground: 336 78% 38%;
+    --ring: 336 84% 52%;
+    --grad-from: 322 84% 50%;
+    --grad-via: 336 84% 53%;
+    --grad-to: 352 92% 62%;
   }
   .theme-red {
-    --primary: 0 74% 50%;
+    --primary: 8 86% 52%;
     --primary-foreground: 0 0% 100%;
-    --accent: 0 86% 97%;
-    --accent-foreground: 0 74% 42%;
-    --ring: 0 74% 50%;
-    --grad-from: 0 78% 44%;
-    --grad-via: 0 74% 51%;
-    --grad-to: 0 80% 64%;
+    --accent: 14 100% 96%;
+    --accent-foreground: 8 80% 40%;
+    --ring: 8 86% 52%;
+    --grad-from: 352 84% 50%;
+    --grad-via: 8 90% 54%;
+    --grad-to: 28 96% 56%;
+  }
+  .theme-fuchsia {
+    --primary: 292 76% 48%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 290 90% 97%;
+    --accent-foreground: 292 70% 36%;
+    --ring: 292 76% 48%;
+    --grad-from: 282 78% 48%;
+    --grad-via: 296 76% 50%;
+    --grad-to: 326 84% 58%;
   }
   .theme-purple {
-    --primary: 271 76% 53%;
+    --primary: 262 80% 56%;
     --primary-foreground: 0 0% 100%;
-    --accent: 270 100% 98%;
-    --accent-foreground: 272 72% 44%;
-    --ring: 271 76% 53%;
-    --grad-from: 272 74% 46%;
-    --grad-via: 271 76% 54%;
-    --grad-to: 271 82% 66%;
+    --accent: 262 100% 97.5%;
+    --accent-foreground: 264 70% 42%;
+    --ring: 262 80% 56%;
+    --grad-from: 250 80% 54%;
+    --grad-via: 262 80% 56%;
+    --grad-to: 285 80% 60%;
   }
   .theme-teal {
-    --primary: 174 92% 30%;
+    --primary: 172 90% 32%;
     --primary-foreground: 0 0% 100%;
-    --accent: 168 76% 95%;
-    --accent-foreground: 175 84% 26%;
-    --ring: 174 92% 30%;
-    --grad-from: 176 88% 22%;
-    --grad-via: 174 92% 30%;
-    --grad-to: 172 74% 41%;
+    --accent: 166 76% 95%;
+    --accent-foreground: 175 84% 24%;
+    --ring: 172 90% 32%;
+    --grad-from: 186 90% 32%;
+    --grad-via: 172 88% 34%;
+    --grad-to: 152 70% 42%;
   }
   /* Ferramentas — tema neutro (ardósia), sem cor clínica. */
   .theme-slate {
-    --primary: 215 25% 27%;
+    --primary: 226 70% 50%;
     --primary-foreground: 0 0% 100%;
-    --accent: 214 32% 95%;
-    --accent-foreground: 215 28% 24%;
-    --ring: 215 25% 27%;
-    --grad-from: 217 33% 22%;
-    --grad-via: 215 25% 30%;
-    --grad-to: 215 20% 45%;
+    --accent: 226 90% 97%;
+    --accent-foreground: 226 64% 36%;
+    --ring: 226 70% 50%;
+    --grad-from: 222 47% 18%;
+    --grad-via: 226 60% 34%;
+    --grad-to: 226 70% 52%;
   }
 }
 
@@ -119,11 +129,9 @@
   /* Superfície do app: fundo neutro com um brilho sutil da cor do módulo. */
   .app-surface {
     background-color: hsl(var(--background));
-    background-image: radial-gradient(
-      60rem 30rem at 85% -10%,
-      hsl(var(--primary) / 0.06),
-      transparent 60%
-    );
+    background-image:
+      radial-gradient(52rem 26rem at 100% -8%, hsl(var(--grad-to) / 0.13), transparent 62%),
+      radial-gradient(40rem 22rem at 18% -12%, hsl(var(--grad-from) / 0.09), transparent 60%);
     background-attachment: fixed;
   }
   /* Rolagem fina e discreta. */
@@ -140,6 +148,75 @@
 @layer utilities {
   .prontuario-text {
     @apply whitespace-pre-wrap break-words font-mono text-sm leading-relaxed;
+  }
+  /* Prévia do prontuário na tela: painel escuro com faixa na cor do módulo. */
+  @media screen {
+    pre.prontuario-text {
+      background-color: #0b1220 !important;
+      color: #e2e8f0;
+      border: 0 !important;
+      box-shadow:
+        inset 0 3px 0 0 hsl(var(--grad-to)),
+        0 10px 30px -12px rgb(15 23 42 / 0.45) !important;
+      border-radius: 1rem;
+      padding: 1.1rem 1.15rem !important;
+      --tw-ring-shadow: 0 0 #0000 !important;
+    }
+    pre.prontuario-text::selection,
+    pre.prontuario-text *::selection {
+      background: hsl(var(--primary) / 0.55);
+      color: #fff;
+    }
+  }
+
+  /* Ícone do título dos cards em "bolha" na cor do módulo. */
+  [data-card-title] > svg:first-child,
+  [data-card-title] > span:first-child > svg:first-child {
+    box-sizing: content-box;
+    padding: 7px;
+    border-radius: 11px;
+    color: #fff !important;
+    background-image: linear-gradient(135deg, hsl(var(--grad-from)), hsl(var(--grad-to)));
+    box-shadow: 0 4px 10px -4px hsl(var(--primary) / 0.55);
+  }
+
+  /* Seleção ativa (chips, índice, segmentos): gradiente da cor do módulo. */
+  .chip-on {
+    border-color: transparent !important;
+    color: #fff !important;
+    background-image: linear-gradient(135deg, hsl(var(--grad-from)), hsl(var(--grad-to)));
+    box-shadow: 0 4px 12px -4px hsl(var(--primary) / 0.55);
+  }
+
+  /* Banner (hero) das páginas: gradiente forte do módulo, texto branco. */
+  .page-hero {
+    background-image:
+      radial-gradient(28rem 14rem at 105% -30%, rgb(255 255 255 / 0.28), transparent 60%),
+      radial-gradient(20rem 12rem at -5% 130%, rgb(0 0 0 / 0.18), transparent 60%),
+      linear-gradient(120deg, hsl(var(--grad-from)), hsl(var(--grad-via)) 55%, hsl(var(--grad-to)));
+    box-shadow: 0 18px 40px -22px hsl(var(--primary) / 0.75);
+  }
+  /* Botões dentro do banner: primário branco, secundários em vidro. */
+  .page-hero .btn-default {
+    background: #fff !important;
+    color: hsl(var(--accent-foreground)) !important;
+    box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.35);
+  }
+  .page-hero .btn-outline,
+  .page-hero .btn-ghost {
+    background: rgb(255 255 255 / 0.14) !important;
+    color: #fff !important;
+    border-color: rgb(255 255 255 / 0.3) !important;
+    box-shadow: none;
+    backdrop-filter: blur(8px);
+  }
+  .page-hero .btn-count {
+    background: hsl(var(--primary));
+    color: #fff;
+  }
+  .page-hero .btn-outline:hover,
+  .page-hero .btn-ghost:hover {
+    background: rgb(255 255 255 / 0.24) !important;
   }
 }
 

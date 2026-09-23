@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, Loader2, Plus, Save, Target, Calculator, Link2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Plus, Save, Target, Calculator, Link2, Hand, Activity, Pill, FlaskConical, HeartPulse, NotebookPen, ClipboardList } from "lucide-react";
 import { recordObservation, type ObservationState } from "../actions";
 import type { Patient } from "@/core/patients/types";
 import { MONITOR_PARAMS, paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
@@ -271,7 +271,9 @@ export function EvolutionForm({
       {/* Cabeçalho do registro */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Registro</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ClipboardList className="h-4 w-4" /> Registro
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -306,7 +308,9 @@ export function EvolutionForm({
       {showVitais && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Sinais vitais</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <HeartPulse className="h-4 w-4" /> Sinais vitais
+          </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -377,7 +381,9 @@ export function EvolutionForm({
       {showBcfDin && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Dinâmica uterina e BCF</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <Activity className="h-4 w-4" /> Dinâmica uterina e BCF
+          </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -430,7 +436,9 @@ export function EvolutionForm({
       {showToque && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Toque vaginal</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <Hand className="h-4 w-4" /> Toque vaginal
+          </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -550,7 +558,9 @@ export function EvolutionForm({
       {showMg && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Monitorização de MgSO₄</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <FlaskConical className="h-4 w-4" /> Monitorização de MgSO₄
+          </CardTitle>
           </CardHeader>
           <CardContent>
             <input type="hidden" name="magnesiumEnabled" value="on" />
@@ -582,7 +592,9 @@ export function EvolutionForm({
       {showMed && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Medicação</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <Pill className="h-4 w-4" /> Medicação
+          </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -614,7 +626,9 @@ export function EvolutionForm({
       {/* Conduta */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Conduta / observações</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <NotebookPen className="h-4 w-4" /> Conduta / observações
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea aria-label="Conduta e observações" name="notes" rows={4} placeholder="Conduta, plano, intercorrências..." />
@@ -681,7 +695,7 @@ function QuickChip({
       onClick={onClick}
       aria-pressed={active}
       className={`h-7 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
-        active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+        active ? "chip-on" : "bg-background hover:bg-muted"
       }`}
     >
       {children}

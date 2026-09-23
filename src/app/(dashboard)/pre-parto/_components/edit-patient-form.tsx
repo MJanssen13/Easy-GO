@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Save, ShieldPlus } from "lucide-react";
+import { Loader2, Save, ShieldPlus, IdCard } from "lucide-react";
 import { editPatient, type EditPatientState } from "../actions";
 import {
   datingFromGestationalAges,
@@ -78,7 +78,9 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Dados da paciente</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IdCard className="h-4 w-4" /> Dados da paciente
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

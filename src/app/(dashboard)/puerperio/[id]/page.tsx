@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageHero } from "@/components/page-header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ClipboardList, LogOut, RotateCcw, Trash2 } from "lucide-react";
@@ -44,17 +45,13 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
 
   return (
     <div className="space-y-5">
-      <Link
-        href="/puerperio"
-        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
-      </Link>
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
+      <PageHero
+        back={{ href: "/puerperio", label: "Leitos" }}
+        eyebrow="Puerpério"
+        bed={patient.bed ?? null}
+        title={patient.name}
+        badges={
+          <>
             <Badge variant={resolved ? "outline" : "success"}>
               {resolved ? "Alta" : `Puerpério ${puerperiumPhase(day).toLowerCase()} · ${day}º DPP`}
             </Badge>
@@ -66,14 +63,10 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
             ) : (
               !resolved && <Badge variant="warning">Evolução de hoje pendente</Badge>
             )}
-            <span className="text-sm text-muted-foreground">
-              {[patient.bed && `Leito ${patient.bed}`, patient.medicalRecordNumber && `RG ${patient.medicalRecordNumber}`]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        meta={patient.medicalRecordNumber ? `RG ${patient.medicalRecordNumber}` : undefined}
+      />
 
       <PuerperioWorkspace patient={patient} summary={summary} observations={patient.observations ?? []} />
 
@@ -128,7 +121,9 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Alta</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <LogOut className="h-4 w-4" /> Alta
+          </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {resolved ? (

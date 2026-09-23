@@ -61,7 +61,7 @@ export function ShiftEvolution({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between text-base">
+        <CardTitle className="flex flex-wrap items-center justify-between gap-y-2 text-base">
           <span className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" /> Evolução de plantão
           </span>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageHero } from "@/components/page-header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Stethoscope } from "lucide-react";
@@ -20,29 +21,26 @@ export default async function PartogramPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <div>
-          <Link
-            href={`/pre-parto/${patient.id}`}
-            className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> Voltar à paciente
-          </Link>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">Partograma</h1>
-          <p className="text-sm text-muted-foreground">
-            {patient.name}
-            {patient.bed ? ` · Leito ${patient.bed}` : ""}
-            {opened
-              ? ` · aberto em ${opened.toLocaleDateString("pt-BR")} às ${opened.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-              : ""}
-          </p>
-        </div>
-        {data && (
-          <Link href={`/pre-parto/${patient.id}/evolucao`} className={buttonVariants()}>
-            <Stethoscope className="h-4 w-4" /> Registrar aferição
-          </Link>
-        )}
-      </div>
+      <PageHero
+        back={{ href: `/pre-parto/${patient.id}`, label: "Paciente" }}
+        eyebrow="Pré-Parto"
+        title="Partograma"
+        meta={[
+          patient.name,
+          patient.bed && `Leito ${patient.bed}`,
+          opened &&
+            `aberto em ${opened.toLocaleDateString("pt-BR")} às ${opened.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        actions={
+          data && (
+            <Link href={`/pre-parto/${patient.id}/evolucao`} className={buttonVariants()}>
+              <Stethoscope className="h-4 w-4" /> Registrar aferição
+            </Link>
+          )
+        }
+      />
 
       {data ? (
         <PartogramWorkspace

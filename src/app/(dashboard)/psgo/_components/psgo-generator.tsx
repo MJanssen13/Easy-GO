@@ -160,7 +160,7 @@ function Chip({
       type="button"
       onClick={onClick}
       className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-        active ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground"
+        active ? "chip-on" : "bg-background text-muted-foreground"
       }`}
     >
       {children}
@@ -211,7 +211,7 @@ function Segmented<T extends string>({
           onClick={() => onChange(opt.value)}
           className={`flex-1 whitespace-nowrap px-3 py-1.5 text-center transition-colors ${i > 0 ? "border-l" : ""} ${
             value === opt.value
-              ? "bg-primary text-primary-foreground"
+              ? "chip-on"
               : "text-muted-foreground hover:bg-muted"
           }`}
         >
@@ -823,7 +823,7 @@ export function PsgoGenerator({
   const hpmaChipCls = (active: boolean) =>
     `rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
       active
-        ? "border-primary bg-primary text-primary-foreground"
+        ? "chip-on"
         : "bg-background text-muted-foreground hover:bg-muted"
     }`;
   const hpmaInputCls =
@@ -1878,7 +1878,7 @@ export function PsgoGenerator({
                                           onClick={() => updateImaging(e.id, { fhr: absent ? "" : (e.fhr ?? "") })}
                                           className={`px-2 py-1 transition-colors ${
                                             !absent
-                                              ? "bg-primary text-primary-foreground"
+                                              ? "chip-on"
                                               : "text-muted-foreground hover:bg-muted"
                                           }`}
                                         >
@@ -1990,7 +1990,7 @@ export function PsgoGenerator({
                                           onClick={() => updateImaging(e.id, { laNl: true })}
                                           className={`px-2 py-1 transition-colors ${
                                             e.laNl
-                                              ? "bg-primary text-primary-foreground"
+                                              ? "chip-on"
                                               : "text-muted-foreground hover:bg-muted"
                                           }`}
                                         >
@@ -2001,7 +2001,7 @@ export function PsgoGenerator({
                                           onClick={() => updateImaging(e.id, { laNl: false })}
                                           className={`border-l px-2 py-1 transition-colors ${
                                             !e.laNl
-                                              ? "bg-primary text-primary-foreground"
+                                              ? "chip-on"
                                               : "text-muted-foreground hover:bg-muted"
                                           }`}
                                         >

@@ -132,28 +132,56 @@ export function Section({
   }, [unregister, key]);
 
   return (
-    <Card id={id} ref={cardRef} className="scroll-mt-32 lg:scroll-mt-24">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 sm:px-6">
+    <Card
+      id={id}
+      ref={cardRef}
+      className={cn(
+        "relative scroll-mt-32 overflow-hidden transition-shadow lg:scroll-mt-24",
+        open && "shadow-lift ring-1 ring-primary/15",
+      )}
+    >
+      {/* Faixa lateral na cor do módulo quando aberta */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0 left-0 w-1 bg-[linear-gradient(180deg,hsl(var(--grad-from)),hsl(var(--grad-to)))] transition-opacity",
+          open ? "opacity-100" : "opacity-0",
+        )}
+      />
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-2 px-5 py-3.5 sm:px-6",
+          open && "border-b border-primary/10 bg-[linear-gradient(90deg,hsl(var(--accent)),transparent_70%)]",
+        )}
+      >
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex min-h-9 flex-1 items-center gap-2 text-left"
+          className="flex min-h-9 flex-1 items-center gap-3 text-left"
         >
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-              open ? "" : "-rotate-90"
-            }`}
-          />
-          <span className="text-base font-semibold leading-none tracking-tight">{title}</span>
-          {nav && filled && (
-            <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-label="Preenchida" />
-          )}
+          <span
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors",
+              nav && filled
+                ? "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-sm"
+                : open
+                  ? "chip-on"
+                  : "bg-muted text-muted-foreground",
+            )}
+          >
+            {nav && filled ? (
+              <Check className="h-4 w-4" aria-label="Preenchida" />
+            ) : (
+              <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
+            )}
+          </span>
+          <span className="text-[15px] font-bold leading-tight tracking-tight">{title}</span>
         </button>
         {headerExtra && <div className="ml-auto flex max-w-full items-center gap-2">{headerExtra}</div>}
       </div>
       {open && (
-        <div className={`px-5 pb-5 sm:px-6 sm:pb-6 ${contentClassName ?? ""}`}>
+        <div className={`px-5 pb-5 pt-4 sm:px-6 sm:pb-6 ${contentClassName ?? ""}`}>
           {children}
           {/* Botão de recolher a seção (^), ao fim do conteúdo. */}
           <div className="flex justify-center pt-1">
@@ -258,7 +286,7 @@ export function SectionIndex({ className }: { className?: string }) {
             className={cn(
               "inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
               active === k
-                ? "border-primary bg-primary text-primary-foreground"
+                ? "chip-on"
                 : it.filled
                   ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",

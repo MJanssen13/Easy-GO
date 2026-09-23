@@ -269,7 +269,7 @@ export function PartogramLcg({
                     onClick={() => commit(o)}
                     className={cn(
                       "h-9 min-w-10 rounded-md border px-2 text-sm font-bold",
-                      draft === o ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted",
+                      draft === o ? "chip-on" : "hover:bg-muted",
                       edit.row.alert?.(o) && "text-rose-700",
                     )}
                   >

@@ -352,7 +352,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
         <div className="lg:sticky lg:top-6 lg:h-fit">
           <Card>
             <CardHeader className="space-y-2 pb-3">
-              <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <CardTitle className="flex flex-wrap items-center justify-between gap-y-2 gap-2 text-base">
                 <span className="flex items-center gap-2">
                   <CalendarClock className="h-4 w-4 text-primary" />
                   {finalTasks.length} horários
@@ -575,7 +575,7 @@ function OptionCard({
           className={cn(
             "flex h-4 w-4 shrink-0 items-center justify-center border",
             multi ? "rounded" : "rounded-full",
-            selected ? "border-primary bg-primary text-primary-foreground" : "border-input",
+            selected ? "chip-on" : "border-input",
           )}
         >
           {selected && <Check className="h-3 w-3" />}
@@ -615,7 +615,7 @@ function Chip({
       aria-pressed={active}
       className={cn(
         "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-        active ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted",
+        active ? "chip-on" : "hover:bg-muted",
       )}
     >
       {children}

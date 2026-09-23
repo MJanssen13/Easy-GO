@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { PageHero } from "@/components/page-header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Siren, ArrowLeft, Pencil } from "lucide-react";
+import { Siren, ArrowLeft, Pencil, ArrowRightLeft, LogOut } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { patientToPsgoForm, type PsgoClinicalSummary } from "@/core/psgo/patient-mapper";
 import { renderPsgo } from "@/core/psgo/render";
@@ -31,44 +32,32 @@ export default async function PsgoPatientPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-primary">
-            <Siren className="h-6 w-6" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {[
-                patient.medicalRecordNumber && `RG ${patient.medicalRecordNumber}`,
-                patient.age != null && `${patient.age} anos`,
-                ga && `IG ${ga}`,
-                cs?.robsonGroup != null && `Robson ${cs.robsonGroup}`,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/psgo" className={buttonVariants({ variant: "outline" })}>
-            <ArrowLeft className="h-4 w-4" /> Voltar
-          </Link>
-          <PsgoTermosButton
-            name={patient.name}
-            rg={patient.medicalRecordNumber ?? ""}
-            size="default"
-          />
-          <Link href={`/psgo/admissao?id=${patient.id}`} className={buttonVariants()}>
-            <Pencil className="h-4 w-4" /> Editar admissão
-          </Link>
-        </div>
-      </div>
+      <PageHero
+        back={{ href: "/psgo", label: "PSGO" }}
+        eyebrow="PSGO"
+        title={patient.name}
+        meta={[
+          patient.medicalRecordNumber && `RG ${patient.medicalRecordNumber}`,
+          patient.age != null && `${patient.age} anos`,
+          ga && `IG ${ga}`,
+          cs?.robsonGroup != null && `Robson ${cs.robsonGroup}`,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        actions={
+          <>
+            <PsgoTermosButton name={patient.name} rg={patient.medicalRecordNumber ?? ""} size="default" />
+            <Link href={`/psgo/admissao?id=${patient.id}`} className={buttonVariants()}>
+              <Pencil className="h-4 w-4" /> Editar admissão
+            </Link>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
+            <CardTitle className="flex flex-wrap items-center justify-between gap-y-2 text-base">
               Prontuário
               <CopyButton text={prontuario} />
             </CardTitle>
@@ -88,7 +77,9 @@ export default async function PsgoPatientPage({ params }: { params: Promise<{ id
         <div className="space-y-5 lg:h-fit">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Transferir</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base">
+            <ArrowRightLeft className="h-4 w-4" /> Transferir
+          </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="mb-3 text-xs text-muted-foreground">
@@ -101,7 +92,9 @@ export default async function PsgoPatientPage({ params }: { params: Promise<{ id
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Alta e exclusão</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base">
+            <LogOut className="h-4 w-4" /> Alta e exclusão
+          </CardTitle>
             </CardHeader>
             <CardContent>
               <PsgoLifecycle

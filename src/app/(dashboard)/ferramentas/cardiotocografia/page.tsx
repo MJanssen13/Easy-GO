@@ -82,7 +82,7 @@ function Seg<T extends string>({
           onClick={() => onChange(o.v)}
           className={cn(
             "rounded-md px-3 py-1 text-sm transition-colors",
-            value === o.v ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+            value === o.v ? "chip-on" : "text-foreground hover:bg-muted",
           )}
         >
           {o.label}

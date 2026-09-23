@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHero } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
@@ -35,21 +36,12 @@ export default async function EvolutionPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <Link
-        href={`/pre-parto/${patient.id}`}
-        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar à paciente
-      </Link>
-
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Registrar aferição</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {patient.name}
-          {patient.bed ? ` · Leito ${patient.bed}` : ""}
-          {ga ? ` · IG ${ga}` : ""}
-        </p>
-      </div>
+      <PageHero
+        back={{ href: `/pre-parto/${patient.id}`, label: "Paciente" }}
+        eyebrow="Pré-Parto"
+        title="Registrar aferição"
+        meta={[patient.name, patient.bed && `Leito ${patient.bed}`, ga && `IG ${ga}`].filter(Boolean).join(" · ")}
+      />
 
       <EvolutionForm
         patient={patient}

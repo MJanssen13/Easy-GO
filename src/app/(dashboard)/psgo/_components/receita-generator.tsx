@@ -3,7 +3,7 @@
 import { LabeledBox } from "@/components/form-controls";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Printer, AlertTriangle, Eraser, Search, Check } from "lucide-react";
+import { Plus, Trash2, Printer, AlertTriangle, Eraser, Search, Check, LayoutTemplate, IdCard, Pill } from "lucide-react";
 import {
   emptyPrescricaoItem,
   renderReceita,
@@ -99,7 +99,7 @@ function Chip({
       onClick={onClick}
       className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
         active
-          ? "border-primary bg-primary text-primary-foreground"
+          ? "chip-on"
           : "bg-background text-muted-foreground hover:bg-muted"
       }`}
     >
@@ -469,7 +469,9 @@ export function ReceitaGenerator({
       {/* Identificação */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Identificação</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IdCard className="h-4 w-4" /> Identificação
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {patients.length > 0 && (
@@ -520,7 +522,9 @@ export function ReceitaGenerator({
       {/* Modelo por situação (opcional) */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Modelo por situação</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <LayoutTemplate className="h-4 w-4" /> Modelo por situação
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <Field label="Escolha um modelo — preenche os medicamentos (todos editáveis)">
@@ -564,7 +568,9 @@ export function ReceitaGenerator({
       {/* Itens */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-          <CardTitle className="text-base">Medicamentos</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Pill className="h-4 w-4" /> Medicamentos
+          </CardTitle>
           <Button type="button" size="sm" variant="outline" onClick={addItem}>
             <Plus className="h-4 w-4" /> Medicamento
           </Button>

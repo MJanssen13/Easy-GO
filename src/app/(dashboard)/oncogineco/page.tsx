@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, BedDouble, CheckCircle2, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus } from "lucide-react";
 import { listPatients } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient } from "@/core/patients/types";
@@ -8,6 +8,7 @@ import { readOnco } from "@/core/oncogineco/types";
 import { oncoDiagnosisLine, postOpDay } from "@/core/oncogineco/render";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { BedAvatar, CardStrip } from "@/components/bed-avatar";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 
@@ -22,17 +23,17 @@ function OncoCard({ patient }: { patient: Patient }) {
   const dx = oncoDiagnosisLine(s.history);
   return (
     <Link href={`/oncogineco/${patient.id}`} className="group block">
-      <Card className="flex h-full flex-col p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <BedDouble className="h-4 w-4 text-muted-foreground" />
-            {patient.bed ? `Leito ${patient.bed}` : "Sem leito"}
-          </div>
-          <Badge variant={resolved ? "outline" : pod != null ? "warning" : "secondary"}>
+      <Card className="relative flex h-full flex-col overflow-hidden p-4 pt-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
+        <CardStrip alert={!resolved && !evolvedToday} />
+        <div className="flex items-center gap-3">
+          <BedAvatar bed={patient.bed} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-extrabold tracking-tight">{patient.name}</p>
+            <div className="mt-1"><Badge variant={resolved ? "outline" : pod != null ? "warning" : "secondary"}>
             {resolved ? "Alta" : pod != null ? `${pod}º DPO` : "Internada"}
-          </Badge>
+          </Badge></div>
+          </div>
         </div>
-        <p className="mt-2 truncate text-base font-bold">{patient.name}</p>
         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{dx || "Diagnóstico não informado"}</p>
         {s.history.surgery && (
           <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{s.history.surgery}</p>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { User } from "lucide-react";
 import type { Patient } from "@/core/patients/types";
 import { Card, CardContent } from "@/components/ui/card";
+import { CardStrip } from "@/components/bed-avatar";
 import { patientToPsgoForm } from "@/core/psgo/patient-mapper";
 import { buildPassagemBlock } from "@/core/psgo/passagem";
 
@@ -28,15 +29,16 @@ export function PsgoPatientCard({ patient }: { patient: Patient }) {
   const c = bloco?.campos;
 
   return (
-    <Link href={`/psgo/${patient.id}`} className="block">
-      <Card className="transition-colors hover:border-primary/50">
-        <CardContent className="space-y-2 p-4">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-primary">
-              <User className="h-4 w-4" />
+    <Link href={`/psgo/${patient.id}`} className="group block">
+      <Card className="relative overflow-hidden transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
+        <CardStrip />
+        <CardContent className="space-y-2 p-4 pt-5">
+          <div className="flex items-center gap-3">
+            <span className="chip-on flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white">
+              <User className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="truncate font-semibold leading-tight">{patient.name}</p>
+              <p className="truncate font-extrabold leading-tight tracking-tight">{patient.name}</p>
               {patient.medicalRecordNumber && (
                 <p className="text-xs text-muted-foreground">RG {patient.medicalRecordNumber}</p>
               )}

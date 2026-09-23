@@ -1,21 +1,7 @@
 import Link from "next/link";
+import { PageHero } from "@/components/page-header";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  Trash2,
-  ClipboardList,
-  Plus,
-  CalendarClock,
-  Activity,
-  Pencil,
-  CheckCircle2,
-  RotateCcw,
-  TrendingUp,
-  Stethoscope,
-  AlertTriangle,
-  SkipForward,
-  FileChartLine,
-} from "lucide-react";
+import { IdCard, ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity, Pencil, CheckCircle2, RotateCcw, TrendingUp, Stethoscope, AlertTriangle, SkipForward, FileChartLine, Baby } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
 import { renderCtgLine } from "@/core/ctg/render";
@@ -140,37 +126,30 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
 
   return (
     <div className="space-y-5">
-      <Link
-        href="/pre-parto"
-        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
-      </Link>
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
+      <PageHero
+        back={{ href: "/pre-parto", label: "Leitos" }}
+        eyebrow="Pré-Parto"
+        bed={patient.bed ?? null}
+        title={patient.name}
+        badges={
+          <>
             <Badge variant={PATIENT_STATUS_BADGE[patient.status]}>
               {PATIENT_STATUS_LABELS[patient.status]}
             </Badge>
             {patient.fetalDeath && <Badge variant="destructive">Óbito fetal</Badge>}
             {patient.useMagnesiumSulfate && <Badge variant="outline">MgSO₄</Badge>}
             {patient.useMethyldopa && <Badge variant="outline">Metildopa</Badge>}
-            <span className="text-sm text-muted-foreground">
-              {[patient.bed && `Leito ${patient.bed}`, ga && `IG ${ga}`, patient.parity, patient.bloodType]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+          </>
+        }
+        meta={[ga && `IG ${ga}`, patient.parity, patient.bloodType].filter(Boolean).join(" · ")}
+        actions={
+          <>
           {!resolved && (
             <Link href={`/pre-parto/${patient.id}/evolucao`}>
               <Button>
                 <Stethoscope className="h-4 w-4" /> Registrar aferição
                 {overdue.length > 0 && (
-                  <span className="ml-1 rounded-full bg-white/25 px-1.5 text-xs">{overdue.length}</span>
+                  <span className="btn-count ml-1 rounded-full bg-white/25 px-1.5 text-xs">{overdue.length}</span>
                 )}
               </Button>
             </Link>
@@ -190,8 +169,9 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
               <Activity className="h-4 w-4" /> CTG
             </Button>
           </Link>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Situação agora: próxima aferição, atrasos e últimos valores */}
       {!resolved && (
@@ -272,8 +252,10 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between text-base">
-            <span>Identificação</span>
+          <CardTitle className="flex flex-wrap items-center justify-between gap-y-2 text-base">
+            <span className="flex items-center gap-2">
+              <IdCard className="h-4 w-4" /> Identificação
+            </span>
             <Link href={`/pre-parto/${patient.id}/editar`}>
               <Button size="sm" variant="outline">
                 <Pencil className="h-4 w-4" /> Editar
@@ -306,7 +288,9 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Parto, desfecho e alta</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Baby className="h-4 w-4" /> Parto, desfecho e alta
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {!resolved && (
@@ -378,7 +362,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-2 text-base">
+          <CardTitle className="flex flex-wrap items-center justify-between gap-y-2 gap-2 text-base">
             <span className="flex items-center gap-2">
               <CalendarClock className="h-4 w-4" /> Próximas aferições
             </span>

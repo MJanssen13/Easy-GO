@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Microscope, User, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { emptyOncoHistory, type OncoHistory } from "@/core/oncogineco/types";
@@ -39,7 +39,9 @@ export function OncoAdmissionForm() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Paciente</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <User className="h-4 w-4" /> Paciente
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <BasicsFields basics={basics} onChange={setBasics} />
@@ -47,7 +49,9 @@ export function OncoAdmissionForm() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Diagnóstico e internação</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Microscope className="h-4 w-4" /> Diagnóstico e internação
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <OncoDiagnosisFields value={history} onChange={setHistory} />
@@ -55,7 +59,9 @@ export function OncoAdmissionForm() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Antecedentes</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <History className="h-4 w-4" /> Antecedentes
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <OncoHistoryFields value={history} onChange={setHistory} />
