@@ -11,8 +11,10 @@ export interface ModuleDef {
   accent: string;
   /** Rótulo do selo no hub (sobrepõe o padrão "Armazena dados"/"Gera prontuário"). */
   badge?: string;
-  /** Gradiente do ícone do módulo (navegação, cabeçalhos). */
+  /** Gradiente do ícone do módulo (legado). */
   tile: string;
+  /** Ícone do módulo em tinta suave (navegação, cards) — visual minimalista. */
+  soft: string;
   /** Agrupamento na navegação. */
   group: "Internação" | "Atendimento" | "Utilitários";
 }
@@ -20,6 +22,7 @@ export interface ModuleDef {
 export const MODULES: ModuleDef[] = [
   {
     slug: "pre-parto",
+    soft: "bg-pink-50 text-pink-600 ring-pink-100",
     tile: "from-pink-500 to-rose-500",
     group: "Internação",
     label: "Pré-Parto",
@@ -32,6 +35,7 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "pre-natal",
+    soft: "bg-teal-50 text-teal-600 ring-teal-100",
     tile: "from-teal-500 to-emerald-500",
     group: "Atendimento",
     label: "Pré-Natal",
@@ -44,6 +48,7 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "psgo",
+    soft: "bg-orange-50 text-orange-600 ring-orange-100",
     tile: "from-red-500 to-orange-500",
     group: "Atendimento",
     label: "PSGO",
@@ -56,6 +61,7 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "puerperio",
+    soft: "bg-fuchsia-50 text-fuchsia-600 ring-fuchsia-100",
     tile: "from-fuchsia-500 to-pink-500",
     group: "Internação",
     label: "Puerpério",
@@ -68,6 +74,7 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "oncogineco",
+    soft: "bg-violet-50 text-violet-600 ring-violet-100",
     tile: "from-violet-500 to-purple-600",
     group: "Internação",
     label: "Onco-Ginecologia",
@@ -80,6 +87,7 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "ferramentas",
+    soft: "bg-slate-100 text-slate-600 ring-slate-200",
     tile: "from-slate-500 to-slate-700",
     group: "Utilitários",
     label: "Ferramentas",

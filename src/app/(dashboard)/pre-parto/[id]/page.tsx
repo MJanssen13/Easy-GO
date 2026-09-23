@@ -149,7 +149,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
               <Button>
                 <Stethoscope className="h-4 w-4" /> Registrar aferição
                 {overdue.length > 0 && (
-                  <span className="btn-count ml-1 rounded-full bg-white/25 px-1.5 text-xs">{overdue.length}</span>
+                  <span className="ml-1 rounded-full bg-white/25 px-1.5 text-xs">{overdue.length}</span>
                 )}
               </Button>
             </Link>
@@ -319,7 +319,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
             <form action={resolvePatientAction} className="flex flex-wrap items-end gap-2">
               <input type="hidden" name="id" value={patient.id} />
               <div className="space-y-1">
-                <Label className="text-xs">Desfecho</Label>
+                <Label className="field-label">Desfecho</Label>
                 <select name="outcome" required defaultValue="" className={selectClass}>
                   <option value="" disabled>
                     Selecione…
@@ -331,7 +331,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                 </select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Data/hora (opcional)</Label>
+                <Label className="field-label">Data/hora (opcional)</Label>
                 <Input type="datetime-local" name="dischargeTime" className="w-52" />
               </div>
               <Button type="submit" size="sm">

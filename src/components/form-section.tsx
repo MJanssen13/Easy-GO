@@ -132,56 +132,32 @@ export function Section({
   }, [unregister, key]);
 
   return (
-    <Card
-      id={id}
-      ref={cardRef}
-      className={cn(
-        "relative scroll-mt-32 overflow-hidden transition-shadow lg:scroll-mt-24",
-        open && "shadow-lift ring-1 ring-primary/15",
-      )}
-    >
-      {/* Faixa lateral na cor do módulo quando aberta */}
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-0 left-0 w-1 bg-[linear-gradient(180deg,hsl(var(--grad-from)),hsl(var(--grad-to)))] transition-opacity",
-          open ? "opacity-100" : "opacity-0",
-        )}
-      />
-      <div
-        className={cn(
-          "flex flex-wrap items-center justify-between gap-2 px-5 py-3.5 sm:px-6",
-          open && "border-b border-primary/10 bg-[linear-gradient(90deg,hsl(var(--accent)),transparent_70%)]",
-        )}
-      >
+    <Card id={id} ref={cardRef} className="scroll-mt-32 lg:scroll-mt-24">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3.5 sm:px-6">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex min-h-9 flex-1 items-center gap-3 text-left"
+          className="flex min-h-9 flex-1 items-center gap-2.5 text-left"
         >
           <span
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors",
-              nav && filled
-                ? "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-sm"
-                : open
-                  ? "chip-on"
-                  : "bg-muted text-muted-foreground",
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
+              nav && filled ? "bg-emerald-100 text-emerald-700" : "bg-accent text-[hsl(var(--accent-foreground))]",
             )}
           >
             {nav && filled ? (
-              <Check className="h-4 w-4" aria-label="Preenchida" />
+              <Check className="h-3.5 w-3.5" aria-label="Preenchida" />
             ) : (
-              <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`} />
             )}
           </span>
-          <span className="text-[15px] font-bold leading-tight tracking-tight">{title}</span>
+          <span className="text-base font-semibold leading-tight tracking-tight text-slate-900">{title}</span>
         </button>
         {headerExtra && <div className="ml-auto flex max-w-full items-center gap-2">{headerExtra}</div>}
       </div>
       {open && (
-        <div className={`px-5 pb-5 pt-4 sm:px-6 sm:pb-6 ${contentClassName ?? ""}`}>
+        <div className={`border-t border-border/60 px-5 pb-5 pt-4 sm:px-6 sm:pb-6 ${contentClassName ?? ""}`}>
           {children}
           {/* Botão de recolher a seção (^), ao fim do conteúdo. */}
           <div className="flex justify-center pt-1">

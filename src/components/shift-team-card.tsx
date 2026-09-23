@@ -64,7 +64,7 @@ export function ShiftTeamCard() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {ROLES.map(([k, label]) => (
             <div key={k} className="space-y-1">
-              <Label className="text-xs">{label}</Label>
+              <Label className="field-label">{label}</Label>
               <Input
                 value={team[k]}
                 onChange={(e) => set(k, e.target.value)}

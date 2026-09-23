@@ -55,7 +55,7 @@ export function PsgoTransfer({ patientId }: { patientId: string }) {
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label className="text-xs">Módulo de destino</Label>
+        <Label className="field-label">Módulo de destino</Label>
         <div className="flex flex-wrap gap-1.5">
           {TARGETS.map((t) => (
             <button
@@ -78,13 +78,13 @@ export function PsgoTransfer({ patientId }: { patientId: string }) {
       {target === "pre_parto" && (
         <div className="space-y-3 rounded-xl border bg-muted/30 p-3">
           <div className="space-y-1">
-            <Label htmlFor="psgo-transfer-bed" className="text-xs">
+            <Label htmlFor="psgo-transfer-bed" className="field-label">
               Leito no Pré-Parto
             </Label>
             <Input id="psgo-transfer-bed" value={bed} onChange={(e) => setBed(e.target.value)} placeholder="ex.: 3" className="w-28" />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Situação ao chegar (define a rotina de aferições)</Label>
+            <Label className="field-label">Situação ao chegar (define a rotina de aferições)</Label>
             <div className="flex flex-wrap gap-1.5">
               {ARRIVAL_STATUS.map((o) => (
                 <button
@@ -107,7 +107,7 @@ export function PsgoTransfer({ patientId }: { patientId: string }) {
       )}
 
       <div className="space-y-1">
-        <Label htmlFor="psgo-transfer-reason" className="text-xs">Motivo (opcional)</Label>
+        <Label htmlFor="psgo-transfer-reason" className="field-label">Motivo (opcional)</Label>
         <Input
           id="psgo-transfer-reason"
           value={reason}

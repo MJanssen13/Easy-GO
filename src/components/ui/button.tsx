@@ -8,11 +8,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "btn-default bg-[linear-gradient(135deg,hsl(var(--grad-from)),hsl(var(--grad-to)))] text-primary-foreground shadow-[0_6px_16px_-6px_hsl(var(--primary)/0.6)] ring-1 ring-inset ring-white/10 hover:brightness-110",
+          "btn-default bg-primary text-primary-foreground shadow-soft hover:bg-primary/90",
         destructive:
           "bg-destructive text-destructive-foreground shadow-soft hover:bg-destructive/90",
         outline:
-          "btn-outline border border-border bg-white text-foreground shadow-card hover:border-primary/30 hover:bg-accent hover:text-accent-foreground",
+          "btn-outline border border-border bg-white text-foreground hover:border-slate-300 hover:bg-slate-50",
         secondary: "btn-outline bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "btn-ghost text-muted-foreground hover:bg-muted hover:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",

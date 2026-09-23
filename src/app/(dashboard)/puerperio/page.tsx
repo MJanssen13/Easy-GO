@@ -31,7 +31,7 @@ function PuerperaCard({ patient }: { patient: Patient }) {
         <div className="flex items-center gap-3">
           <BedAvatar bed={patient.bed} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-extrabold tracking-tight">{patient.name}</p>
+            <p className="truncate text-base font-semibold text-slate-900 tracking-tight">{patient.name}</p>
             <div className="mt-1"><Badge variant={resolved ? "outline" : "success"}>{resolved ? "Alta" : `${day}º DPP`}</Badge></div>
           </div>
         </div>

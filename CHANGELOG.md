@@ -5,6 +5,19 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Design — minimalista (padrão LabFlow)
+
+- Sai o visual de banners em gradiente: cabeçalhos sóbrios (ícone do módulo em
+  tinta clara, título escuro, "voltar" discreto, leito em selo claro).
+- **Uma cor por módulo, em tons suaves**: seleções (chips, índice, segmentos)
+  em tinta clara com contorno; botão principal sólido; ícones de módulo e de
+  títulos em pílula clara (como o `step-badge` do LabFlow).
+- **Rótulos de campo** em caixa-alta pequena cinza (`.field-label`), como no
+  LabFlow; seções com marcador discreto e divisória fina.
+- **Prévia do prontuário** em caixa clara com mono 13 px.
+- Cards dos quadros sem faixa colorida (só uma linha rosa discreta quando há
+  pendência).
+
 ### Design — sessões com cores marcantes
 
 - **Cor forte por módulo**: Pré-Parto rosa-coral, Puerpério fúcsia (antes igual

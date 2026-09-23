@@ -759,7 +759,7 @@ export function PsgoGenerator({
   }
   const gyField = (field: GyField) => (
     <div key={field.id} className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{field.label}</Label>
+      <Label className="field-label">{field.label}</Label>
       {field.render === "select" ? (
         <select
           className={`${selectClass} h-8 w-40`}
@@ -790,7 +790,7 @@ export function PsgoGenerator({
   // Linha de chips de seleção única (especular).
   const gyChipRow = (label: string, fieldId: string, options: { label: string }[]) => (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="field-label">{label}</Label>
       <div className="flex flex-wrap gap-1.5">
         {options.map((op) => (
           <Chip
@@ -1083,9 +1083,9 @@ export function PsgoGenerator({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-semibold">CTG {idx + 1}</p>
           <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Data</Label>
+            <Label className="field-label">Data</Label>
             <DateBRInput className="h-8 w-28" value={c.date} onChange={(iso) => set({ date: iso })} />
-            <Label className="text-xs text-muted-foreground">Horário</Label>
+            <Label className="field-label">Horário</Label>
             <Input type="time" className="h-8 w-28" value={c.time} onChange={(e) => set({ time: e.target.value })} />
             <Button
               type="button"
@@ -1228,7 +1228,7 @@ export function PsgoGenerator({
             Pontuação: <strong className="text-primary">{psgoCtgScore(c)}/5</strong>
           </span>
           <div className="flex items-center gap-2">
-            <Label className="text-xs">Conclusão</Label>
+            <Label className="field-label">Conclusão</Label>
             <select
               className={`${selectClass} h-8 w-44 font-semibold`}
               value={psgoCtgConclusion(c)}
@@ -1535,7 +1535,7 @@ export function PsgoGenerator({
               {form.pregnant && (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <Label className="text-xs">Datação</Label>
+                  <Label className="field-label">Datação</Label>
                   <InfoTip title="Como é feita a datação">
                     <p>
                       O USG usado é sempre a <strong>1ª coluna</strong> do quadro de exames de
@@ -1641,7 +1641,7 @@ export function PsgoGenerator({
             {/* Nº de fetos · Apresentação · Início do TP na mesma linha */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
-                <Label className="text-xs">Nº de fetos</Label>
+                <Label className="field-label">Nº de fetos</Label>
                 <Segmented
                   value={form.fetuses}
                   onChange={(v) =>
@@ -1657,7 +1657,7 @@ export function PsgoGenerator({
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Apresentação</Label>
+                <Label className="field-label">Apresentação</Label>
                 <Segmented
                   value={form.presentation}
                   onChange={(v) => update({ presentation: v })}
@@ -1669,7 +1669,7 @@ export function PsgoGenerator({
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Início do TP (Atual ou predição)</Label>
+                <Label className="field-label">Início do TP (Atual ou predição)</Label>
                 <Segmented
                   value={form.laborOnset}
                   onChange={(v) => update({ laborOnset: v })}
@@ -1684,7 +1684,7 @@ export function PsgoGenerator({
             {form.fetuses === "multiple" && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Gemelaridade</Label>
+                  <Label className="field-label">Gemelaridade</Label>
                   <Segmented
                     value={form.multiplicity}
                     onChange={(v) => update({ multiplicity: v, chorionAmnion: "" })}
@@ -1696,7 +1696,7 @@ export function PsgoGenerator({
                 </div>
                 {form.multiplicity && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Corionicidade e amnionicidade</Label>
+                    <Label className="field-label">Corionicidade e amnionicidade</Label>
                     <select
                       className={`${selectClass} max-w-full`}
                       value={form.chorionAmnion}
@@ -2159,7 +2159,7 @@ export function PsgoGenerator({
 
             {/* Outros exames de imagem (RX, TC, RM…) — texto livre, datado. */}
             <div className="space-y-1 border-t pt-3">
-              <Label className="text-xs">Outros exames de imagem</Label>
+              <Label className="field-label">Outros exames de imagem</Label>
               <Textarea
                 rows={2}
                 placeholder="-(dd/mm/aa): RX DE TÓRAX SEM ALTERAÇÕES / -(dd/mm/aa): TC DE CRÂNIO…"
@@ -2279,7 +2279,7 @@ export function PsgoGenerator({
         >
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">Cirurgias prévias</Label>
+                <Label className="field-label">Cirurgias prévias</Label>
                 <Chip
                   active={form.surgeriesDenied}
                   onClick={() => update({ surgeriesDenied: !form.surgeriesDenied })}
@@ -2305,7 +2305,7 @@ export function PsgoGenerator({
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">Alergias</Label>
+                <Label className="field-label">Alergias</Label>
                 <Chip
                   active={form.allergiesDenied}
                   onClick={() => update({ allergiesDenied: !form.allergiesDenied })}
@@ -2374,7 +2374,7 @@ export function PsgoGenerator({
                 </select>
               </Field>
               <div className="space-y-2">
-                <Label className="text-xs">Coombs indireto (CI)</Label>
+                <Label className="field-label">Coombs indireto (CI)</Label>
                 {form.coombsList.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     Nenhum CI registrado. Use &ldquo;+ CI&rdquo; para adicionar.
@@ -2504,7 +2504,7 @@ export function PsgoGenerator({
               {/* Sorologias do hospital (internas) — coladas abaixo das externas;
                   são mescladas e ordenadas por data na colagem. */}
               <div className="space-y-1">
-                <Label className="text-xs">Colar sorologias do hospital (internas)</Label>
+                <Label className="field-label">Colar sorologias do hospital (internas)</Label>
                 <Textarea
                   rows={3}
                   placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
@@ -2541,7 +2541,7 @@ export function PsgoGenerator({
               {/* Chegada da paciente */}
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Chegada</Label>
+                  <Label className="field-label">Chegada</Label>
                   <Segmented
                     value={hpmaArrival}
                     onChange={setHpmaArrival}
@@ -2841,7 +2841,7 @@ export function PsgoGenerator({
                   </div>
                   {/* Dor ao toque (multi; "Indolor" exclusivo) */}
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
+                    <Label className="field-label">
                       Dor ao toque (pode marcar mais de um)
                     </Label>
                     <div className="flex flex-wrap gap-1.5">

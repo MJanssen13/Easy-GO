@@ -24,7 +24,7 @@ export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stat
         <div className="flex items-center gap-3">
           <BedAvatar bed={patient.bed} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-extrabold tracking-tight text-foreground">{patient.name}</p>
+            <p className="truncate text-base font-semibold text-slate-900 tracking-tight text-foreground">{patient.name}</p>
             <Badge variant={PATIENT_STATUS_BADGE[patient.status]} className="mt-1">
               {PATIENT_STATUS_LABELS[patient.status]}
             </Badge>

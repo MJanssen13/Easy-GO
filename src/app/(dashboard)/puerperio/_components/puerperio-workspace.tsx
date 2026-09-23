@@ -184,7 +184,7 @@ export function PuerperioWorkspace({
           <DeliveryFields value={delivery} onChange={setDelivery} />
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Label className="text-xs">Contexto da internação</Label>
+              <Label className="field-label">Contexto da internação</Label>
               <button
                 type="button"
                 onClick={() => setHistory((h) => ({ ...h, context: draftContext(delivery) }))}
@@ -360,7 +360,7 @@ export function PuerperioWorkspace({
         >
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Label className="text-xs">Parâmetros da enfermagem</Label>
+              <Label className="field-label">Parâmetros da enfermagem</Label>
               <button
                 type="button"
                 onClick={() => set({ nursingParams: nursingParamsFrom(observations) })}

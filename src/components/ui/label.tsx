@@ -49,7 +49,7 @@ const Label = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLL
             if (el?.getAttribute("aria-labelledby") === id) el.focus();
           }
         }}
-        className={cn("text-sm font-medium leading-none text-foreground", className)}
+        className={cn("field-label leading-none", className)}
         {...props}
       />
     );

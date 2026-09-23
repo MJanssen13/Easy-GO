@@ -130,8 +130,8 @@
   .app-surface {
     background-color: hsl(var(--background));
     background-image:
-      radial-gradient(52rem 26rem at 100% -8%, hsl(var(--grad-to) / 0.13), transparent 62%),
-      radial-gradient(40rem 22rem at 18% -12%, hsl(var(--grad-from) / 0.09), transparent 60%);
+      radial-gradient(60rem 60rem at 110% -10%, hsl(var(--primary) / 0.05), transparent 60%),
+      radial-gradient(50rem 50rem at -10% 0%, rgb(0 32 91 / 0.04), transparent 55%);
     background-attachment: fixed;
   }
   /* Rolagem fina e discreta. */
@@ -149,86 +149,39 @@
   .prontuario-text {
     @apply whitespace-pre-wrap break-words font-mono text-sm leading-relaxed;
   }
-  /* Prévia do prontuário na tela: painel escuro com faixa na cor do módulo. */
+  /* Prévia do prontuário: caixa clara e discreta, em mono (como no LabFlow). */
   @media screen {
     pre.prontuario-text {
-      background-color: #0b1220 !important;
-      color: #e2e8f0;
-      border: 0 !important;
-      box-shadow:
-        inset 0 3px 0 0 hsl(var(--grad-to)),
-        0 10px 30px -12px rgb(15 23 42 / 0.45) !important;
-      border-radius: 1rem;
-      padding: 1.1rem 1.15rem !important;
-      --tw-ring-shadow: 0 0 #0000 !important;
-    }
-    pre.prontuario-text::selection,
-    pre.prontuario-text *::selection {
-      background: hsl(var(--primary) / 0.55);
-      color: #fff;
+      background-color: hsl(220 20% 98%) !important;
+      color: hsl(224 40% 16%);
+      border: 1px solid hsl(var(--border)) !important;
+      border-radius: 0.75rem;
+      padding: 0.9rem 1rem !important;
+      font-size: 13px;
+      box-shadow: none !important;
     }
   }
 
-  /* Ícone do título dos cards em "bolha" na cor do módulo. */
+  /* Seleção ativa (chips, índice, segmentos): tinta clara da cor do módulo. */
+  .chip-on {
+    border-color: hsl(var(--primary) / 0.55) !important;
+    color: hsl(var(--accent-foreground)) !important;
+    background-color: hsl(var(--accent)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.18);
+  }
+
+  /* Ícone do título dos cards: pílula clara ("step-badge" do LabFlow). */
   [data-card-title] > svg:first-child,
   [data-card-title] > span:first-child > svg:first-child {
     box-sizing: content-box;
-    padding: 7px;
-    border-radius: 11px;
-    color: #fff !important;
-    background-image: linear-gradient(135deg, hsl(var(--grad-from)), hsl(var(--grad-to)));
-    box-shadow: 0 4px 10px -4px hsl(var(--primary) / 0.55);
-  }
-
-  /* Seleção ativa (chips, índice, segmentos): gradiente da cor do módulo. */
-  .chip-on {
-    border-color: transparent !important;
-    color: #fff !important;
-    background-image: linear-gradient(135deg, hsl(var(--grad-from)), hsl(var(--grad-to)));
-    box-shadow: 0 4px 12px -4px hsl(var(--primary) / 0.55);
-  }
-
-  /* Banner (hero) das páginas: gradiente forte do módulo, texto branco. */
-  .page-hero {
-    background-image:
-      radial-gradient(28rem 14rem at 105% -30%, rgb(255 255 255 / 0.28), transparent 60%),
-      radial-gradient(20rem 12rem at -5% 130%, rgb(0 0 0 / 0.18), transparent 60%),
-      linear-gradient(120deg, hsl(var(--grad-from)), hsl(var(--grad-via)) 55%, hsl(var(--grad-to)));
-    box-shadow: 0 18px 40px -22px hsl(var(--primary) / 0.75);
-  }
-  /* Botões dentro do banner: primário branco, secundários em vidro. */
-  .page-hero .btn-default {
-    background: #fff !important;
+    padding: 5px;
+    border-radius: 9999px;
     color: hsl(var(--accent-foreground)) !important;
-    box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.35);
+    background-color: hsl(var(--accent));
   }
-  .page-hero .btn-outline,
-  .page-hero .btn-ghost {
-    background: rgb(255 255 255 / 0.14) !important;
-    color: #fff !important;
-    border-color: rgb(255 255 255 / 0.3) !important;
-    box-shadow: none;
-    backdrop-filter: blur(8px);
-  }
-  .page-hero .btn-count {
-    background: hsl(var(--primary));
-    color: #fff;
-  }
-  .page-hero .btn-outline:hover,
-  .page-hero .btn-ghost:hover {
-    background: rgb(255 255 255 / 0.24) !important;
-  }
-}
 
-/* Partograma: automático (das aferições) em azul na tela, preto na impressão. */
-.pg-ink { fill: #000; }
-.pg-ink-stroke { stroke: #000; }
-.pg-auto { fill: #1d4ed8; }
-.pg-auto-stroke { stroke: #1d4ed8; }
-.pg-auto-text { color: #1d4ed8; }
-@media print {
-  .pg-auto { fill: #000; }
-  .pg-auto-stroke { stroke: #000; }
-  .pg-auto-text { color: #000 !important; }
-  body { background: #fff !important; }
+  /* Rótulo de campo: caixa-alta pequena em cinza. */
+  .field-label {
+    @apply text-[11px] font-semibold uppercase tracking-wide text-muted-foreground;
+  }
 }

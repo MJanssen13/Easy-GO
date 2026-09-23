@@ -782,7 +782,7 @@ export function ReceitaGenerator({
                     {it.tipoFrequencia === "TURNO" && (
                       <div className="col-span-2 space-y-2 sm:col-span-4">
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Turnos</Label>
+                          <Label className="field-label">Turnos</Label>
                           <div className="flex flex-wrap gap-1.5">
                             {TURNO_OPTIONS.map((t) => (
                               <Chip
@@ -797,7 +797,7 @@ export function ReceitaGenerator({
                         </div>
                         {it.turnos.length > 0 && (
                           <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">
+                            <Label className="field-label">
                               Dose por turno (opcional — deixe em branco para usar a dose acima)
                             </Label>
                             <div className="flex flex-wrap gap-3">

@@ -482,7 +482,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
 
   const gyField = (field: GyField) => (
     <div key={field.id} className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{field.label}</Label>
+      <Label className="field-label">{field.label}</Label>
       {field.render === "select" ? (
         <select
           className={`${selectClass} h-8 w-40`}
@@ -512,7 +512,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
   );
   const gyChipRow = (label: string, fieldId: string, options: { label: string }[]) => (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="field-label">{label}</Label>
       <div className="flex flex-wrap gap-1.5">
         {options.map((op) => (
           <Chip
@@ -774,7 +774,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             </label>
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
-                <Label className="text-xs">Datação</Label>
+                <Label className="field-label">Datação</Label>
                 <InfoTip title="Como é feita a datação">
                   <p>O USG usado é sempre a <strong>1ª coluna</strong> do quadro de exames de imagem.</p>
                   <p><strong>DUM</strong> — regra de Naegele (DUM + 280 dias).</p>
@@ -1073,7 +1073,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             </Button>
           </div>
           <div className="space-y-2">
-            <Label className="text-xs">Coombs indireto (CI)</Label>
+            <Label className="field-label">Coombs indireto (CI)</Label>
             {form.coombsList.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Nenhum CI registrado. Use &ldquo;+ CI&rdquo; para adicionar.
@@ -1203,7 +1203,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         >
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-xs">Cirurgias prévias (CX prévias)</Label>
+              <Label className="field-label">Cirurgias prévias (CX prévias)</Label>
               <Chip active={form.surgeriesDenied} onClick={() => update({ surgeriesDenied: !form.surgeriesDenied })}>
                 Nega
               </Chip>
@@ -1224,7 +1224,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-xs">Alergias</Label>
+              <Label className="field-label">Alergias</Label>
               <Chip active={form.allergiesDenied} onClick={() => update({ allergiesDenied: !form.allergiesDenied })}>
                 Nega
               </Chip>
@@ -1335,7 +1335,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             );
           })}
           <div className="space-y-1 border-t pt-2">
-            <Label className="text-xs">Outras vacinas</Label>
+            <Label className="field-label">Outras vacinas</Label>
             <Textarea
               rows={2}
               placeholder="Ex.: Febre amarela (pré-gestacional); Hepatite A…"
@@ -1484,7 +1484,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
               </div>
             )}
             <div className="space-y-1">
-              <Label className="text-xs">Colar sorologias do hospital (internas)</Label>
+              <Label className="field-label">Colar sorologias do hospital (internas)</Label>
               <Textarea
                 rows={3}
                 placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
@@ -1824,7 +1824,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                 </p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{toqueFieldsFor(true).map(gyField)}</div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Dor ao toque (pode marcar mais de um)</Label>
+                  <Label className="field-label">Dor ao toque (pode marcar mais de um)</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {TOQUE_DOR_OPTIONS.map((op) => (
                       <Chip key={op.key} active={form.gyneco.values[op.key] === "1"} onClick={() => toggleDor(op.key)}>

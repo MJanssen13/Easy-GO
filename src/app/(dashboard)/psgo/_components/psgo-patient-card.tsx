@@ -38,7 +38,7 @@ export function PsgoPatientCard({ patient }: { patient: Patient }) {
               <User className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="truncate font-extrabold leading-tight tracking-tight">{patient.name}</p>
+              <p className="truncate font-semibold text-slate-900 leading-tight tracking-tight">{patient.name}</p>
               {patient.medicalRecordNumber && (
                 <p className="text-xs text-muted-foreground">RG {patient.medicalRecordNumber}</p>
               )}

@@ -199,7 +199,7 @@ export function ShiftEvolution({
         </Field>
 
         <div>
-          <Label className="text-xs">Prévia</Label>
+          <Label className="field-label">Prévia</Label>
           <pre className="prontuario-text mt-1 max-h-[50vh] overflow-y-auto text-xs">{text}</pre>
         </div>
       </CardContent>

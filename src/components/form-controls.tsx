@@ -35,7 +35,7 @@ export function LabeledBox({
       <span
         id={id}
         onClick={() => box.current?.querySelector<HTMLElement>(CONTROL)?.focus()}
-        className={cn("block text-xs font-medium leading-none", labelClassName)}
+        className={cn("field-label block leading-none", labelClassName)}
       >
         {label}
       </span>
@@ -56,7 +56,7 @@ export function Field({
 }) {
   return (
     <label className={cn("block space-y-1", className)}>
-      <span className="text-xs font-medium leading-none">{label}</span>
+      <span className="field-label block leading-none">{label}</span>
       {children}
     </label>
   );
