@@ -1,14 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Plus,
-  Trash2,
-  Stethoscope,
-  Info,
-  FlaskConical,
-  ExternalLink,
-} from "lucide-react";
+import { Plus, Trash2, Info, FlaskConical, ExternalLink, FileText } from "lucide-react";
 import {
   emptyPrenatalForm,
   type PrenatalForm,
@@ -1898,7 +1891,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
               <span className="flex items-center gap-2">
-                <Stethoscope className="h-4 w-4 text-teal-600" /> Prontuário
+                <FileText className="h-4 w-4 text-primary" /> Prontuário
               </span>
               <CopyButton text={text} />
             </CardTitle>

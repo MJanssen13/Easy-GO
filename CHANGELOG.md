@@ -5,6 +5,18 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Design — menu recolhível e ícones por seção
+
+- **Menu lateral recolhível**: botão no topo do menu (ou **Ctrl/⌘+B**) alterna
+  entre completo e só ícones, com o nome ao passar o mouse; a escolha fica
+  lembrada no aparelho.
+- **Ícones próprios** (`src/components/icons/clinical.tsx`, estilo lucide):
+  **Pré-Parto** gestante com traçado de monitorização · **Pré-Natal** gestante
+  com coração · **Puerpério** mãe com bebê. E do lucide: **PSGO** ambulância ·
+  **Onco** laço de conscientização · **Ferramentas** maleta médica · **Plantão**
+  hospital. Cabeçalhos "Prontuário" com ícone de documento.
+- Ícones do menu maiores e mais legíveis.
+
 ### Design — visual moderno
 
 - **Nova navegação**: barra lateral fixa no computador (módulos agrupados em

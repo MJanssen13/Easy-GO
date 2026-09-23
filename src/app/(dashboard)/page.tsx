@@ -8,7 +8,6 @@ import {
   HeartPulse,
   Pill,
   Plus,
-  Stethoscope,
 } from "lucide-react";
 import { getModule } from "@/lib/modules";
 import { listPatients } from "@/core/patients/repository";
@@ -23,6 +22,7 @@ import { postOpDay } from "@/core/oncogineco/render";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftTeamCard } from "@/components/shift-team-card";
 import { ModuleTile } from "@/components/module-tile";
+import { PregnantHeartIcon } from "@/components/icons/clinical";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +50,7 @@ function who(p: Patient): string {
 }
 
 const QUICK = [
-  { href: "/pre-natal", label: "Consulta de pré-natal", icon: Stethoscope },
+  { href: "/pre-natal", label: "Consulta de pré-natal", icon: PregnantHeartIcon },
   { href: "/pre-parto/cronograma", label: "Cronograma de aferições", icon: CalendarClock },
   { href: "/ferramentas/receita", label: "Receita", icon: Pill },
   { href: "/ferramentas/cardiotocografia", label: "Cardiotocografia", icon: HeartPulse },

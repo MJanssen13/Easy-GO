@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 /** Ícone do módulo num quadrado com o gradiente da cor do módulo. */
 export function ModuleTile({ m, size = "md" }: { m: Pick<ModuleDef, "icon" | "tile">; size?: "sm" | "md" | "lg" }) {
   const Icon = m.icon;
-  const box = size === "sm" ? "h-7 w-7 rounded-lg" : size === "lg" ? "h-12 w-12 rounded-2xl" : "h-9 w-9 rounded-xl";
-  const ico = size === "sm" ? "h-3.5 w-3.5" : size === "lg" ? "h-6 w-6" : "h-[18px] w-[18px]";
+  const box = size === "sm" ? "h-8 w-8 rounded-lg" : size === "lg" ? "h-12 w-12 rounded-2xl" : "h-9 w-9 rounded-xl";
+  const ico = size === "sm" ? "h-[18px] w-[18px]" : size === "lg" ? "h-7 w-7" : "h-5 w-5";
   return (
     <span
       className={cn(
