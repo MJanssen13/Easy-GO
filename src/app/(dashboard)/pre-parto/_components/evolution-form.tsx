@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Save, Target, Calculator } from "lucide-react";
+import { AlertTriangle, Loader2, Save, Target, Calculator, Link2 } from "lucide-react";
 import { recordObservation, type ObservationState } from "../actions";
 import type { Patient } from "@/core/patients/types";
 import { MONITOR_PARAMS, paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
@@ -17,11 +17,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { vitalAlerts, parseDiuresisMlH, type VitalAlert } from "@/core/obstetric/alerts";
+import { readShiftTeam } from "@/lib/shift-team";
 
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const initialState: ObservationState = {};
+
+const EXAMINER_KEY = "easygo.lastExaminer";
+
+/** Contrações em 10 min e duração (s) para montar a dinâmica "3x40''/10'". */
+const DYN_COUNTS = [0, 1, 2, 3, 4, 5];
+const DYN_DURATIONS = [20, 30, 40, 50, 60];
+
+function num(fd: FormData, k: string): number | null {
+  const v = fd.get(k);
+  if (v == null || v === "") return null;
+  const n = Number(String(v).replace(",", "."));
+  return Number.isNaN(n) ? null : n;
+}
 
 const VITAL_PARAMS = ["PA", "FC", "TAX", "Sat", "DXT"];
 const MG_PARAMS = ["Reflexo", "Diurese", "FR"];
@@ -58,6 +73,8 @@ function Field({
 export function EvolutionForm({
   patient,
   taskId,
+  taskLabel,
+  unlinkHref,
   focus = [],
   defaultRecordedAt,
   returnTo,
@@ -65,6 +82,10 @@ export function EvolutionForm({
 }: {
   patient: EvolutionPatient;
   taskId?: string;
+  /** Ex.: "13:00" — horário da tarefa do cronograma que esta aferição conclui. */
+  taskLabel?: string;
+  /** Link para registrar sem vincular à tarefa. */
+  unlinkHref?: string;
   focus?: string[];
   defaultRecordedAt?: string;
   returnTo?: string;
@@ -104,6 +125,57 @@ export function EvolutionForm({
     [dilation, effacement, station, cervixConsistency, cervixPosition],
   );
 
+  // Dinâmica uterina: texto livre + atalho (nº de contrações × duração).
+  const [dynamics, setDynamics] = useState("");
+  const [dynCount, setDynCount] = useState<number | null>(null);
+  function pickDynamics(count: number | null, dur: number | null) {
+    setDynCount(count);
+    if (count === 0) setDynamics("AUSENTE");
+    else if (count != null && dur != null) setDynamics(`${count}x${dur}''/10'`);
+  }
+
+  // Examinador(a): lembra o último neste aparelho e sugere a equipe de plantão.
+  const [examiner, setExaminer] = useState("");
+  const [teamNames, setTeamNames] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      setExaminer(window.localStorage.getItem(EXAMINER_KEY) ?? "");
+    } catch {
+      // sem localStorage
+    }
+    const team = readShiftTeam();
+    setTeamNames(
+      [...new Set((Object.values(team) as string[]).flatMap((v) => v.split(",").map((n) => n.trim())).filter(Boolean))],
+    );
+  }, []);
+  function rememberExaminer(v: string) {
+    setExaminer(v);
+    try {
+      window.localStorage.setItem(EXAMINER_KEY, v);
+    } catch {
+      // sem localStorage
+    }
+  }
+
+  // Alertas ao vivo (valores fora da faixa) — lidos do próprio formulário.
+  const [alerts, setAlerts] = useState<VitalAlert[]>([]);
+  function refreshAlerts(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    setAlerts(
+      vitalAlerts({
+        bcf: num(fd, "bcf"),
+        paSystolic: num(fd, "paSystolic"),
+        paDiastolic: num(fd, "paDiastolic"),
+        fc: num(fd, "fc"),
+        tax: num(fd, "tax"),
+        spo2: num(fd, "spo2"),
+        mgReflex: (fd.get("mgReflex") as string) || null,
+        respiratoryRate: num(fd, "mgRespiratoryRate"),
+        diuresisMlH: parseDiuresisMlH(fd.get("mgDiuresis") as string),
+      }),
+    );
+  }
+
   const showVitais = VITAL_PARAMS.some(show);
   const showBcfDin = show("BCF") || show("Dinâmica");
   const showToque = show("Toque");
@@ -111,10 +183,29 @@ export function EvolutionForm({
   const showMg = MG_PARAMS.some(show) || patient.useMagnesiumSulfate;
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form
+      action={formAction}
+      className="space-y-5"
+      onInput={(e) => refreshAlerts(e.currentTarget)}
+      onChange={(e) => refreshAlerts(e.currentTarget)}
+    >
       <input type="hidden" name="patientId" value={patient.id} />
       {taskId && <input type="hidden" name="taskId" value={taskId} />}
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
+
+      {taskId && taskLabel && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-900">
+          <span className="flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            Conclui a aferição das <strong>{taskLabel}</strong> do cronograma.
+          </span>
+          {unlinkHref && (
+            <Link href={unlinkHref} className="text-xs font-medium underline-offset-2 hover:underline">
+              Registrar avulsa
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Seletor de aferições — todas disponíveis; cronograma em destaque */}
       <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
@@ -162,7 +253,19 @@ export function EvolutionForm({
               />
             </Field>
             <Field label="Examinador(a)" htmlFor="examinerName">
-              <Input id="examinerName" name="examinerName" autoComplete="off" />
+              <Input
+                id="examinerName"
+                name="examinerName"
+                autoComplete="off"
+                list="examiner-options"
+                value={examiner}
+                onChange={(e) => rememberExaminer(e.target.value)}
+              />
+              <datalist id="examiner-options">
+                {teamNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
             </Field>
           </div>
         </CardContent>
@@ -248,8 +351,38 @@ export function EvolutionForm({
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {show("Dinâmica") && (
-                <Field label="Dinâmica uterina" htmlFor="dynamicsSummary">
-                  <Input id="dynamicsSummary" name="dynamicsSummary" placeholder="ex.: 3x40''/10'" />
+                <Field label="Dinâmica uterina" htmlFor="dynamicsSummary" className="sm:col-span-2">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="w-24 text-xs text-muted-foreground">Contrações/10&apos;</span>
+                      {DYN_COUNTS.map((c) => (
+                        <QuickChip key={c} active={dynCount === c} onClick={() => pickDynamics(c, null)}>
+                          {c}
+                        </QuickChip>
+                      ))}
+                    </div>
+                    {dynCount != null && dynCount > 0 && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="w-24 text-xs text-muted-foreground">Duração</span>
+                        {DYN_DURATIONS.map((d) => (
+                          <QuickChip
+                            key={d}
+                            active={dynamics === `${dynCount}x${d}''/10'`}
+                            onClick={() => pickDynamics(dynCount, d)}
+                          >
+                            {d}&quot;
+                          </QuickChip>
+                        ))}
+                      </div>
+                    )}
+                    <Input
+                      id="dynamicsSummary"
+                      name="dynamicsSummary"
+                      placeholder="ex.: 3x40''/10'"
+                      value={dynamics}
+                      onChange={(e) => setDynamics(e.target.value)}
+                    />
+                  </div>
                 </Field>
               )}
               {show("BCF") && (
@@ -457,6 +590,21 @@ export function EvolutionForm({
         </CardContent>
       </Card>
 
+      {alerts.length > 0 && (
+        <div className="space-y-1 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
+          {alerts.map((a) => (
+            <p
+              key={a.text}
+              className={`flex items-center gap-2 text-sm ${a.level === "danger" ? "font-semibold text-rose-800" : "text-amber-800"}`}
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {a.text}
+            </p>
+          ))}
+          <p className="text-[11px] text-muted-foreground">Apoio à decisão — validar com a equipe.</p>
+        </div>
+      )}
+
       {state.error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{state.error}</p>
       )}
@@ -480,9 +628,32 @@ export function EvolutionForm({
         )}
         <Button type="submit" disabled={pending}>
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Salvar evolução
+          Salvar aferição
         </Button>
       </div>
     </form>
+  );
+}
+
+function QuickChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`h-7 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
+        active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

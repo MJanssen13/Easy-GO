@@ -5,6 +5,24 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Pré-Parto — página da paciente e aferição
+
+- **Registrar aferição** é a ação principal (com nº de atrasadas). Sem tarefa
+  escolhida, a aferição se **vincula sozinha** à pendente da vez (vencida ou nos
+  próximos 30 min — `dueTask`) e já abre os campos devidos; "Registrar avulsa"
+  desfaz o vínculo. A hora do registro passa a ser a real (não a da tarefa).
+- **Faixa de situação** no topo: próxima aferição (ou atrasadas, em vermelho) e
+  **últimos valores** de BCF, PA, DU, toque e TAX, com alertas.
+- **Alertas ao vivo** no formulário para valores fora da faixa (BCF, PA
+  ≥140/90 e ≥160/110, febre, taquicardia, SpO₂, critérios do MgSO₄) —
+  `src/core/obstetric/alerts.ts`, com as fontes citadas.
+- **Dinâmica uterina** por atalho (nº de contrações × duração → `3x40''/10'`).
+- **Examinador(a)** lembrado no aparelho e sugerido a partir da equipe de plantão.
+- Próximas aferições: atrasadas em destaque, **pular** uma ou **todas as atrasadas**.
+- Desfecho e **remover paciente** no fim da coluna (remover e apagar CTG pedem
+  confirmação). No celular, aferições/histórico vêm antes da evolução de plantão.
+- Gráficos de tendência sem animação (abrem completos).
+
 ### Correção — fuso horário do servidor
 
 - Horas renderizadas no servidor (Vercel roda em **UTC**) saíam **3 h adiantadas**:

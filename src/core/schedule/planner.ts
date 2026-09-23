@@ -198,3 +198,25 @@ export function pendingTasks(schedule: ScheduledTask[]): ScheduledTask[] {
 export function upcomingTasks(schedule: ScheduledTask[], limit = 5): ScheduledTask[] {
   return pendingTasks(schedule).slice(0, limit);
 }
+
+/**
+ * Tarefa "da vez" para uma aferição feita agora: a pendente mais próxima entre
+ * as já vencidas e as que vencem nos próximos `aheadMin` minutos. Usada para
+ * vincular automaticamente "Registrar aferição" ao cronograma.
+ */
+export function dueTask(
+  schedule: ScheduledTask[],
+  now: Date = new Date(),
+  aheadMin = 30,
+): ScheduledTask | undefined {
+  const limit = now.getTime() + aheadMin * 60000;
+  const candidates = pendingTasks(schedule).filter(
+    (t) => new Date(t.timestamp).getTime() <= limit,
+  );
+  return candidates[candidates.length - 1];
+}
+
+/** Pendentes já atrasadas (mais de 10 min — ver `taskUrgency`). */
+export function overdueTasks(schedule: ScheduledTask[], now: Date = new Date()): ScheduledTask[] {
+  return pendingTasks(schedule).filter((t) => taskUrgency(t.timestamp, now) === "overdue");
+}

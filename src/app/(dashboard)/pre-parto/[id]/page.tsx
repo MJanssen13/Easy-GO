@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   RotateCcw,
   TrendingUp,
+  Stethoscope,
+  AlertTriangle,
+  SkipForward,
 } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
@@ -23,7 +26,9 @@ import {
 } from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
 import { renderObservationLine } from "@/core/prontuario/preparto";
-import { upcomingTasks } from "@/core/schedule/planner";
+import { upcomingTasks, overdueTasks, taskUrgency } from "@/core/schedule/planner";
+import { latestValues } from "@/core/patients/stats";
+import { vitalAlerts } from "@/core/obstetric/alerts";
 import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,9 +36,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CopyButton } from "@/components/copy-button";
+import { ConfirmSubmit } from "@/components/confirm-submit";
 import { ShiftEvolution } from "../_components/shift-evolution";
 import { VitalCharts } from "../_components/vital-charts";
-import { removePatient, removeCtg, resolvePatientAction, reopenPatientAction } from "../actions";
+import {
+  removePatient,
+  removeCtg,
+  resolvePatientAction,
+  reopenPatientAction,
+  updateTaskStatus,
+  skipOverdueTasks,
+} from "../actions";
 
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -45,6 +58,28 @@ function hhmm(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function timeOnly(iso: string): string {
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** "há 25 min", "há 2 h". */
+function ago(iso: string, now: Date): string {
+  const min = Math.round((now.getTime() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  return `há ${h} h${min % 60 ? ` ${min % 60} min` : ""}`;
+}
+
+/** "em 10 min", "atrasada 25 min". */
+function until(iso: string, now: Date): string {
+  const min = Math.round((new Date(iso).getTime() - now.getTime()) / 60000);
+  if (min < -10) return `atrasada ${-min} min`;
+  if (min <= 0) return "agora";
+  if (min < 60) return `em ${min} min`;
+  return `às ${timeOnly(iso)}`;
 }
 
 function formatBR(iso?: string | null): string {
@@ -79,6 +114,26 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
     { label: "Bebê", value: babyDisplay },
   ];
 
+  const now = new Date();
+  const resolved = RESOLVED_STATUSES.includes(patient.status);
+  const schedule = patient.schedule ?? [];
+  const overdue = overdueTasks(schedule, now);
+  const next = upcomingTasks(schedule, 6);
+  const latest = latestValues(patient.observations);
+  const last = patient.lastObservation;
+  const lastAlerts = last
+    ? vitalAlerts({
+        bcf: last.obstetric.bcf,
+        paSystolic: last.vitals.paSystolic,
+        paDiastolic: last.vitals.paDiastolic,
+        fc: last.vitals.fc,
+        tax: last.vitals.tax,
+        spo2: last.vitals.spo2,
+        mgReflex: last.magnesiumData?.reflex,
+        respiratoryRate: last.magnesiumData?.respiratoryRate,
+      })
+    : [];
+
   return (
     <div className="space-y-5">
       <Link
@@ -88,41 +143,120 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
       </Link>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             <Badge variant={PATIENT_STATUS_BADGE[patient.status]}>
               {PATIENT_STATUS_LABELS[patient.status]}
             </Badge>
             {patient.fetalDeath && <Badge variant="destructive">Óbito fetal</Badge>}
-            {patient.bed && <span className="text-sm text-muted-foreground">Leito {patient.bed}</span>}
+            {patient.useMagnesiumSulfate && <Badge variant="outline">MgSO₄</Badge>}
+            {patient.useMethyldopa && <Badge variant="outline">Metildopa</Badge>}
+            <span className="text-sm text-muted-foreground">
+              {[patient.bed && `Leito ${patient.bed}`, ga && `IG ${ga}`, patient.parity, patient.bloodType]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {!resolved && (
+            <Link href={`/pre-parto/${patient.id}/evolucao`}>
+              <Button>
+                <Stethoscope className="h-4 w-4" /> Registrar aferição
+                {overdue.length > 0 && (
+                  <span className="ml-1 rounded-full bg-white/25 px-1.5 text-xs">{overdue.length}</span>
+                )}
+              </Button>
+            </Link>
+          )}
           <Link href={`/pre-parto/${patient.id}/rotina`}>
-            <Button size="sm">
+            <Button variant="outline">
               <CalendarClock className="h-4 w-4" /> Rotina
             </Button>
           </Link>
-          <Link href={`/pre-parto/${patient.id}/evolucao`}>
-            <Button size="sm" variant="outline">
-              <Plus className="h-4 w-4" /> Nova evolução
-            </Button>
-          </Link>
           <Link href={`/pre-parto/${patient.id}/ctg`}>
-            <Button size="sm" variant="outline">
+            <Button variant="outline">
               <Activity className="h-4 w-4" /> CTG
             </Button>
           </Link>
-          <form action={removePatient}>
-            <input type="hidden" name="id" value={patient.id} />
-            <Button type="submit" variant="outline" size="sm" className="text-destructive">
-              <Trash2 className="h-4 w-4" /> Remover
-            </Button>
-          </form>
         </div>
       </div>
+
+      {/* Situação agora: próxima aferição, atrasos e últimos valores */}
+      {!resolved && (
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <Link
+            href={`/pre-parto/${patient.id}/evolucao`}
+            className={`flex items-center gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40 ${
+              overdue.length > 0 ? "border-rose-300 bg-rose-50" : "bg-card"
+            }`}
+          >
+            <CalendarClock
+              className={`h-8 w-8 shrink-0 ${overdue.length > 0 ? "text-rose-600" : "text-primary"}`}
+            />
+            {next[0] ? (
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {overdue.length > 0
+                    ? `${overdue.length} aferição(ões) atrasada(s)`
+                    : "Próxima aferição"}
+                </p>
+                <p className="text-lg font-bold">
+                  {timeOnly(next[0].timestamp)}{" "}
+                  <span
+                    className={`text-sm font-medium ${overdue.length > 0 ? "text-rose-700" : "text-muted-foreground"}`}
+                  >
+                    {until(next[0].timestamp, now)}
+                  </span>
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{next[0].focus.join(" · ")}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm font-semibold">Sem aferições pendentes</p>
+                <p className="text-xs text-muted-foreground">Crie uma rotina ou registre avulsa</p>
+              </div>
+            )}
+          </Link>
+          <div className="rounded-xl border bg-card p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Últimos valores
+              {latest[0] && (
+                <span className="ml-1 normal-case tracking-normal">
+                  · última aferição {ago(patient.observations![0]!.recordedAt, now)}
+                </span>
+              )}
+            </p>
+            {latest.length > 0 ? (
+              <dl className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
+                {latest.map((v) => (
+                  <div key={v.label} className="flex items-baseline gap-1.5">
+                    <dt className="text-xs text-muted-foreground">{v.label}</dt>
+                    <dd className="text-base font-bold">{v.value}</dd>
+                    <span className="text-[10px] text-muted-foreground">{timeOnly(v.at)}</span>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="mt-1.5 text-sm text-muted-foreground">Nenhuma aferição registrada.</p>
+            )}
+            {lastAlerts.length > 0 && (
+              <div className="mt-2 space-y-0.5">
+                {lastAlerts.map((a) => (
+                  <p
+                    key={a.text}
+                    className={`flex items-center gap-1.5 text-xs ${a.level === "danger" ? "font-semibold text-rose-700" : "text-amber-700"}`}
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {a.text}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-5 xl:grid-cols-2">
       <div className="space-y-5">
@@ -159,12 +293,14 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </CardContent>
       </Card>
 
+      <ShiftEvolution patient={patient} observations={patient.observations ?? []} />
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Desfecho</CardTitle>
+          <CardTitle className="text-base">Desfecho e alta</CardTitle>
         </CardHeader>
         <CardContent>
-          {RESOLVED_STATUSES.includes(patient.status) ? (
+          {resolved ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm">
                 <Badge variant="success">{PATIENT_OUTCOME_LABELS[patient.outcome]}</Badge>
@@ -205,71 +341,109 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
               </Button>
             </form>
           )}
+          <div className="mt-4 flex justify-end border-t pt-3">
+            <form action={removePatient}>
+              <input type="hidden" name="id" value={patient.id} />
+              <ConfirmSubmit
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                message={`Remover ${patient.name} e todo o histórico (evoluções, CTGs, rotina)? Esta ação não pode ser desfeita.`}
+              >
+                <Trash2 className="h-4 w-4" /> Remover paciente
+              </ConfirmSubmit>
+            </form>
+          </div>
         </CardContent>
       </Card>
 
-      <ShiftEvolution patient={patient} observations={patient.observations ?? []} />
 
       </div>
 
-      <div className="space-y-5">
+      <div className="order-first space-y-5 xl:order-none">
 
-      {(() => {
-        const next = upcomingTasks(patient.schedule ?? [], 6);
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between gap-2 text-base">
-                <span className="flex items-center gap-2">
-                  <CalendarClock className="h-4 w-4" /> Próximas aferições
-                </span>
-                {next.length > 0 && (
-                  <Link href={`/pre-parto/${patient.id}/rotina`}>
-                    <Button size="sm" variant="outline">
-                      <Pencil className="h-4 w-4" /> Editar rotina
-                    </Button>
-                  </Link>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {next.length > 0 ? (
-                <ul className="space-y-1.5 text-sm">
-                  {next.map((t) => (
-                    <li key={t.id} className="flex items-center gap-2">
-                      <Link
-                        href={`/pre-parto/${patient.id}/evolucao?taskId=${t.id}`}
-                        className="flex items-center gap-2 hover:underline"
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between gap-2 text-base">
+            <span className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4" /> Próximas aferições
+            </span>
+            <span className="flex items-center gap-1">
+            {overdue.length > 0 && (
+              <form action={skipOverdueTasks}>
+                <input type="hidden" name="patientId" value={patient.id} />
+                <Button type="submit" size="sm" variant="ghost" title="Marcar as atrasadas como não aferidas">
+                  <SkipForward className="h-4 w-4" /> Pular atrasadas ({overdue.length})
+                </Button>
+              </form>
+            )}
+            <Link href={`/pre-parto/${patient.id}/rotina`}>
+              <Button size="sm" variant="outline">
+                {next.length > 0 ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {next.length > 0 ? "Editar rotina" : "Criar rotina"}
+              </Button>
+            </Link>
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {next.length > 0 ? (
+            <ul className="divide-y text-sm">
+              {next.map((t) => {
+                const urgency = taskUrgency(t.timestamp, now);
+                return (
+                  <li key={t.id} className="flex items-center gap-2 py-1.5">
+                    <Link
+                      href={`/pre-parto/${patient.id}/evolucao?taskId=${t.id}`}
+                      className="flex min-w-0 flex-1 items-center gap-2 rounded hover:bg-muted/50"
+                      title="Registrar esta aferição"
+                    >
+                      <span
+                        className={`w-12 font-mono font-bold ${urgency === "overdue" ? "text-rose-600" : urgency === "due" ? "text-amber-600" : ""}`}
                       >
-                        <span className="font-mono font-bold">{hhmm(t.timestamp)}</span>
-                        <span className="flex flex-wrap gap-1">
-                          {t.focus.map((f) => (
-                            <span
-                              key={f}
-                              className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
-                            >
-                              {f}
-                            </span>
-                          ))}
+                        {timeOnly(t.timestamp)}
+                      </span>
+                      <span className="flex flex-wrap gap-1">
+                        {t.focus.map((f) => (
+                          <span
+                            key={f}
+                            className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
+                          >
+                            {f}
+                          </span>
+                        ))}
+                      </span>
+                      {urgency !== "upcoming" && (
+                        <span
+                          className={`ml-auto text-[11px] font-medium ${urgency === "overdue" ? "text-rose-600" : "text-amber-600"}`}
+                        >
+                          {until(t.timestamp, now)}
                         </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed px-3 py-4">
-                  <p className="text-sm text-muted-foreground">Nenhuma aferição pendente.</p>
-                  <Link href={`/pre-parto/${patient.id}/rotina`}>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4" /> Criar rotina
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })()}
+                      )}
+                    </Link>
+                    <form action={updateTaskStatus}>
+                      <input type="hidden" name="patientId" value={patient.id} />
+                      <input type="hidden" name="taskId" value={t.id} />
+                      <input type="hidden" name="status" value="cancelled" />
+                      <button
+                        type="submit"
+                        title="Pular (não será aferida)"
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <SkipForward className="h-3.5 w-3.5" />
+                      </button>
+                    </form>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
+              Nenhuma aferição pendente.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {patient.observations && patient.observations.length >= 2 && (
         <Card>
@@ -312,9 +486,14 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                         <form action={removeCtg}>
                           <input type="hidden" name="id" value={c.id} />
                           <input type="hidden" name="patientId" value={patient.id} />
-                          <Button type="submit" variant="ghost" size="icon" className="text-destructive">
+                          <ConfirmSubmit
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                            message="Apagar esta CTG?"
+                          >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </ConfirmSubmit>
                         </form>
                       </div>
                     </div>

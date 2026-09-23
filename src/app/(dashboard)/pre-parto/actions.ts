@@ -21,6 +21,7 @@ import {
   tasksFromRoutines,
   nextHalfHour,
   shiftEnd,
+  overdueTasks,
 } from "@/core/schedule/planner";
 import { getRoutine, hasDiabetesRisk, suggestedBaseRoutine } from "@/core/schedule/routines";
 import { createCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
@@ -533,6 +534,27 @@ export async function updateTaskStatus(formData: FormData): Promise<void> {
   } catch {
     // best-effort
   }
+  revalidatePath("/pre-parto/cronograma");
+  revalidatePath(`/pre-parto/${patientId}`);
+}
+
+/** Marca como puladas (canceladas) todas as aferições já atrasadas da paciente. */
+export async function skipOverdueTasks(formData: FormData): Promise<void> {
+  const patientId = String(formData.get("patientId") ?? "");
+  if (!patientId) return;
+  try {
+    const schedule = await getSchedule(patientId);
+    const overdue = new Set(overdueTasks(schedule).map((t) => t.id));
+    if (overdue.size > 0) {
+      await updateSchedule(
+        patientId,
+        schedule.map((t) => (overdue.has(t.id) ? { ...t, status: "cancelled" as const } : t)),
+      );
+    }
+  } catch {
+    // best-effort
+  }
+  revalidatePath("/pre-parto");
   revalidatePath("/pre-parto/cronograma");
   revalidatePath(`/pre-parto/${patientId}`);
 }

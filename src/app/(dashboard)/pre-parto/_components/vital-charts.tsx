@@ -89,6 +89,7 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
                   name="BCF (bpm)"
                   stroke="#f43f5e"
                   strokeWidth={2}
+                  isAnimationActive={false}
                   dot={{ r: 3 }}
                   connectNulls
                 />
@@ -99,6 +100,7 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
                   name="Dilatação (cm)"
                   stroke="#0ea5e9"
                   strokeWidth={2}
+                  isAnimationActive={false}
                   dot={{ r: 3 }}
                   connectNulls
                 />
@@ -129,6 +131,7 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
                   name="PAS em pé"
                   stroke="#d97706"
                   strokeWidth={2}
+                  isAnimationActive={false}
                   strokeDasharray="5 5"
                   dot={{ r: 3 }}
                   connectNulls
@@ -139,6 +142,7 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
                   name="PAD em pé"
                   stroke="#f59e0b"
                   strokeWidth={2}
+                  isAnimationActive={false}
                   strokeDasharray="5 5"
                   dot={{ r: 3 }}
                   connectNulls
