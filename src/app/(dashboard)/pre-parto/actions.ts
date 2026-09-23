@@ -22,7 +22,7 @@ import {
   nextHalfHour,
   shiftEnd,
 } from "@/core/schedule/planner";
-import { getRoutine, hasDiabetesRisk } from "@/core/schedule/routines";
+import { getRoutine, hasDiabetesRisk, suggestedBaseRoutine } from "@/core/schedule/routines";
 import { createCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
 import { computeCtgScore, suggestConclusion } from "@/core/ctg/scoring";
 import type { NewCtgInput } from "@/core/ctg/types";
@@ -142,7 +142,7 @@ export async function admitPatient(
   // Rotina de aferições já na admissão (editável depois): fase de base pela
   // situação + protocolo de diabetes se houver DMG/Overt nos fatores de risco.
   try {
-    const baseId = d.status === "active_labor" ? "active_phase" : "latent_induction";
+    const baseId = suggestedBaseRoutine(d.status);
     const routines = [getRoutine(baseId)!];
     if (hasDiabetesRisk(input.riskFactors ?? [])) {
       const diabetes = getRoutine("diabetes");

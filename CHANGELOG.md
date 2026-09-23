@@ -5,6 +5,23 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Pré-Parto — rotina de aferições simplificada
+
+- **Tela "Rotina" refeita em 4 escolhas**: (1) **fase** — escolha única, já
+  pré-selecionada pela situação da paciente (`suggestedBaseRoutine`); (2)
+  **protocolos** — MgSO₄, Diabetes (marcado sozinho se DMG/Overt) e Metildopa,
+  liga/desliga; (3) **período** — início editável e fim (plantão, 2/6/12/24 h);
+  (4) **aferições extras** — parâmetros + intervalo.
+- A **linha do tempo** ao lado é recalculada na hora a cada escolha (antes cada
+  "Aplicar" só acumulava e não dava para desfazer). Resumo por parâmetro
+  (ex.: BCF ×7) no topo.
+- Ajustes finos na própria linha do tempo: tocar num parâmetro o risca/restaura;
+  o lápis abre todos os parâmetros daquele horário; "Horário avulso" adiciona um
+  horário; "Desfazer ajustes" volta ao gerado.
+- **Página da paciente**: o card **Próximas aferições** fica sempre visível no
+  topo da coluna, com **Criar rotina** (quando vazio) ou **Editar rotina**.
+- A admissão usa a mesma regra de fase sugerida.
+
 ### Usabilidade — índice nos formulários e painel do prontuário
 
 - **Índice fixo de seções** no PSGO e no Pré-Natal (`src/components/form-section.tsx`):

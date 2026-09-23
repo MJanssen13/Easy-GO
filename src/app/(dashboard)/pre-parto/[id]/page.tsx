@@ -102,7 +102,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         <div className="flex items-center gap-2">
           <Link href={`/pre-parto/${patient.id}/rotina`}>
             <Button size="sm">
-              <CalendarClock className="h-4 w-4" /> Editar Rotina
+              <CalendarClock className="h-4 w-4" /> Rotina
             </Button>
           </Link>
           <Link href={`/pre-parto/${patient.id}/evolucao`}>
@@ -214,6 +214,63 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
 
       <div className="space-y-5">
 
+      {(() => {
+        const next = upcomingTasks(patient.schedule ?? [], 6);
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-2 text-base">
+                <span className="flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4" /> Próximas aferições
+                </span>
+                {next.length > 0 && (
+                  <Link href={`/pre-parto/${patient.id}/rotina`}>
+                    <Button size="sm" variant="outline">
+                      <Pencil className="h-4 w-4" /> Editar rotina
+                    </Button>
+                  </Link>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {next.length > 0 ? (
+                <ul className="space-y-1.5 text-sm">
+                  {next.map((t) => (
+                    <li key={t.id} className="flex items-center gap-2">
+                      <Link
+                        href={`/pre-parto/${patient.id}/evolucao?taskId=${t.id}`}
+                        className="flex items-center gap-2 hover:underline"
+                      >
+                        <span className="font-mono font-bold">{hhmm(t.timestamp)}</span>
+                        <span className="flex flex-wrap gap-1">
+                          {t.focus.map((f) => (
+                            <span
+                              key={f}
+                              className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
+                            >
+                              {f}
+                            </span>
+                          ))}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed px-3 py-4">
+                  <p className="text-sm text-muted-foreground">Nenhuma aferição pendente.</p>
+                  <Link href={`/pre-parto/${patient.id}/rotina`}>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4" /> Criar rotina
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {patient.observations && patient.observations.length >= 2 && (
         <Card>
           <CardHeader>
@@ -226,44 +283,6 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           </CardContent>
         </Card>
       )}
-
-      {(() => {
-        const next = upcomingTasks(patient.schedule ?? [], 6);
-        if (next.length === 0) return null;
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarClock className="h-4 w-4" /> Próximas aferições
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-1.5 text-sm">
-                {next.map((t) => (
-                  <li key={t.id} className="flex items-center gap-2">
-                    <Link
-                      href={`/pre-parto/${patient.id}/evolucao?taskId=${t.id}`}
-                      className="flex items-center gap-2 hover:underline"
-                    >
-                      <span className="font-mono font-bold">{hhmm(t.timestamp)}</span>
-                      <span className="flex flex-wrap gap-1">
-                        {t.focus.map((f) => (
-                          <span
-                            key={f}
-                            className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
-                          >
-                            {f}
-                          </span>
-                        ))}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        );
-      })()}
 
       {ctgs.length > 0 && (
         <Card>

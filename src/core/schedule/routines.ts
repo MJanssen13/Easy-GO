@@ -137,3 +137,14 @@ export function getRoutine(id: string): MonitoringRoutine | undefined {
 export function hasDiabetesRisk(riskFactors: string[]): boolean {
   return riskFactors.some((r) => /dmg|diabet|overt/i.test(r));
 }
+
+/**
+ * Fase base sugerida pela situação da paciente (pré-seleção no planejador; a
+ * equipe pode trocar). Mesma regra da admissão: trabalho de parto ativo → fase
+ * ativa; puerpério imediato → hora de ouro; demais → indução/latente.
+ */
+export function suggestedBaseRoutine(status: string): string {
+  if (status === "active_labor" || status === "partogram_open") return "active_phase";
+  if (status === "postpartum") return "golden_hour";
+  return "latent_induction";
+}
