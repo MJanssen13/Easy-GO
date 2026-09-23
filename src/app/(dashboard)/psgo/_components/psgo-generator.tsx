@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info, ChevronDown, ChevronUp, FlaskConical, ExternalLink, Printer, Pill, Check } from "lucide-react";
+import { Plus, Trash2, Siren, Info, FlaskConical, ExternalLink, Printer, Pill, Check } from "lucide-react";
 import {
   emptyPsgoForm,
   HABITS,
@@ -55,6 +55,7 @@ import {
   type ArrivalMode,
 } from "@/core/psgo/hpma";
 import { savePsgoAdmission } from "../actions";
+import { Section, SectionIndex, SectionNavProvider } from "@/components/form-section";
 import {
   PRIOR_TYPE_LABELS,
   NO_COMPLICATIONS_LABEL,
@@ -245,76 +246,6 @@ function AutoGrowTextarea({
   );
 }
 
-/**
- * Card de seção colapsável. `headerExtra` recebe ações/badges (fora do toggle).
- * Pode ser controlada por `open`/`onOpenChange` (ex.: abrir ao adicionar item).
- */
-function Section({
-  title,
-  children,
-  headerExtra,
-  defaultOpen = true,
-  open: openProp,
-  onOpenChange,
-  id,
-  contentClassName,
-}: {
-  title: React.ReactNode;
-  children: React.ReactNode;
-  headerExtra?: React.ReactNode;
-  defaultOpen?: boolean;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  id?: string;
-  contentClassName?: string;
-}) {
-  const [openState, setOpenState] = useState(defaultOpen);
-  const isControlled = openProp !== undefined;
-  const open = isControlled ? openProp : openState;
-  const setOpen = (updater: boolean | ((o: boolean) => boolean)) => {
-    const next = typeof updater === "function" ? updater(open) : updater;
-    if (isControlled) onOpenChange?.(next);
-    else setOpenState(next);
-  };
-  return (
-    <Card id={id}>
-      <div className="flex items-center justify-between gap-2 p-6">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex flex-1 items-center gap-2 text-left"
-        >
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-              open ? "" : "-rotate-90"
-            }`}
-          />
-          <span className="text-base font-semibold leading-none tracking-tight">{title}</span>
-        </button>
-        {headerExtra && <div className="flex items-center gap-2">{headerExtra}</div>}
-      </div>
-      {open && (
-        <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>
-          {children}
-          {/* Botão de recolher a seção (^), ao fim do conteúdo. */}
-          <div className="flex justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Recolher seção"
-              title="Recolher"
-              className="inline-flex h-6 w-12 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
 /** Botão único para abrir o LabFlow (laboratório) em nova aba — gradiente teal da marca. */
 function LabflowButton() {
   return (
@@ -385,6 +316,15 @@ export function PsgoGenerator({
   const [hpmaReason, setHpmaReason] = useState("");
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
+
+  // Índice de seções: uma seção conta como preenchida quando algum campo difere do vazio.
+  const emptyForm = useMemo(() => emptyPsgoForm(today), [today]);
+  const changed = (...keys: (keyof PsgoForm)[]) =>
+    keys.some((k) => JSON.stringify(form[k]) !== JSON.stringify(emptyForm[k]));
+  const filledIdent = changed(
+    "name", "socialName", "rg", "age", "origin", "companion", "companionRelation",
+    "prenatalCount", "prenatalPlace", "prenatalIrregular",
+  );
 
   // ----- Salvamento automático -----
   // Guarda o id da admissão (criada no 1º save) para os próximos serem update.
@@ -1298,12 +1238,14 @@ export function PsgoGenerator({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <SectionNavProvider className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
+        <SectionIndex />
         {/* Identificação (toggle gestante/não gestante no cabeçalho, à direita) */}
         <Section
           title="Identificação"
+          filled={filledIdent}
           contentClassName="space-y-3"
           headerExtra={
             <div className="w-56 max-w-full">
@@ -1409,6 +1351,7 @@ export function PsgoGenerator({
         <Section
           defaultOpen={false}
           title="Paridade"
+          filled={changed("priorPregnancies")}
           contentClassName="space-y-3"
           headerExtra={
             <>
@@ -1524,6 +1467,8 @@ export function PsgoGenerator({
         {/* Datação, dados obstétricos e exames de imagem (USG) — seção unificada */}
         <Section
           id="psgo-usg"
+          navLabel={form.pregnant ? "Datação / USG" : "DUM e MAC"}
+          filled={changed("lmp", "lmpUncertain", "mac", "presentation", "fetuses", "laborOnset", "multiplicity", "chorionAmnion", "imagingExams", "otherImaging")}
           title={
             form.pregnant
               ? "Datação, dados obstétricos e exames de imagem (USG)"
@@ -2199,7 +2144,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Comorbidades */}
-        <Section defaultOpen={false} title="Comorbidades (CMB)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Comorbidades (CMB)" navLabel="Comorbidades" filled={changed("comorbidities", "comorbiditiesOther")} contentClassName="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {COMMON_COMORBIDITIES.map((c) => (
                 <Chip key={c} active={form.comorbidities.includes(c)} onClick={() => toggleArray("comorbidities", c)}>
@@ -2218,7 +2163,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Medicamentos */}
-        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" navLabel="Medicamentos" filled={changed("medications", "medicationsOther", "medicationsPast")} contentClassName="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {COMMON_MEDICATIONS.map((m) => (
                 <Chip key={m} active={form.medications.some((x) => x.label === m)} onClick={() => addMed(m)}>
@@ -2293,7 +2238,13 @@ export function PsgoGenerator({
         </Section>
 
         {/* Cirurgias / alergias / hábitos */}
-        <Section defaultOpen={false} title="Cirurgias, alergias e hábitos" contentClassName="space-y-3">
+        <Section
+          defaultOpen={false}
+          title="Cirurgias, alergias e hábitos"
+          navLabel="Cirurgias / alergias"
+          filled={changed("surgeries", "surgeriesDenied", "allergies", "allergiesDenied", "habits", "habitsOther", "udiWhich")}
+          contentClassName="space-y-3"
+        >
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2">
                 <Label className="text-xs">Cirurgias prévias</Label>
@@ -2363,6 +2314,8 @@ export function PsgoGenerator({
         <Section
           defaultOpen={false}
           title="Sorologias e Laboratoriais"
+          navLabel="Sorologias / labs"
+          filled={changed("bloodType", "coombsList", "serologyPasted", "serologyGrid", "labs")}
           contentClassName="space-y-4"
           headerExtra={<LabflowButton />}
         >
@@ -2546,7 +2499,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* QP / HPMA */}
-        <Section defaultOpen={false} title="Queixa e história" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Queixa e história" navLabel="Queixa / HPMA" filled={hpmaSel.length > 0 || changed("qp", "hpma")} contentClassName="space-y-3">
             <Field label="Queixa principal (QP)">
               <Input value={form.qp} onChange={(e) => update({ qp: e.target.value })} />
             </Field>
@@ -2692,7 +2645,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Exame físico */}
-        <Section defaultOpen={false} title="Exame físico" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Exame físico" filled={changed("weight", "height", "vitals", "exam")} contentClassName="space-y-3">
             <div className="grid grid-cols-4 gap-2">
               <Field label="Peso (kg)">
                 <Input value={form.weight} onChange={(e) => update({ weight: e.target.value })} inputMode="decimal" />
@@ -2805,6 +2758,8 @@ export function PsgoGenerator({
         <Section
           defaultOpen={false}
           title={form.pregnant ? "Exame ginecológico e obstétrico" : "Exame ginecológico"}
+          navLabel={form.pregnant ? "Gineco / obstétrico" : "Gineco"}
+          filled={changed("gyneco")}
           contentClassName="space-y-4"
         >
             {/* Abdome */}
@@ -2968,6 +2923,7 @@ export function PsgoGenerator({
           <Section
             defaultOpen={false}
             title="CTG"
+            filled={changed("ctgLaudos", "ctg")}
             contentClassName="space-y-3"
             headerExtra={
               <Button type="button" size="sm" variant="outline" onClick={addCtg}>
@@ -2990,6 +2946,8 @@ export function PsgoGenerator({
         <Section
           defaultOpen={false}
           title="HD (hipótese diagnóstica)"
+          navLabel="HD"
+          filled={changed("hd")}
           contentClassName="space-y-2"
           headerExtra={
             <Button
@@ -3018,7 +2976,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Conduta — card próprio */}
-        <Section defaultOpen={false} title="Conduta" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Conduta" filled={changed("cd")} contentClassName="space-y-3">
             <Field label="Conduta (CD)">
               <Textarea rows={2} value={form.cd} onChange={(e) => update({ cd: e.target.value })} />
             </Field>
@@ -3028,47 +2986,50 @@ export function PsgoGenerator({
       {/* ----- Preview ----- */}
       <div className="lg:sticky lg:top-20 lg:h-fit">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
-              <span className="flex items-center gap-2">
+          <CardHeader className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Siren className="h-4 w-4 text-rose-600" /> Prontuário
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <AutoSaveIndicator state={autoState} ready={!!form.name.trim() && !!form.rg.trim()} />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handlePrescribe}
-                  disabled={saving || !form.name.trim()}
-                  title={
-                    !form.name.trim()
-                      ? "Informe o nome para prescrever"
-                      : "Salvar e ir para a Receita"
-                  }
-                >
-                  <Pill className="h-4 w-4" /> Prescrever
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={saving || !form.name.trim()}
-                  title={!form.name.trim() ? "Informe o nome para salvar" : "Salvar admissão"}
-                >
-                  {saving ? "Salvando…" : (savedId ?? patientId) ? "Salvar alterações" : "Salvar admissão"}
-                </Button>
-                <PsgoTermosButton name={form.name} rg={form.rg} />
-                <PassagemButton
-                  text={passagemTxt}
-                  html={passagemHtm}
-                  count={passagem ? 1 : 0}
-                  label="Passagem"
-                  size="sm"
-                />
-                <CopyButton text={text} />
-              </div>
-            </CardTitle>
+              </CardTitle>
+              <AutoSaveIndicator state={autoState} ready={!!form.name.trim() && !!form.rg.trim()} />
+            </div>
+            {/* Ações principais: salvar e copiar o texto. */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !form.name.trim()}
+                title={!form.name.trim() ? "Informe o nome para salvar" : "Salvar admissão"}
+              >
+                {saving ? "Salvando…" : (savedId ?? patientId) ? "Salvar alterações" : "Salvar admissão"}
+              </Button>
+              <CopyButton text={text} className="h-9 px-4 text-sm" />
+            </div>
+            {/* Ações secundárias. */}
+            <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handlePrescribe}
+                disabled={saving || !form.name.trim()}
+                title={
+                  !form.name.trim()
+                    ? "Informe o nome para prescrever"
+                    : "Salvar e ir para a Receita"
+                }
+              >
+                <Pill className="h-4 w-4" /> Prescrever
+              </Button>
+              <PsgoTermosButton name={form.name} rg={form.rg} />
+              <PassagemButton
+                text={passagemTxt}
+                html={passagemHtm}
+                count={passagem ? 1 : 0}
+                label="Passagem"
+                size="sm"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             {saveMsg && (
@@ -3086,6 +3047,6 @@ export function PsgoGenerator({
           </CardContent>
         </Card>
       </div>
-    </div>
+    </SectionNavProvider>
   );
 }

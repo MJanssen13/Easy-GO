@@ -6,8 +6,6 @@ import {
   Trash2,
   Stethoscope,
   Info,
-  ChevronDown,
-  ChevronUp,
   FlaskConical,
   ExternalLink,
 } from "lucide-react";
@@ -98,6 +96,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
 import { DateBRInput } from "@/components/date-br-input";
+import { Section, SectionIndex, SectionNavProvider } from "@/components/form-section";
 import { PrenatalCharts } from "./prenatal-charts";
 
 const selectClass =
@@ -208,58 +207,6 @@ function Segmented<T extends string>({
   );
 }
 
-function Section({
-  title,
-  children,
-  headerExtra,
-  defaultOpen = true,
-  contentClassName,
-}: {
-  title: React.ReactNode;
-  children: React.ReactNode;
-  headerExtra?: React.ReactNode;
-  defaultOpen?: boolean;
-  contentClassName?: string;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Card>
-      <div className="flex items-center justify-between gap-2 p-6">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex flex-1 items-center gap-2 text-left"
-        >
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-              open ? "" : "-rotate-90"
-            }`}
-          />
-          <span className="text-base font-semibold leading-none tracking-tight">{title}</span>
-        </button>
-        {headerExtra && <div className="flex items-center gap-2">{headerExtra}</div>}
-      </div>
-      {open && (
-        <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>
-          {children}
-          <div className="flex justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Recolher seção"
-              title="Recolher"
-              className="inline-flex h-6 w-12 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
 /** Botão para abrir o LabFlow (laboratório) em nova aba. */
 function LabflowButton() {
   return (
@@ -282,6 +229,15 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
   const [form, setForm] = useState<PrenatalForm>(() => emptyPrenatalForm(today));
   const [medInput, setMedInput] = useState("");
   const update = (patch: Partial<PrenatalForm>) => setForm((f) => ({ ...f, ...patch }));
+
+  // Índice de seções: uma seção conta como preenchida quando algum campo difere do vazio.
+  const emptyForm = useMemo(() => emptyPrenatalForm(today), [today]);
+  const changed = (...keys: (keyof PrenatalForm)[]) =>
+    keys.some((k) => JSON.stringify(form[k]) !== JSON.stringify(emptyForm[k]));
+  const filledIdent = changed(
+    "name", "socialName", "rg", "age", "origin", "companion", "companionRelation",
+    "prenatalPlace", "prenatalCount", "prenatalIrregular",
+  );
 
   const text = useMemo(() => renderPrenatal(form), [form]);
   const parityView = useMemo(() => formatParity(form.priorPregnancies, true), [form.priorPregnancies]);
@@ -597,11 +553,12 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <SectionNavProvider className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
+        <SectionIndex />
         {/* Identificação */}
-        <Section title="Identificação" contentClassName="space-y-3">
+        <Section title="Identificação" filled={filledIdent} contentClassName="space-y-3">
           <div className="flex flex-wrap gap-3">
             <Field label="Data da consulta" className="w-44">
               <DateBRInput value={form.date} onChange={(iso) => update({ date: iso })} />
@@ -681,6 +638,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Paridade (GPA)"
+          navLabel="Paridade"
+          filled={changed("priorPregnancies")}
           contentClassName="space-y-3"
           headerExtra={
             <>
@@ -775,7 +734,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Datação */}
-        <Section title="Datação (DUM / IG)" contentClassName="space-y-3">
+        <Section title="Datação (DUM / IG)" navLabel="Datação / USG" filled={changed("lmp", "lmpUncertain", "imagingExams", "otherImaging")} contentClassName="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <Field label="DUM" className="w-40">
               <DateBRInput value={form.lmp} onChange={(iso) => update({ lmp: iso })} />
@@ -1063,7 +1022,13 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Tipo sanguíneo / Coombs */}
-        <Section defaultOpen={false} title="Tipo sanguíneo e Coombs indireto" contentClassName="space-y-3">
+        <Section
+          defaultOpen={false}
+          title="Tipo sanguíneo e Coombs indireto"
+          navLabel="Tipo sanguíneo"
+          filled={changed("bloodType", "coombsList")}
+          contentClassName="space-y-3"
+        >
           <div className="flex items-center justify-between gap-2">
             <Field label="Tipo sanguíneo (TS)" className="w-40">
               <select
@@ -1117,7 +1082,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Comorbidades */}
-        <Section defaultOpen={false} title="Comorbidades (CMB)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Comorbidades (CMB)" navLabel="Comorbidades" filled={changed("comorbidities", "comorbiditiesOther")} contentClassName="space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {COMMON_COMORBIDITIES.map((c) => (
               <Chip key={c} active={form.comorbidities.includes(c)} onClick={() => toggleArray("comorbidities", c)}>
@@ -1134,7 +1099,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Medicamentos */}
-        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" navLabel="Medicamentos" filled={changed("medications", "medicationsOther", "medicationsPast")} contentClassName="space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {COMMON_MEDICATIONS.map((m) => (
               <Chip key={m} active={form.medications.some((x) => x.label === m)} onClick={() => addMed(m)}>
@@ -1205,7 +1170,13 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Cirurgias / alergias / hábitos */}
-        <Section defaultOpen={false} title="Cirurgias, alergias e hábitos (HCV)" contentClassName="space-y-3">
+        <Section
+          defaultOpen={false}
+          title="Cirurgias, alergias e hábitos (HCV)"
+          navLabel="Cirurgias / alergias"
+          filled={changed("surgeries", "surgeriesDenied", "allergies", "allergiesDenied", "habits", "habitsOther", "udiWhich")}
+          contentClassName="space-y-3"
+        >
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
               <Label className="text-xs">Cirurgias prévias (CX prévias)</Label>
@@ -1267,6 +1238,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Cartão de vacinas"
+          navLabel="Vacinas"
+          filled={changed("vaccines", "vaccinesOther")}
           contentClassName="space-y-2"
           headerExtra={
             <>
@@ -1350,6 +1323,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="VCE (Papanicolau)"
+          navLabel="VCE"
+          filled={changed("vceList")}
           contentClassName="space-y-2"
           headerExtra={
             <Button type="button" size="sm" variant="outline" onClick={addVce}>
@@ -1396,6 +1371,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Sorologias e laboratoriais"
+          navLabel="Sorologias / labs"
+          filled={changed("serologyPasted", "serologyGrid", "labs")}
           contentClassName="space-y-4"
           headerExtra={<LabflowButton />}
         >
@@ -1506,7 +1483,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
 
         {/* HPMA / Contexto — revisão dirigida (sempre respondida) + queixas atuais.
             Adaptada do PSGO, sem o gerador de HPMA por QP (a pedido). */}
-        <Section title="HPMA" contentClassName="space-y-3">
+        <Section title="HPMA" filled={changed("revision", "currentComplaints")} contentClassName="space-y-3">
           <Field label="Queixas atuais">
             <Textarea
               rows={2}
@@ -1549,7 +1526,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Exame físico */}
-        <Section defaultOpen={false} title="Exame físico" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Exame físico" filled={changed("weight", "height", "vitals", "exam")} contentClassName="space-y-3">
           <div className="grid grid-cols-4 gap-2">
             <Field label="Peso (kg)">
               <Input value={form.weight} onChange={(e) => update({ weight: e.target.value })} inputMode="decimal" />
@@ -1641,6 +1618,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Exame ginecológico e obstétrico"
+          navLabel="Gineco / obstétrico"
+          filled={changed("gyneco")}
           contentClassName="space-y-4"
         >
           {/* Mamas e inspeção vulvar (normal / alterado / não realizado) */}
@@ -1837,6 +1816,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="HD (hipótese diagnóstica)"
+          navLabel="HD"
+          filled={changed("hd")}
           contentClassName="space-y-2"
           headerExtra={
             <Button
@@ -1862,7 +1843,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Conduta */}
-        <Section defaultOpen={false} title="Conduta" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Conduta" filled={changed("cd")} contentClassName="space-y-2">
           <Textarea
             rows={3}
             placeholder="DISCUTIDA&#10;- ORIENTAÇÕES DIETÉTICAS&#10;- RETORNO CONFORME ROTINA"
@@ -1876,6 +1857,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Sugestões (exames e USG por trimestre)"
+          navLabel=""
           contentClassName="space-y-2"
           headerExtra={
             trimester != null ? (
@@ -1926,6 +1908,6 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </SectionNavProvider>
   );
 }

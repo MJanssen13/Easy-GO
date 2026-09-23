@@ -5,6 +5,19 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Usabilidade — índice nos formulários e painel do prontuário
+
+- **Índice fixo de seções** no PSGO e no Pré-Natal (`src/components/form-section.tsx`):
+  barra no topo do formulário com um chip por seção. Clicar **abre a seção e rola
+  até ela**; a seção visível fica destacada. Seções **preenchidas** ganham ✓ (no
+  índice e no título) e o contador mostra quantas já foram preenchidas (ex.: 3/13).
+  Uma seção conta como preenchida quando algum campo difere do formulário vazio.
+- O componente `Section` passou a ser **compartilhado** pelos dois geradores
+  (antes havia uma cópia em cada um).
+- **Painel do Prontuário (PSGO) reorganizado**: *Salvar* e *Copiar* em destaque,
+  lado a lado; *Prescrever*, *Termos* e *Passagem* numa linha secundária abaixo.
+  O aviso de salvamento automático fica sob o título.
+
 ### Interface — menos texto explicativo
 
 - Removidos os **subtítulos explicativos** das páginas (hub, Ferramentas,
