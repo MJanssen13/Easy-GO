@@ -5,6 +5,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Correção — fuso horário do servidor
+
+- Horas renderizadas no servidor (Vercel roda em **UTC**) saíam **3 h adiantadas**:
+  próximas aferições, linhas de evolução, e a rotina criada na admissão terminava
+  às 16h (19h UTC) em vez de 19h. Agora o Node usa `America/Sao_Paulo`
+  (`src/instrumentation.ts` + `next.config.mjs`; sobrescrevível por `APP_TIMEZONE`).
+
 ### Pré-Parto — rotina de aferições simplificada
 
 - **Tela "Rotina" refeita em 4 escolhas**: (1) **fase** — escolha única, já

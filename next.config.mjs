@@ -1,3 +1,6 @@
+// Fuso do hospital também no build/servidor local (ver src/instrumentation.ts).
+process.env.TZ = process.env.APP_TIMEZONE || "America/Sao_Paulo";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
