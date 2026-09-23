@@ -356,14 +356,14 @@ function Grid({
             if (secRows.length === 0) return null;
             return [
               <tr key={section} className="bg-slate-100">
-                <td colSpan={slots + 2} className="sticky left-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                <td colSpan={slots + 2} className="sticky left-0 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
                   {section}
                 </td>
               </tr>,
               ...secRows.map((row) => (
                 <tr key={row.id} className="border-t">
                   <td className="sticky left-0 z-10 bg-white px-2 py-0.5 font-medium">{row.label}</td>
-                  <td className="px-1 text-center text-[10px] text-rose-700">{row.alertLabel}</td>
+                  <td className="px-1 text-center text-[11px] text-rose-700">{row.alertLabel}</td>
                   {Array.from({ length: slots }, (_, i) => {
                     const { v, auto } = value(stage, i, row.id);
                     const alert = isAlert(stage, i, row, v);
@@ -390,7 +390,7 @@ function Grid({
           {plans && onPlan && (
             <>
               <tr className="bg-slate-100">
-                <td colSpan={slots + 2} className="sticky left-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                <td colSpan={slots + 2} className="sticky left-0 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
                   Tomada de decisão compartilhada — avaliação e plano
                 </td>
               </tr>
@@ -403,7 +403,7 @@ function Grid({
                       rows={3}
                       value={plans[String(h)] ?? ""}
                       onChange={(e) => onPlan(h, e.target.value.toUpperCase())}
-                      className="w-full min-w-[4.5rem] resize-y rounded border-0 bg-transparent p-0.5 text-[10px] uppercase outline-none focus:bg-primary/5"
+                      className="w-full min-w-[4.5rem] resize-y rounded border-0 bg-transparent p-0.5 text-[11px] uppercase outline-none focus:bg-primary/5"
                     />
                   </td>
                 ))}

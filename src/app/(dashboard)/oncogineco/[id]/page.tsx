@@ -57,7 +57,7 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
     <div className="space-y-5">
       <Link
         href="/oncogineco"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
       </Link>
@@ -114,6 +114,8 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
                             size="icon"
                             className="text-destructive"
                             message="Apagar esta evolução do histórico?"
+                            aria-label="Apagar evolução"
+                            title="Apagar evolução"
                           >
                             <Trash2 className="h-4 w-4" />
                           </ConfirmSubmit>
@@ -154,7 +156,7 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
                   <input type="hidden" name="id" value={patient.id} />
                   <div className="space-y-1">
                     <span className="text-xs text-muted-foreground">Data/hora (opcional)</span>
-                    <Input type="datetime-local" name="dischargeTime" className="w-52" />
+                    <Input aria-label="Data e hora da alta" type="datetime-local" name="dischargeTime" className="w-52" />
                   </div>
                   <ConfirmSubmit size="sm" message={`Registrar a alta de ${patient.name}?`}>
                     <LogOut className="h-4 w-4" /> Dar alta
@@ -162,7 +164,7 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
                 </form>
                 <form action={transferOncoToPsgo} className="space-y-2 border-t pt-3">
                   <input type="hidden" name="id" value={patient.id} />
-                  <Input name="reason" placeholder="Motivo da transferência ao PSGO (opcional)" />
+                  <Input name="reason" placeholder="Motivo da transferência ao PSGO (opcional)" aria-label="Motivo da transferência" />
                   <ConfirmSubmit size="sm" variant="outline" message="Transferir a paciente para o PSGO?">
                     <ArrowRightLeft className="h-4 w-4" /> Transferir para o PSGO
                   </ConfirmSubmit>

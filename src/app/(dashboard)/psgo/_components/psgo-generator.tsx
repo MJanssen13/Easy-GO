@@ -1,5 +1,6 @@
 "use client";
 
+import { LabeledBox } from "@/components/form-controls";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Siren, Info, FlaskConical, ExternalLink, Printer, Pill, Check } from "lucide-react";
@@ -92,6 +93,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DraftNotice } from "@/components/draft-notice";
+import { JumpToOutput } from "@/components/jump-to-output";
+import { clearDraft, useDraft } from "@/lib/use-draft";
 import { CopyButton } from "@/components/copy-button";
 import { buildPassagemBlock, passagemText, passagemHtml } from "@/core/psgo/passagem";
 import { PassagemButton } from "./passagem-button";
@@ -136,10 +140,9 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={`space-y-1 ${className ?? ""}`}>
-      <Label className="text-xs">{label}</Label>
+    <LabeledBox label={label} className={className}>
       {children}
-    </div>
+    </LabeledBox>
   );
 }
 
@@ -175,7 +178,7 @@ function InfoTip({ title, children }: { title?: string; children: React.ReactNod
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
         aria-label={title ?? "Mais informações"}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="-m-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Info className="h-3.5 w-3.5" />
       </button>
@@ -344,6 +347,10 @@ export function PsgoGenerator({
         return { ok: false, id: currentIdRef.current };
       }
       if (res.patientId) {
+        // 1º save: o endereço passa a apontar para a admissão salva, para que
+        // recarregar a página edite esta admissão em vez de criar outra.
+        if (!currentIdRef.current)
+          window.history.replaceState(null, "", `/psgo/admissao?id=${res.patientId}`);
         currentIdRef.current = res.patientId;
         setSavedId(res.patientId);
       }
@@ -355,6 +362,19 @@ export function PsgoGenerator({
     saveChain.current = p.catch(() => {});
     return p.catch(() => ({ ok: false, id: currentIdRef.current }));
   };
+
+  // Rascunho local só para admissão nova ainda não salva no banco (antes de
+  // nome + RG): recarregar a página não perde o que foi digitado.
+  const draftKey = patientId || savedId ? null : "psgo-new";
+  const draft = useDraft<PsgoForm>(
+    draftKey,
+    form,
+    (v) => setForm({ ...emptyForm, ...v }),
+    (v) => JSON.stringify(v) === JSON.stringify(emptyForm),
+  );
+  useEffect(() => {
+    if (savedId && !patientId) clearDraft("psgo-new");
+  }, [savedId, patientId]);
 
   // Auto-save: inicia só quando nome E prontuário (RG) estão preenchidos; se não,
   // aguarda. Debounce de 1,5s após a última alteração.
@@ -1241,6 +1261,13 @@ export function PsgoGenerator({
     <SectionNavProvider className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
+        <DraftNotice
+          restoredAt={draft.restoredAt}
+          onDiscard={() => {
+            draft.discard();
+            setForm(emptyPsgoForm(today));
+          }}
+        />
         <SectionIndex />
         {/* Identificação (toggle gestante/não gestante no cabeçalho, à direita) */}
         <Section
@@ -1266,7 +1293,12 @@ export function PsgoGenerator({
                 <DateBRInput value={form.date} onChange={(iso) => update({ date: iso })} />
               </Field>
               <Field label="Idade" className="w-24">
-                <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
+                <Input
+                  value={form.age}
+                  onChange={(e) => update({ age: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+                  inputMode="numeric"
+                  aria-invalid={!!form.age && (Number(form.age) < 10 || Number(form.age) > 60)}
+                />
               </Field>
               <Field label="RG" className="min-w-[8rem] flex-1">
                 <Input value={form.rg} onChange={(e) => update({ rg: e.target.value })} />
@@ -1548,7 +1580,7 @@ export function PsgoGenerator({
                     IG pela DUM
                   </span>
                   {datingView.chosen === "DUM" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
                       usada
                     </span>
                   )}
@@ -1580,7 +1612,7 @@ export function PsgoGenerator({
                     IG pela USG
                   </span>
                   {datingView.chosen === "US" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
                       usada
                     </span>
                   )}
@@ -1728,7 +1760,7 @@ export function PsgoGenerator({
                         <span className="text-xs font-semibold text-muted-foreground">
                           USG {idx + 1}
                           {isDG && (
-                            <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary-foreground">
+                            <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-bold uppercase text-primary-foreground">
                               datação
                             </span>
                           )}
@@ -1822,7 +1854,7 @@ export function PsgoGenerator({
                             <div className="space-y-2.5">
                               {/* Biometria fetal */}
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Biometria fetal
                                 </p>
                                 <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
@@ -1840,7 +1872,7 @@ export function PsgoGenerator({
                                   </Field>
                                   <Field label="BCF">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="inline-flex overflow-hidden rounded-full border text-[10px] font-medium">
+                                      <div className="inline-flex overflow-hidden rounded-full border text-[11px] font-medium">
                                         <button
                                           type="button"
                                           onClick={() => updateImaging(e.id, { fhr: absent ? "" : (e.fhr ?? "") })}
@@ -1883,7 +1915,7 @@ export function PsgoGenerator({
                                         value={e.hc ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.hc}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.hc}</span>
                                     </div>
                                   </Field>
                                   <Field label="Circ. abd. (mm)">
@@ -1894,7 +1926,7 @@ export function PsgoGenerator({
                                         value={e.ac ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.ac}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.ac}</span>
                                     </div>
                                   </Field>
                                   <Field label="Peso (g)">
@@ -1905,7 +1937,7 @@ export function PsgoGenerator({
                                         value={e.efw ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.efw}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.efw}</span>
                                     </div>
                                   </Field>
                                 </div>
@@ -1913,7 +1945,7 @@ export function PsgoGenerator({
 
                               {/* Gestação inicial */}
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Gestação inicial
                                 </p>
                                 <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
@@ -1946,13 +1978,13 @@ export function PsgoGenerator({
 
                               {/* Líquido e placenta */}
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Líquido e placenta
                                 </p>
                                 <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
                                   <Field label="Líquido amniótico">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="inline-flex overflow-hidden rounded-full border text-[10px] font-medium">
+                                      <div className="inline-flex overflow-hidden rounded-full border text-[11px] font-medium">
                                         <button
                                           type="button"
                                           onClick={() => updateImaging(e.id, { laNl: true })}
@@ -2029,7 +2061,7 @@ export function PsgoGenerator({
 
                               {/* Doppler (padrões FMF) */}
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Doppler (FMF)
                                 </p>
                                 <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
@@ -2041,7 +2073,7 @@ export function PsgoGenerator({
                                         value={e.uaPi ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.uaPi}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.uaPi}</span>
                                     </div>
                                   </Field>
                                   <Field label="IP ACM">
@@ -2052,7 +2084,7 @@ export function PsgoGenerator({
                                         value={e.mcaPi ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.mcaPi}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.mcaPi}</span>
                                     </div>
                                   </Field>
                                   <Field label="RCP">
@@ -2060,7 +2092,7 @@ export function PsgoGenerator({
                                       <span className="font-medium tabular-nums">
                                         {rcp != null ? rcp.toFixed(3).replace(".", ",") : "—"}
                                       </span>
-                                      <span className="text-[10px] text-muted-foreground">{c?.cpr}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.cpr}</span>
                                     </div>
                                   </Field>
                                   <Field label="IP a. uterina">
@@ -2071,7 +2103,7 @@ export function PsgoGenerator({
                                         value={e.utPi ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.utPi}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.utPi}</span>
                                     </div>
                                   </Field>
                                 </div>
@@ -2084,14 +2116,14 @@ export function PsgoGenerator({
                       {/* Prévia editável + avisos */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between gap-2 px-1">
-                          <span className="text-[10px] font-medium text-muted-foreground">
+                          <span className="text-[11px] font-medium text-muted-foreground">
                             Prévia editável {edited ? "(editada)" : "(automática)"}
                           </span>
                           {edited && (
                             <button
                               type="button"
                               onClick={() => updateImaging(first.id, { overrideText: undefined })}
-                              className="text-[10px] font-medium text-primary hover:underline"
+                              className="text-[11px] font-medium text-primary hover:underline"
                               title="Descartar edição e regerar automaticamente"
                             >
                               regenerar
@@ -2153,7 +2185,7 @@ export function PsgoGenerator({
               ))}
             </div>
             <Input
-              placeholder="Outras (separadas por vírgula)"
+              placeholder="Outras (separadas por vírgula)" aria-label="Outras comorbidades"
               value={form.comorbiditiesOther}
               onChange={(e) => update({ comorbiditiesOther: e.target.value })}
             />
@@ -2177,7 +2209,7 @@ export function PsgoGenerator({
             </p>
             <div className="flex gap-2">
               <Input
-                placeholder="Adicionar medicamento…"
+                placeholder="Adicionar medicamento…" aria-label="Adicionar medicamento em uso"
                 value={medInput}
                 onChange={(e) => setMedInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -2304,7 +2336,7 @@ export function PsgoGenerator({
               />
             )}
             <Input
-              placeholder="Outros hábitos"
+              placeholder="Outros hábitos" aria-label="Outros hábitos"
               value={form.habitsOther}
               onChange={(e) => update({ habitsOther: e.target.value })}
             />
@@ -2487,7 +2519,7 @@ export function PsgoGenerator({
               <p className="text-sm font-semibold">Exames laboratoriais</p>
               <Textarea
                 rows={3}
-                placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …"
+                placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …" aria-label="Exames laboratoriais"
                 value={form.labs}
                 onChange={(e) => update({ labs: e.target.value })}
               />
@@ -2967,7 +2999,7 @@ export function PsgoGenerator({
                 rows={2}
                 value={form.hd}
                 onChange={(e) => update({ hd: e.target.value })}
-                placeholder={autoHd || "GESTAÇÃO DE..."}
+                placeholder={autoHd || "GESTAÇÃO DE..."} aria-label="Hipótese diagnóstica"
               />
             </Field>
             <p className="text-xs text-muted-foreground">
@@ -2985,7 +3017,8 @@ export function PsgoGenerator({
 
       {/* ----- Preview ----- */}
       <div className="lg:sticky lg:top-6 lg:h-fit">
-        <Card>
+        <JumpToOutput />
+        <Card id="prontuario" className="scroll-mt-20">
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-base">

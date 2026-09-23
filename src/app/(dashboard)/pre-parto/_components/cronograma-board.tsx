@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { BedDouble, CheckCircle2, Clock, PencilLine } from "lucide-react";
+import { BedDouble, CheckCircle2, Clock, Loader2, PencilLine } from "lucide-react";
 import { shiftEnd, taskUrgency } from "@/core/schedule/planner";
 import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { updateTaskStatus } from "../actions";
@@ -167,7 +168,7 @@ export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
                         <button
                           type="button"
                           onClick={() => openTask(task)}
-                          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left"
+                          className="flex min-h-9 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 py-1 text-left"
                           title="Registrar esta aferição"
                         >
                           {sortBy === "time" ? (
@@ -188,7 +189,7 @@ export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
                             {task.focus.map((f) => (
                               <span
                                 key={f}
-                                className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
+                                className={`rounded border px-1.5 py-0.5 text-[11px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
                               >
                                 {f}
                               </span>
@@ -199,13 +200,7 @@ export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
                           <input type="hidden" name="patientId" value={task.patientId} />
                           <input type="hidden" name="taskId" value={task.id} />
                           <input type="hidden" name="status" value="completed" />
-                          <button
-                            type="submit"
-                            title="Marcar como feita (sem registrar valores)"
-                            className="rounded-full p-1.5 text-muted-foreground hover:bg-emerald-100 hover:text-emerald-600"
-                          >
-                            <CheckCircle2 className="h-5 w-5" />
-                          </button>
+                          <MarkDoneButton />
                         </form>
                       </li>
                     );
@@ -293,5 +288,21 @@ function Segmented({
         </button>
       ))}
     </div>
+  );
+}
+
+/** "Marcar como feita": mostra progresso enquanto o servidor grava. */
+function MarkDoneButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      title="Marcar como feita (sem registrar valores)"
+      aria-label="Marcar como feita"
+      className="rounded-full p-2 text-muted-foreground hover:bg-emerald-100 hover:text-emerald-600 disabled:text-emerald-600"
+    >
+      {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+    </button>
   );
 }

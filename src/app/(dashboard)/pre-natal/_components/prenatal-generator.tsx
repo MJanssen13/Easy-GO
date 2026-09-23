@@ -1,5 +1,6 @@
 "use client";
 
+import { LabeledBox } from "@/components/form-controls";
 import { useMemo, useState } from "react";
 import {
   Plus,
@@ -95,6 +96,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
+import { DraftNotice } from "@/components/draft-notice";
+import { JumpToOutput } from "@/components/jump-to-output";
+import { useDraft } from "@/lib/use-draft";
 import { DateBRInput } from "@/components/date-br-input";
 import { Section, SectionIndex, SectionNavProvider } from "@/components/form-section";
 import { PrenatalCharts } from "./prenatal-charts";
@@ -122,10 +126,9 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={`space-y-1 ${className ?? ""}`}>
-      <Label className="text-xs">{label}</Label>
+    <LabeledBox label={label} className={className}>
       {children}
-    </div>
+    </LabeledBox>
   );
 }
 
@@ -162,7 +165,7 @@ function InfoTip({ title, children }: { title?: string; children: React.ReactNod
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
         aria-label={title ?? "Mais informações"}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="-m-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Info className="h-3.5 w-3.5" />
       </button>
@@ -238,6 +241,20 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
     "name", "socialName", "rg", "age", "origin", "companion", "companionRelation",
     "prenatalPlace", "prenatalCount", "prenatalIrregular",
   );
+
+  // Rascunho local: recarregar/fechar a aba não perde a consulta.
+  const emptyJson = useMemo(() => JSON.stringify(emptyForm), [emptyForm]);
+  const draft = useDraft<PrenatalForm>(
+    "prenatal",
+    form,
+    (v) => setForm({ ...emptyForm, ...v }),
+    (v) => JSON.stringify(v) === emptyJson,
+  );
+  const newConsult = () => {
+    if (!window.confirm("Limpar o formulário e começar uma nova consulta?")) return;
+    draft.discard();
+    setForm(emptyPrenatalForm(today));
+  };
 
   const text = useMemo(() => renderPrenatal(form), [form]);
   const parityView = useMemo(() => formatParity(form.priorPregnancies, true), [form.priorPregnancies]);
@@ -556,6 +573,13 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
     <SectionNavProvider className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
+        <DraftNotice
+          restoredAt={draft.restoredAt}
+          onDiscard={() => {
+            draft.discard();
+            setForm(emptyPrenatalForm(today));
+          }}
+        />
         <SectionIndex />
         {/* Identificação */}
         <Section title="Identificação" filled={filledIdent} contentClassName="space-y-3">
@@ -564,7 +588,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
               <DateBRInput value={form.date} onChange={(iso) => update({ date: iso })} />
             </Field>
             <Field label="Idade" className="w-24">
-              <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
+              <Input value={form.age} onChange={(e) => update({ age: e.target.value.replace(/\D/g, "").slice(0, 2) })} inputMode="numeric" />
             </Field>
             <Field label="RG" className="min-w-[8rem] flex-1">
               <Input value={form.rg} onChange={(e) => update({ rg: e.target.value })} />
@@ -851,7 +875,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                       <span className="text-xs font-semibold text-muted-foreground">
                         USG {idx + 1}
                         {isDating && (
-                          <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                          <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
                             datação
                           </span>
                         )}
@@ -934,19 +958,19 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                       <Field label="CC (mm)">
                         <div className="flex items-center gap-1">
                           <Input className="h-8" inputMode="numeric" value={e.hc ?? ""} onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })} />
-                          <span className="text-[10px] text-muted-foreground">{centiles.hc}</span>
+                          <span className="text-[11px] text-muted-foreground">{centiles.hc}</span>
                         </div>
                       </Field>
                       <Field label="CA (mm)">
                         <div className="flex items-center gap-1">
                           <Input className="h-8" inputMode="numeric" value={e.ac ?? ""} onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })} />
-                          <span className="text-[10px] text-muted-foreground">{centiles.ac}</span>
+                          <span className="text-[11px] text-muted-foreground">{centiles.ac}</span>
                         </div>
                       </Field>
                       <Field label="PFE (g)">
                         <div className="flex items-center gap-1">
                           <Input className="h-8" inputMode="numeric" value={e.efw ?? ""} onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })} />
-                          <span className="text-[10px] text-muted-foreground">{centiles.efw}</span>
+                          <span className="text-[11px] text-muted-foreground">{centiles.efw}</span>
                         </div>
                       </Field>
                       <Field label="ILA (cm)">
@@ -1091,7 +1115,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             ))}
           </div>
           <Input
-            placeholder="Outras (separadas por vírgula)"
+            placeholder="Outras (separadas por vírgula)" aria-label="Outras comorbidades"
             value={form.comorbiditiesOther}
             onChange={(e) => update({ comorbiditiesOther: e.target.value })}
           />
@@ -1109,7 +1133,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           </div>
           <div className="flex gap-2">
             <Input
-              placeholder="Adicionar medicamento…"
+              placeholder="Adicionar medicamento…" aria-label="Adicionar medicamento em uso"
               value={medInput}
               onChange={(e) => setMedInput(e.target.value)}
               onKeyDown={(e) => {
@@ -1228,7 +1252,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             />
           )}
           <Input
-            placeholder="Outros hábitos"
+            placeholder="Outros hábitos" aria-label="Outros hábitos"
             value={form.habitsOther}
             onChange={(e) => update({ habitsOther: e.target.value })}
           />
@@ -1266,6 +1290,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                   <span className="w-24 text-sm font-semibold">{v.label}</span>
                   {v.kind === "scheme" ? (
                     <select
+                      aria-label={`${v.label} — situação`}
                       className={`${selectClass} h-8 w-56`}
                       value={entry.status}
                       onChange={(e) => updateVaccine(v.id, { status: e.target.value })}
@@ -1280,6 +1305,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Data</span>
                       <DateBRInput
+                        aria-label={`${v.label} — data`}
                         className="h-8 w-32"
                         value={entry.date}
                         onChange={(iso) => updateVaccine(v.id, { date: iso })}
@@ -1471,7 +1497,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             <p className="text-sm font-semibold">Exames laboratoriais</p>
             <Textarea
               rows={3}
-              placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …"
+              placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …" aria-label="Exames laboratoriais"
               value={form.labs}
               onChange={(e) => update({ labs: e.target.value })}
             />
@@ -1833,7 +1859,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         >
           <Textarea
             rows={2}
-            placeholder={autoHd}
+            placeholder={autoHd} aria-label="Hipótese diagnóstica"
             value={form.hd}
             onChange={(e) => update({ hd: e.target.value })}
           />
@@ -1846,7 +1872,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section defaultOpen={false} title="Conduta" filled={changed("cd")} contentClassName="space-y-2">
           <Textarea
             rows={3}
-            placeholder="DISCUTIDA&#10;- ORIENTAÇÕES DIETÉTICAS&#10;- RETORNO CONFORME ROTINA"
+            placeholder="DISCUTIDA&#10;- ORIENTAÇÕES DIETÉTICAS&#10;- RETORNO CONFORME ROTINA" aria-label="Conduta"
             value={form.cd}
             onChange={(e) => update({ cd: e.target.value })}
           />
@@ -1884,7 +1910,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                   </li>
                 ))}
               </ul>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 Fonte: MS (Pré-Natal de Baixo Risco) / Febrasgo — sugestões (inclui USG), validar com o protocolo do serviço.
               </p>
             </>
@@ -1894,13 +1920,19 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
 
       {/* ----- Preview ----- */}
       <div className="lg:sticky lg:top-6 lg:h-fit">
-        <Card>
+        <JumpToOutput />
+        <Card id="prontuario" className="scroll-mt-20">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
+            <CardTitle className="flex items-center justify-between gap-2 text-base">
               <span className="flex items-center gap-2">
                 <Stethoscope className="h-4 w-4 text-teal-600" /> Prontuário
               </span>
-              <CopyButton text={text} />
+              <span className="flex items-center gap-1.5">
+                <Button type="button" variant="ghost" size="sm" onClick={newConsult}>
+                  Nova consulta
+                </Button>
+                <CopyButton text={text} />
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>

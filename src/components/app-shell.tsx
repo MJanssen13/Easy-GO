@@ -119,6 +119,7 @@ function UserBox({ signOut, collapsed }: { signOut: () => Promise<void>; collaps
         <button
           type="submit"
           title="Sair"
+          aria-label="Sair"
           className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
         >
           <LogOut className="h-4 w-4" />
@@ -229,7 +230,7 @@ export function AppShell({ children, signOut }: { children: React.ReactNode; sig
                 key={t.href}
                 href={t.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium",
+                  "flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium",
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >
@@ -241,7 +242,8 @@ export function AppShell({ children, signOut }: { children: React.ReactNode; sig
           <button
             type="button"
             onClick={() => setDrawer(true)}
-            className="flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground"
+            aria-label="Mais módulos"
+            className="flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium text-muted-foreground"
           >
             <span className="px-3 py-0.5">
               <Menu className="h-5 w-5" />
@@ -261,7 +263,7 @@ export function AppShell({ children, signOut }: { children: React.ReactNode; sig
           >
             <div className="flex items-center justify-between">
               <Brand />
-              <button type="button" onClick={() => setDrawer(false)} className="rounded-lg p-2 hover:bg-muted">
+              <button type="button" onClick={() => setDrawer(false)} aria-label="Fechar menu" className="rounded-lg p-2 hover:bg-muted">
                 <X className="h-5 w-5" />
               </button>
             </div>

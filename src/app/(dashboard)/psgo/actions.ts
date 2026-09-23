@@ -8,11 +8,14 @@ import {
   resolvePatient,
   reopenPatient,
   deletePatient,
+  getPatient,
+  updateSchedule,
   RepositoryError,
 } from "@/core/patients/repository";
 import { psgoFormToNewPatient } from "@/core/psgo/patient-mapper";
 import type { PsgoForm } from "@/core/psgo/types";
 import type { PatientModule } from "@/core/patients/types";
+import { initialRoutineTasks } from "@/core/schedule/initial-routine";
 
 export type PsgoAdmissionState = { error?: string; patientId?: string };
 
@@ -63,17 +66,39 @@ export async function savePsgoAdmission(
 
 const TRANSFER_TARGETS: PatientModule[] = ["pre_parto", "puerperio", "oncogineco"];
 
-/** Transfere a paciente do PSGO para outro módulo (grava em patient_transfers). */
+export interface PrePartoArrival {
+  bed?: string;
+  status?: "induction" | "conduction" | "active_labor" | "scheduled_c_section";
+}
+
+/**
+ * Transfere a paciente do PSGO para outro módulo (grava em patient_transfers).
+ * Para o Pré-Parto, já chega com leito, situação e rotina de aferições do turno
+ * — como na admissão direta.
+ */
 export async function transferPsgoPatient(
   patientId: string,
   toModule: PatientModule,
   reason?: string,
+  arrival?: PrePartoArrival,
 ): Promise<{ error?: string }> {
   if (!TRANSFER_TARGETS.includes(toModule)) {
     return { error: "Módulo de destino inválido." };
   }
   try {
     await transferPatient(patientId, toModule, reason?.trim() || undefined);
+    if (toModule === "pre_parto") {
+      const status = arrival?.status ?? "induction";
+      await updatePatient(patientId, { bed: arrival?.bed?.trim() || null, status });
+      try {
+        const patient = await getPatient(patientId);
+        const tasks = initialRoutineTasks(status, patient?.riskFactors ?? []);
+        if (tasks.length > 0) await updateSchedule(patientId, tasks);
+      } catch {
+        // best-effort: a rotina pode ser ajustada depois em "Editar rotina"
+      }
+      revalidatePath("/pre-parto");
+    }
     revalidatePath("/psgo");
     revalidatePath(`/psgo/${patientId}`);
     return {};

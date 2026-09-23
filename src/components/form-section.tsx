@@ -133,12 +133,12 @@ export function Section({
 
   return (
     <Card id={id} ref={cardRef} className="scroll-mt-32 lg:scroll-mt-24">
-      <div className="flex items-center justify-between gap-2 px-5 py-4 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 sm:px-6">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex flex-1 items-center gap-2 text-left"
+          className="flex min-h-9 flex-1 items-center gap-2 text-left"
         >
           <ChevronDown
             className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
@@ -150,7 +150,7 @@ export function Section({
             <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-label="Preenchida" />
           )}
         </button>
-        {headerExtra && <div className="flex items-center gap-2">{headerExtra}</div>}
+        {headerExtra && <div className="ml-auto flex max-w-full items-center gap-2">{headerExtra}</div>}
       </div>
       {open && (
         <div className={`px-5 pb-5 sm:px-6 sm:pb-6 ${contentClassName ?? ""}`}>
@@ -162,7 +162,7 @@ export function Section({
               onClick={() => setOpen(false)}
               aria-label="Recolher seção"
               title="Recolher"
-              className="inline-flex h-6 w-12 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex h-8 w-14 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <ChevronUp className="h-4 w-4" />
             </button>
@@ -256,7 +256,7 @@ export function SectionIndex({ className }: { className?: string }) {
             type="button"
             onClick={() => go(it)}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+              "inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
               active === k
                 ? "border-primary bg-primary text-primary-foreground"
                 : it.filled

@@ -13,7 +13,7 @@ export default async function CtgPage({ params }: { params: Promise<{ id: string
     <div className="mx-auto max-w-3xl space-y-5">
       <Link
         href={`/pre-parto/${patient.id}`}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar à paciente
       </Link>

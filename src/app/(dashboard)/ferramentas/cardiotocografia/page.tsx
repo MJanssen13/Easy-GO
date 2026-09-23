@@ -5,7 +5,6 @@ import {
   FileUp,
   Printer,
   Trash2,
-  HeartPulse,
   Plus,
   X,
   MessageSquarePlus,
@@ -13,6 +12,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -452,12 +452,7 @@ export default function CardiotocografiaToolPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <HeartPulse className="h-6 w-6 text-slate-600" />
-          Cardiotocografia
-        </h1>
-      </div>
+      <PageHeader module="ferramentas" title="Cardiotocografia" subtitle="Ferramentas · leitura de traçados .trc e laudo" />
 
       <Card>
         <CardContent className="space-y-4 py-4">
@@ -731,7 +726,7 @@ export default function CardiotocografiaToolPage() {
                       <ol className="space-y-1 text-xs">
                         {notes.map((a, n) => (
                           <li key={a.id} className="flex items-start gap-2">
-                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-medium text-background">
+                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-medium text-background">
                               {n + 1}
                             </span>
                             <span className="font-medium">{annotationRange(a)}</span>
@@ -847,7 +842,7 @@ export default function CardiotocografiaToolPage() {
                           <td className="whitespace-nowrap px-2 py-1.5 text-xs text-muted-foreground">
                             {Math.round(t.stats.durationSec / 60)} min
                             {isShortTrace(t) && (
-                              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+                              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-800">
                                 curta
                               </span>
                             )}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Loader2, Save, Target, Calculator, Link2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Plus, Save, Target, Calculator, Link2 } from "lucide-react";
 import { recordObservation, type ObservationState } from "../actions";
 import type { Patient } from "@/core/patients/types";
 import { MONITOR_PARAMS, paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
@@ -50,6 +50,22 @@ function nowLocal(): string {
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 16);
 }
+
+/** Campos (name) de cada parâmetro — para avisar antes de fechar um preenchido. */
+const PARAM_FIELDS: Record<string, string[]> = {
+  PA: ["paSystolic", "paDiastolic", "paStandingSystolic", "paStandingDiastolic"],
+  FC: ["fc"],
+  TAX: ["tax"],
+  Sat: ["spo2"],
+  DXT: ["dxt"],
+  BCF: ["bcf"],
+  Dinâmica: ["dynamicsSummary"],
+  Toque: ["dilation", "effacement", "station", "cervixObservation"],
+  Medicação: ["misoprostolDose", "misoprostolCount", "oxytocinDose", "antibiotic", "medicationOther"],
+  Reflexo: ["mgReflex"],
+  Diurese: ["mgDiuresis"],
+  FR: ["mgRespiratoryRate"],
+};
 
 function Field({
   label,
@@ -99,12 +115,24 @@ export function EvolutionForm({
     () => new Set([...focus, ...(patient.useMagnesiumSulfate ? MG_PARAMS : [])]),
   );
   const show = (p: string) => selected.has(p);
-  const toggle = (p: string) =>
+  const formRef = useRef<HTMLFormElement>(null);
+  // Fechar um parâmetro com valores digitados apagaria esses valores: confirma antes.
+  const toggle = (p: string) => {
+    if (selected.has(p) && formRef.current) {
+      const typed = (PARAM_FIELDS[p] ?? []).some((name) => {
+        const el = formRef.current!.elements.namedItem(name);
+        return el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement
+          ? el.value.trim() !== ""
+          : false;
+      });
+      if (typed && !window.confirm(`Remover ${p} desta aferição? Os valores digitados serão apagados.`)) return;
+    }
     setSelected((s) => {
       const n = new Set(s);
       n.has(p) ? n.delete(p) : n.add(p);
       return n;
     });
+  };
 
   // Toque controlado → índice de Bishop automático.
   const [dilation, setDilation] = useState("");
@@ -184,6 +212,7 @@ export function EvolutionForm({
 
   return (
     <form
+      ref={formRef}
       action={formAction}
       className="space-y-5"
       onInput={(e) => refreshAlerts(e.currentTarget)}
@@ -200,7 +229,7 @@ export function EvolutionForm({
             Conclui a aferição das <strong>{taskLabel}</strong> do cronograma.
           </span>
           {unlinkHref && (
-            <Link href={unlinkHref} className="text-xs font-medium underline-offset-2 hover:underline">
+            <Link href={unlinkHref} className="-my-2 inline-flex min-h-9 items-center py-2 text-xs font-medium underline-offset-2 hover:underline">
               Registrar avulsa
             </Link>
           )}
@@ -221,19 +250,21 @@ export function EvolutionForm({
                 key={p.id}
                 type="button"
                 onClick={() => toggle(p.id)}
-                title={scheduled ? "Aferição do cronograma agora" : "Adicionar aferição"}
-                className={`rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${
-                  sel ? GROUP_ACCENT[p.group] : "bg-background text-muted-foreground"
+                aria-pressed={sel}
+                title={sel ? "Remover desta aferição" : "Adicionar a esta aferição"}
+                className={`inline-flex min-h-9 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${
+                  sel ? GROUP_ACCENT[p.group] : "border-dashed bg-background text-muted-foreground"
                 } ${scheduled ? "ring-2 ring-primary/70 ring-offset-1" : ""}`}
               >
+                {sel ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                 {p.label}
               </button>
             );
           })}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Em destaque (contorno): aferições do cronograma agora. Toque em qualquer parâmetro para
-          abrir ou fechar seus campos.
+          <Check className="inline h-3 w-3" /> = será aferido · <Plus className="inline h-3 w-3" /> = adicionar ·
+          contorno = previsto no cronograma agora.
         </p>
       </div>
 
@@ -586,7 +617,7 @@ export function EvolutionForm({
           <CardTitle className="text-base">Conduta / observações</CardTitle>
         </CardHeader>
         <CardContent>
-          <Textarea name="notes" rows={4} placeholder="Conduta, plano, intercorrências..." />
+          <Textarea aria-label="Conduta e observações" name="notes" rows={4} placeholder="Conduta, plano, intercorrências..." />
         </CardContent>
       </Card>
 
@@ -614,14 +645,14 @@ export function EvolutionForm({
           <button
             type="button"
             onClick={onCancel}
-            className="self-center text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-10 items-center px-2 self-center text-sm text-muted-foreground hover:text-foreground"
           >
             Cancelar
           </button>
         ) : (
           <Link
             href={`/pre-parto/${patient.id}`}
-            className="self-center text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-10 items-center px-2 self-center text-sm text-muted-foreground hover:text-foreground"
           >
             Cancelar
           </Link>

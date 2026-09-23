@@ -1,5 +1,6 @@
 "use client";
 
+import { JumpToOutput } from "@/components/jump-to-output";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Loader2, RefreshCw, Save, Stethoscope } from "lucide-react";
@@ -187,7 +188,7 @@ export function PuerperioWorkspace({
               <button
                 type="button"
                 onClick={() => setHistory((h) => ({ ...h, context: draftContext(delivery) }))}
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                className="-my-1.5 inline-flex min-h-8 items-center gap-1 py-1.5 text-xs text-primary hover:underline"
               >
                 <RefreshCw className="h-3 w-3" /> Regerar a partir do parto
               </button>
@@ -196,7 +197,7 @@ export function PuerperioWorkspace({
               rows={5}
               value={history.context}
               onChange={(e) => setHistory((h) => ({ ...h, context: e.target.value }))}
-              placeholder="Toque na admissão, indução/condução, intercorrências…"
+              placeholder="Toque na admissão, indução/condução, intercorrências…" aria-label="Contexto da internação"
             />
             <p className="text-[11px] text-muted-foreground">
               Complete o toque na admissão, a indução e o acompanhante — o resto vem dos dados do parto.
@@ -295,7 +296,7 @@ export function PuerperioWorkspace({
               <Input
                 className="h-7 w-16 text-xs"
                 inputMode="numeric"
-                placeholder="cm"
+                placeholder="cm" aria-label="Altura uterina (cm)"
                 value={form.exam.fundusCm}
                 onChange={(e) => setExam({ fundusCm: e.target.value })}
               />
@@ -363,13 +364,13 @@ export function PuerperioWorkspace({
               <button
                 type="button"
                 onClick={() => set({ nursingParams: nursingParamsFrom(observations) })}
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                className="-my-1.5 inline-flex min-h-8 items-center gap-1 py-1.5 text-xs text-primary hover:underline"
               >
                 <RefreshCw className="h-3 w-3" /> Faixas das últimas 24 h
               </button>
             </div>
             <Input
-              placeholder="PAS: / PAD: / FC: / TAX: ºC"
+              placeholder="PAS: / PAD: / FC: / TAX: ºC" aria-label="Parâmetros da enfermagem"
               value={form.nursingParams}
               onChange={(e) => set({ nursingParams: e.target.value })}
             />
@@ -406,14 +407,14 @@ export function PuerperioWorkspace({
           </div>
           {form.plan.contracepcao && (
             <Input
-              placeholder="Complemento: ex.: PACIENTE INFORMA QUE IRÁ DECIDIR QUANTO AO MÉTODO"
+              placeholder="Complemento: ex.: PACIENTE INFORMA QUE IRÁ DECIDIR QUANTO AO MÉTODO" aria-label="Complemento do planejamento reprodutivo"
               value={form.contraceptionNote}
               onChange={(e) => set({ contraceptionNote: e.target.value })}
             />
           )}
           <Textarea
             rows={2}
-            placeholder="Outras orientações (uma por linha)"
+            placeholder="Outras orientações (uma por linha)" aria-label="Outras orientações"
             value={form.planExtra}
             onChange={(e) => set({ planExtra: e.target.value })}
           />
@@ -446,7 +447,7 @@ export function PuerperioWorkspace({
           {form.mode === "internacao" ? (
             <Textarea
               rows={3}
-              placeholder="Uma orientação por linha"
+              placeholder="Uma orientação por linha" aria-label="Orientações"
               value={form.conduct}
               onChange={(e) => set({ conduct: e.target.value })}
             />
@@ -480,7 +481,7 @@ export function PuerperioWorkspace({
               </div>
               <Textarea
                 rows={2}
-                placeholder="Outras orientações de alta (uma por linha)"
+                placeholder="Outras orientações de alta (uma por linha)" aria-label="Outras orientações de alta"
                 value={form.dischargeExtra}
                 onChange={(e) => set({ dischargeExtra: e.target.value })}
               />
@@ -491,7 +492,8 @@ export function PuerperioWorkspace({
 
       {/* ----- Prontuário ----- */}
       <div className="lg:sticky lg:top-6 lg:h-fit">
-        <Card>
+        <JumpToOutput />
+        <Card id="prontuario" className="scroll-mt-20">
           <CardHeader className="space-y-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Stethoscope className="h-4 w-4 text-primary" /> Prontuário
@@ -506,7 +508,7 @@ export function PuerperioWorkspace({
             <div className="flex items-center justify-between gap-2 border-t pt-3">
               <Input
                 className="h-8 text-xs"
-                placeholder="Autor(a) da evolução"
+                placeholder="Autor(a) da evolução" aria-label="Autor(a) da evolução"
                 value={author}
                 onChange={(e) => {
                   setAuthor(e.target.value);

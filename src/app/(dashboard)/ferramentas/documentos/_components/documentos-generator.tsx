@@ -1,5 +1,6 @@
 "use client";
 
+import { LabeledBox } from "@/components/form-controls";
 import { useState } from "react";
 import { Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +40,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
+      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
         active
           ? "border-primary bg-primary text-primary-foreground"
           : "bg-background text-muted-foreground hover:bg-muted"
@@ -52,10 +53,9 @@ function Chip({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+    <LabeledBox label={label} labelClassName="text-muted-foreground">
       {children}
-    </div>
+    </LabeledBox>
   );
 }
 

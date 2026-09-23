@@ -83,7 +83,7 @@ export function OpenPartogram({ patientId, compact }: { patientId: string; compa
           ))}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Os dois ficam disponíveis; as aferições registradas a partir da abertura entram sozinhas.
+          Os dois ficam disponíveis; as aferições a partir da abertura (e o último toque da hora anterior) entram sozinhas.
         </p>
       </div>
       {error && <p className="rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">{error}</p>}

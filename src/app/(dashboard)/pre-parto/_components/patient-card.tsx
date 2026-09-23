@@ -74,12 +74,12 @@ export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stat
         {(patient.useMethyldopa || patient.useMagnesiumSulfate) && (
           <div className="mt-2 flex flex-wrap gap-1">
             {patient.useMethyldopa && (
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-[11px]">
                 Metildopa
               </Badge>
             )}
             {patient.useMagnesiumSulfate && (
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-[11px]">
                 MgSO₄
               </Badge>
             )}

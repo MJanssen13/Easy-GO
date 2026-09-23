@@ -41,11 +41,13 @@ export function DateBRInput({
   onChange,
   className,
   id,
+  "aria-label": ariaLabel,
 }: {
   value: string;
   onChange: (iso: string) => void;
   className?: string;
   id?: string;
+  "aria-label"?: string;
 }) {
   const [text, setText] = useState(() => isoToBr(value));
   useEffect(() => setText(isoToBr(value)), [value]);
@@ -64,6 +66,7 @@ export function DateBRInput({
   return (
     <Input
       id={id}
+      aria-label={ariaLabel}
       className={className}
       value={text}
       onChange={(e) => handle(e.target.value)}

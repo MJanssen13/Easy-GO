@@ -93,6 +93,14 @@
   * {
     @apply border-border;
   }
+  /* Celular: barra superior e abas inferiores fixas não cobrem o que é
+     rolado até a vista (foco, âncoras, scrollIntoView). */
+  @media (max-width: 1023px) {
+    html {
+      scroll-padding-top: 4.5rem;
+      scroll-padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+    }
+  }
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "cv11", "ss01";

@@ -66,7 +66,7 @@ function ImcChart({ imc, gaWeeks }: { imc: number; gaWeeks: number | null }) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground">
         Faixas: baixo peso / adequado / sobrepeso / obesidade. Fonte: MS/SISVAN (Atalah 1997) · validar.
         {!inRange && " Informe a IG (6–42 sem) para plotar o ponto."}
       </p>
@@ -99,7 +99,7 @@ function AuChart({ au, gaWeeks }: { au: number; gaWeeks: number | null }) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground">
         Banda P10–P90 (baixo risco). Fonte: Freire et al., RBGO 2006 · validar.
         {!inRange && " Ponto plotado entre 13–39 sem."}
       </p>

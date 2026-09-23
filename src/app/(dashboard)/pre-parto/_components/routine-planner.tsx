@@ -318,6 +318,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-muted-foreground">a cada</span>
                   <select
+                    aria-label="Intervalo"
                     value={draftInterval}
                     onChange={(e) => setDraftInterval(Number(e.target.value))}
                     className={selectClass}
@@ -368,7 +369,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
                     <span
                       key={c.id}
                       className={cn(
-                        "rounded border px-1.5 py-0.5 text-[11px] font-semibold",
+                        "rounded-md border px-2 py-1 text-[11px] font-semibold",
                         GROUP_ACCENT[paramGroup(c.id)],
                       )}
                     >
@@ -402,7 +403,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
                                     onClick={() => toggleRemoved(iso, p)}
                                     title={off ? "Restaurar" : "Remover deste horário"}
                                     className={cn(
-                                      "rounded border px-1.5 py-0.5 text-[11px] font-semibold transition-colors",
+                                      "rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors",
                                       off
                                         ? "bg-background text-muted-foreground line-through"
                                         : GROUP_ACCENT[paramGroup(p)],
@@ -416,7 +417,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
                                 <span className="text-xs text-muted-foreground">sem parâmetros</span>
                               )}
                             </div>
-                            <span className="hidden text-[10px] text-muted-foreground sm:inline">
+                            <span className="hidden text-[11px] text-muted-foreground sm:inline">
                               {dayLabel(iso)}
                             </span>
                             <button
@@ -424,7 +425,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
                               onClick={() => setEditing(isEditing ? null : iso)}
                               aria-label="Editar horário"
                               className={cn(
-                                "rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground",
+                                "rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground",
                                 isEditing && "bg-muted text-foreground",
                               )}
                             >
@@ -498,7 +499,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
               <div className="flex items-center justify-end gap-3 border-t pt-3">
                 <Link
                   href={`/pre-parto/${patient.id}`}
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="inline-flex min-h-10 items-center px-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                   Cancelar
                 </Link>
@@ -581,7 +582,7 @@ function OptionCard({
         </span>
         {title}
         {badge && (
-          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold text-emerald-800">
             {badge}
           </span>
         )}

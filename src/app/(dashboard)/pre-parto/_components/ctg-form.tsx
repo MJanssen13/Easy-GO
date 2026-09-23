@@ -251,7 +251,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
           <CardTitle className="text-base">Observações</CardTitle>
         </CardHeader>
         <CardContent>
-          <Textarea name="notes" rows={2} placeholder="Detalhes adicionais..." />
+          <Textarea aria-label="Observações da CTG" name="notes" rows={2} placeholder="Detalhes adicionais..." />
         </CardContent>
       </Card>
 
@@ -262,7 +262,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
       <div className="flex justify-end gap-2">
         <Link
           href={`/pre-parto/${patient.id}`}
-          className="self-center text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex min-h-10 items-center px-2 self-center text-sm text-muted-foreground hover:text-foreground"
         >
           Cancelar
         </Link>

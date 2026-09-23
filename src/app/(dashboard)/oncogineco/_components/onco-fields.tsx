@@ -116,11 +116,11 @@ export function ContextField({
     <div className="space-y-1">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium">Contexto da internação</span>
-        <button type="button" onClick={onDraft} className="text-xs text-primary hover:underline">
+        <button type="button" onClick={onDraft} className="-my-1.5 min-h-8 py-1.5 text-xs text-primary hover:underline">
           Regerar a partir do diagnóstico
         </button>
       </div>
-      <Textarea rows={4} value={value} onChange={(e) => onChange(e.target.value)} />
+      <Textarea aria-label="Contexto da internação" rows={4} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }

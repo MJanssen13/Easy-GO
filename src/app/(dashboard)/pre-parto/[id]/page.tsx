@@ -142,7 +142,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
     <div className="space-y-5">
       <Link
         href="/pre-parto"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
       </Link>
@@ -244,7 +244,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                   <div key={v.label} className="flex items-baseline gap-1.5">
                     <dt className="text-xs text-muted-foreground">{v.label}</dt>
                     <dd className="text-base font-bold">{v.value}</dd>
-                    <span className="text-[10px] text-muted-foreground">{timeOnly(v.at)}</span>
+                    <span className="text-[11px] text-muted-foreground">{timeOnly(v.at)}</span>
                   </div>
                 ))}
               </dl>
@@ -421,7 +421,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                         {t.focus.map((f) => (
                           <span
                             key={f}
-                            className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
+                            className={`rounded border px-1.5 py-0.5 text-[11px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
                           >
                             {f}
                           </span>
@@ -442,7 +442,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                       <button
                         type="submit"
                         title="Pular (não será aferida)"
-                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                       >
                         <SkipForward className="h-3.5 w-3.5" />
                       </button>

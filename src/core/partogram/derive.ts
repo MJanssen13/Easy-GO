@@ -47,12 +47,52 @@ export function strengthOf(seconds: number | null): ContractionStrength {
   return "strong";
 }
 
-/** Aferições após a abertura, em ordem cronológica. */
-export function afterOpening(observations: Observation[], openedAt: string): Observation[] {
+/** Janela antes da abertura em que o último toque ainda entra na coluna 0. */
+export const OPENING_EXAM_WINDOW_MIN = 60;
+
+/**
+ * Aferições após a abertura, em ordem cronológica. Com `includeOpeningExam`,
+ * o último toque (dilatação) feito até 60 min antes da abertura — em geral o
+ * que diagnosticou a fase ativa — entra na coluna 0, só com os dados do toque
+ * (colo, altura, bolsa); vitais e BCF daquele momento ficam de fora.
+ */
+export function afterOpening(
+  observations: Observation[],
+  openedAt: string,
+  includeOpeningExam = false,
+): Observation[] {
   const t0 = new Date(openedAt).getTime();
-  return observations
-    .filter((o) => new Date(o.recordedAt).getTime() >= t0)
-    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
+  const byTime = (a: Observation, b: Observation) =>
+    new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime();
+  const after = observations.filter((o) => new Date(o.recordedAt).getTime() >= t0).sort(byTime);
+  if (!includeOpeningExam) return after;
+  const hasExamAtOpening = after.some(
+    (o) => o.obstetric.dilation != null && new Date(o.recordedAt).getTime() - t0 < 30 * 60000,
+  );
+  if (hasExamAtOpening) return after;
+  const prior = observations
+    .filter((o) => {
+      const t = new Date(o.recordedAt).getTime();
+      return o.obstetric.dilation != null && t < t0 && t0 - t <= OPENING_EXAM_WINDOW_MIN * 60000;
+    })
+    .sort(byTime)
+    .at(-1);
+  if (!prior) return after;
+  const ob = prior.obstetric;
+  const exam: Observation = {
+    ...prior,
+    recordedAt: openedAt,
+    vitals: {},
+    medication: undefined,
+    obstetric: {
+      dilation: ob.dilation,
+      effacement: ob.effacement,
+      station: ob.station,
+      presentation: ob.presentation,
+      membranes: ob.membranes,
+    },
+  };
+  return [exam, ...after];
 }
 
 // ------------------------------- Ficha HC-UFTM -------------------------------
@@ -77,7 +117,7 @@ function medsText(o: Observation): string {
 }
 
 export function deriveUftm(observations: Observation[], openedAt: string): UftmAuto {
-  const obs = afterOpening(observations, openedAt);
+  const obs = afterOpening(observations, openedAt, true);
   const points: UftmPoint[] = [];
   const blocks: UftmContractionBlock[] = [];
   const table: Partial<UftmTableColumn>[] = Array.from({ length: UFTM_COLS }, (_, i) => ({
@@ -145,7 +185,7 @@ export function deriveUftm(observations: Observation[], openedAt: string): UftmA
  */
 export function deriveLcgFirst(observations: Observation[], openedAt: string): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
-  for (const o of afterOpening(observations, openedAt)) {
+  for (const o of afterOpening(observations, openedAt, true)) {
     const i = slotOf(o.recordedAt, openedAt, 30);
     if (i < 0 || i >= LCG_FIRST_SLOTS) continue;
     const c = (out[String(i)] ??= {});

@@ -1,5 +1,6 @@
 "use client";
 
+import { JumpToOutput } from "@/components/jump-to-output";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Loader2, RefreshCw, Save, Microscope } from "lucide-react";
@@ -276,13 +277,13 @@ export function OncoWorkspace({
               <button
                 type="button"
                 onClick={() => set({ nursingParams: nursingParamsFrom(observations) })}
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                className="-my-1.5 inline-flex min-h-8 items-center gap-1 py-1.5 text-xs text-primary hover:underline"
               >
                 <RefreshCw className="h-3 w-3" /> Faixas das últimas 24 h
               </button>
             </div>
             <Input
-              placeholder="PAS: / PAD: / FC: / TAX: ºC"
+              placeholder="PAS: / PAD: / FC: / TAX: ºC" aria-label="Parâmetros da enfermagem"
               value={form.nursingParams}
               onChange={(e) => set({ nursingParams: e.target.value })}
             />
@@ -311,7 +312,7 @@ export function OncoWorkspace({
           </div>
           <Textarea
             rows={2}
-            placeholder="Outras orientações (uma por linha)"
+            placeholder="Outras orientações (uma por linha)" aria-label="Outras orientações"
             value={form.planExtra}
             onChange={(e) => set({ planExtra: e.target.value })}
           />
@@ -344,7 +345,7 @@ export function OncoWorkspace({
           {form.mode === "internacao" ? (
             <Textarea
               rows={3}
-              placeholder="Uma orientação por linha"
+              placeholder="Uma orientação por linha" aria-label="Orientações"
               value={form.conduct}
               onChange={(e) => set({ conduct: e.target.value })}
             />
@@ -363,7 +364,7 @@ export function OncoWorkspace({
               ))}
               <Textarea
                 rows={2}
-                placeholder="Outras orientações de alta (uma por linha)"
+                placeholder="Outras orientações de alta (uma por linha)" aria-label="Outras orientações de alta"
                 value={form.dischargeExtra}
                 onChange={(e) => set({ dischargeExtra: e.target.value })}
               />
@@ -373,7 +374,8 @@ export function OncoWorkspace({
       </div>
 
       <div className="lg:sticky lg:top-6 lg:h-fit">
-        <Card>
+        <JumpToOutput />
+        <Card id="prontuario" className="scroll-mt-20">
           <CardHeader className="space-y-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Microscope className="h-4 w-4 text-primary" /> Prontuário
@@ -388,7 +390,7 @@ export function OncoWorkspace({
             <div className="flex items-center justify-between gap-2 border-t pt-3">
               <Input
                 className="h-8 text-xs"
-                placeholder="Autor(a) da evolução"
+                placeholder="Autor(a) da evolução" aria-label="Autor(a) da evolução"
                 value={author}
                 onChange={(e) => {
                   setAuthor(e.target.value);

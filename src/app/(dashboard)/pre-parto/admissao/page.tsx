@@ -45,7 +45,7 @@ export default function AdmissionPage() {
     <div className="mx-auto max-w-2xl space-y-4">
       <Link
         href="/pre-parto"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
       </Link>
@@ -195,7 +195,7 @@ export default function AdmissionPage() {
             )}
 
             <div className="flex justify-end gap-2">
-              <Link href="/pre-parto" className="text-sm text-muted-foreground hover:text-foreground self-center">
+              <Link href="/pre-parto" className="inline-flex min-h-10 items-center px-2 text-sm text-muted-foreground hover:text-foreground self-center">
                 Cancelar
               </Link>
               <Button type="submit" disabled={pending}>

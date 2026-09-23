@@ -46,7 +46,7 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
     <div className="space-y-5">
       <Link
         href="/puerperio"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
       </Link>
@@ -107,6 +107,8 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
                             size="icon"
                             className="text-destructive"
                             message="Apagar esta evolução do histórico?"
+                            aria-label="Apagar evolução"
+                            title="Apagar evolução"
                           >
                             <Trash2 className="h-4 w-4" />
                           </ConfirmSubmit>

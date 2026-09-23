@@ -326,7 +326,7 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
       <div className="flex justify-end gap-2">
         <Link
           href={`/pre-parto/${patient.id}`}
-          className="self-center text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex min-h-10 items-center px-2 self-center text-sm text-muted-foreground hover:text-foreground"
         >
           Cancelar
         </Link>

@@ -102,6 +102,12 @@ function datingColumns(form: PsgoForm): {
   return { lmp: form.lmp || null, edd: null, gaWeeks: dating.gaWeeks, gaDays: null };
 }
 
+/** Idade plausível (10–60 anos) ou null — evita "IDADE 4445556 ANOS". */
+export function validAge(v: string): number | null {
+  const n = Number(v);
+  return v.trim() && Number.isInteger(n) && n >= 10 && n <= 60 ? n : null;
+}
+
 /** Admissão do PSGO → paciente (module="psgo"), com o form completo no JSON. */
 export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
   const parity = formatParity(form.priorPregnancies, form.pregnant);
@@ -117,9 +123,9 @@ export function psgoFormToNewPatient(form: PsgoForm): NewPatientInput {
 
   return {
     module: "psgo",
-    name: form.name.trim(),
+    name: form.name.trim().toUpperCase(),
     medicalRecordNumber: form.rg.trim() || null,
-    age: form.age ? Number(form.age) : null,
+    age: validAge(form.age),
     parity: parity.summary || null,
     bloodType: form.bloodType || null,
     lmp: dt.lmp,

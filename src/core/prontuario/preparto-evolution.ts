@@ -61,6 +61,26 @@ function todayISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Motivo da admissão sugerido pela situação. Quem recebeu misoprostol foi
+ * admitida para indução, mesmo que já esteja em fase ativa / partograma.
+ */
+export function admissionReasonFor(patient: Patient): string {
+  const hadMiso = (patient.observations ?? []).some((o) => o.medication?.misoprostolDose);
+  if (hadMiso || patient.status === "induction") return "INDUÇÃO AO PARTO VAGINAL";
+  switch (patient.status) {
+    case "conduction":
+      return "CONDUÇÃO DO TRABALHO DE PARTO";
+    case "active_labor":
+    case "partogram_open":
+      return "TRABALHO DE PARTO EM FASE ATIVA";
+    case "scheduled_c_section":
+      return "CESARIANA ELETIVA";
+    default:
+      return "";
+  }
+}
+
 /** Valores iniciais da nota, derivados da paciente. */
 export function defaultShiftInput(patient: Patient): ShiftNoteInput {
   const h = new Date().getHours();
@@ -68,7 +88,7 @@ export function defaultShiftInput(patient: Patient): ShiftNoteInput {
     shift: h >= 7 && h < 19 ? "diurno" : "noturno",
     noteDate: todayISO(),
     admissionDate: (patient.admissionDate ?? "").slice(0, 10),
-    reason: "INDUÇÃO AO PARTO VAGINAL",
+    reason: admissionReasonFor(patient),
     clinicalText: DEFAULT_CLINICAL,
     induction: {
       mode: "none",

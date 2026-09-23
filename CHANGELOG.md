@@ -5,6 +5,35 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Correções do teste de usabilidade
+
+- **PSGO sem admissão duplicada**: após o 1º salvamento automático o endereço
+  passa a `/psgo/admissao?id=…` — recarregar edita a mesma admissão.
+- **Rascunho local** (Pré-Natal e PSGO antes de nome + RG): recarregar ou fechar
+  a aba não perde o preenchimento; aviso com "Descartar e começar do zero".
+  Pré-Natal ganha **Nova consulta**.
+- **PSGO → Pré-Parto** pede leito e situação (indução, condução, fase ativa,
+  cesárea eletiva) e já cria a rotina de aferições do turno, como a admissão
+  direta (`core/schedule/initial-routine.ts`); abre direto a paciente.
+- **Nome em maiúsculas** também no PSGO e no Pré-Parto (admissão/edição).
+- **Idade** só aceita 2 dígitos no PSGO/Pré-Natal; valores fora de 10–60 anos
+  não vão para o cadastro.
+- **Partograma**: o último toque até 60 min antes da abertura entra na coluna 0
+  (só dados do toque) nos dois modelos.
+- **Evolução de plantão**: motivo da admissão sugerido pela situação (indução
+  se houve misoprostol; fase ativa, condução, cesárea eletiva).
+- **Celular**: abas inferiores não cobrem mais o que é rolado até a vista
+  (`scroll-padding`); botão flutuante **Prontuário** nos geradores (PSGO,
+  Pré-Natal, Puerpério, Onco); cabeçalhos de seção quebram linha (seletor
+  Gestante/Não gestante não estoura).
+- **Aferição**: parâmetros com ✓ (será aferido) / + (adicionar); fechar um
+  parâmetro com valores digitados pede confirmação.
+- **Cronograma**: "marcar como feita" mostra progresso.
+- **Acessibilidade**: todos os campos com rótulo associado (`Label` associa-se
+  ao campo seguinte; `LabeledBox`), alvos de toque ≥ 32 px, texto mínimo 11 px,
+  botões só-ícone com nome.
+- **Ferramentas** (Receita, Documentos, CTG) com o cabeçalho padrão.
+
 ### Design — menu recolhível
 
 - **Menu lateral recolhível**: botão no topo do menu (ou **Ctrl/⌘+B**) alterna

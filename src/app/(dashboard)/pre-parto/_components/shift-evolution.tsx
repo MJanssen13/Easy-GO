@@ -1,5 +1,6 @@
 "use client";
 
+import { LabeledBox } from "@/components/form-controls";
 import { useEffect, useMemo, useState } from "react";
 import { FileText } from "lucide-react";
 import type { Patient, Observation } from "@/core/patients/types";
@@ -30,10 +31,7 @@ const TEAM_ROLES: Array<[keyof TeamInput, string]> = [
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
-      {children}
-    </div>
+    <LabeledBox label={label}>{children}</LabeledBox>
   );
 }
 

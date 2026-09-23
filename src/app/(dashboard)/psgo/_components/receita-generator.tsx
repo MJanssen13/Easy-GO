@@ -1,5 +1,6 @@
 "use client";
 
+import { LabeledBox } from "@/components/form-controls";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Plus, Trash2, Printer, AlertTriangle, Eraser, Search, Check } from "lucide-react";
@@ -77,10 +78,9 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={`space-y-1 ${className ?? ""}`}>
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+    <LabeledBox label={label} className={className} labelClassName="text-muted-foreground">
       {children}
-    </div>
+    </LabeledBox>
   );
 }
 
@@ -97,7 +97,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
+      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
         active
           ? "border-primary bg-primary text-primary-foreground"
           : "bg-background text-muted-foreground hover:bg-muted"
@@ -587,7 +587,7 @@ export function ReceitaGenerator({
                     <span className="text-sm font-semibold text-primary">{idx + 1}º medicamento</span>
                     {it.principioAtivo.trim() && (
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
                           info.bloqueado
                             ? "bg-amber-200 text-amber-900"
                             : info.classe === "ESPECIAL"

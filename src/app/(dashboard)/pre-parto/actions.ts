@@ -18,12 +18,9 @@ import {
   mergeSchedule,
   markCompleted,
   setTaskStatus,
-  tasksFromRoutines,
-  nextHalfHour,
-  shiftEnd,
   overdueTasks,
 } from "@/core/schedule/planner";
-import { getRoutine, hasDiabetesRisk, suggestedBaseRoutine } from "@/core/schedule/routines";
+import { initialRoutineTasks } from "@/core/schedule/initial-routine";
 import { createCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
 import { computeCtgScore, suggestConclusion } from "@/core/ctg/scoring";
 import type { NewCtgInput } from "@/core/ctg/types";
@@ -98,7 +95,7 @@ export async function admitPatient(
 
   const input: NewPatientInput = {
     module: "pre_parto",
-    name: d.name,
+    name: d.name.toUpperCase(),
     medicalRecordNumber: d.medicalRecordNumber ?? null,
     bed: d.bed ?? null,
     age: d.age ?? null,
@@ -143,14 +140,7 @@ export async function admitPatient(
   // Rotina de aferições já na admissão (editável depois): fase de base pela
   // situação + protocolo de diabetes se houver DMG/Overt nos fatores de risco.
   try {
-    const baseId = suggestedBaseRoutine(d.status);
-    const routines = [getRoutine(baseId)!];
-    if (hasDiabetesRisk(input.riskFactors ?? [])) {
-      const diabetes = getRoutine("diabetes");
-      if (diabetes) routines.push(diabetes);
-    }
-    const from = nextHalfHour();
-    const tasks = tasksFromRoutines(routines, from, shiftEnd(from));
+    const tasks = initialRoutineTasks(d.status, input.riskFactors ?? []);
     if (tasks.length > 0) await updateSchedule(created.id, tasks);
   } catch {
     // best-effort: a rotina pode ser criada/ajustada depois em "Editar Rotina"
@@ -639,7 +629,7 @@ export async function editPatient(
   const d = parsed.data;
 
   const input: UpdatePatientInput = {
-    name: d.name,
+    name: d.name.toUpperCase(),
     bed: d.bed ?? null,
     medicalRecordNumber: d.medicalRecordNumber ?? null,
     age: d.age ?? null,
