@@ -5,6 +5,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Pré-Parto — cronograma e quadro de leitos
+
+- **Cronograma agrupado por horário**: um cabeçalho por hora (atrasada/agora em
+  destaque) e uma linha compacta por paciente; modo **por leito** agrupa as
+  horas de cada paciente. Janela **Próx. 2 h / Plantão / Todas** (atrasadas
+  sempre aparecem) e contador de atrasadas. Corrigidas as *keys* duplicadas.
+- **Card do leito** mostra a próxima aferição, as atrasadas (em vermelho) ou
+  "Sem rotina de aferições".
+
 ### Pré-Parto — página da paciente e aferição
 
 - **Registrar aferição** é a ação principal (com nº de atrasadas). Sem tarefa

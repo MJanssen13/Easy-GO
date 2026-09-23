@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BedDouble, CheckCircle2, Clock, PencilLine } from "lucide-react";
-import { taskUrgency } from "@/core/schedule/planner";
+import { shiftEnd, taskUrgency } from "@/core/schedule/planner";
 import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { updateTaskStatus } from "../actions";
 import { EvolutionForm } from "./evolution-form";
@@ -29,18 +29,11 @@ function hhmm(iso: string): string {
   return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-/** ISO → "YYYY-MM-DDTHH:mm" local, for the datetime-local default. */
-function toLocalInput(iso: string): string | undefined {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-}
-
 export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
   const router = useRouter();
   const [now, setNow] = useState(() => new Date());
   const [sortBy, setSortBy] = useState<"time" | "bed">("time");
+  const [windowOpt, setWindowOpt] = useState<"2h" | "shift" | "all">("shift");
   const [selected, setSelected] = useState<FlatTask | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -66,109 +59,170 @@ export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
     }
   }
 
-  const sorted = [...tasks].sort((a, b) => {
-    if (sortBy === "bed") {
-      const bd = (a.bed ?? "").localeCompare(b.bed ?? "", undefined, { numeric: true });
-      if (bd !== 0) return bd;
+  const sorted = [...tasks].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
+
+  // Janela: atrasadas sempre aparecem; o resto até o limite escolhido.
+  const limit =
+    windowOpt === "2h"
+      ? now.getTime() + 2 * 3600000
+      : windowOpt === "shift"
+        ? shiftEnd(now).getTime()
+        : Infinity;
+  const visible = sorted.filter((t) => new Date(t.timestamp).getTime() <= limit);
+  const hidden = sorted.length - visible.length;
+  const overdueCount = sorted.filter((t) => taskUrgency(t.timestamp, now) === "overdue").length;
+
+  // Grupos: por horário (padrão) ou por leito.
+  const groups: { key: string; title: string; urgency?: string; items: FlatTask[] }[] = [];
+  if (sortBy === "time") {
+    for (const t of visible) {
+      const k = hhmm(t.timestamp);
+      const last = groups[groups.length - 1];
+      if (last && last.key === t.timestamp) last.items.push(t);
+      else groups.push({ key: t.timestamp, title: k, urgency: taskUrgency(t.timestamp, now), items: [t] });
     }
-    return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-  });
+  } else {
+    const byPatient = new Map<string, FlatTask[]>();
+    for (const t of visible) byPatient.set(t.patientId, [...(byPatient.get(t.patientId) ?? []), t]);
+    for (const [pid, items] of [...byPatient.entries()].sort(([, a], [, b]) =>
+      (a[0]!.bed ?? "").localeCompare(b[0]!.bed ?? "", undefined, { numeric: true }),
+    )) {
+      const f = items[0]!;
+      groups.push({ key: pid, title: `${f.bed ? `Leito ${f.bed}` : "Sem leito"} · ${f.patientName}`, items });
+    }
+  }
 
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:gap-5">
       {/* Lista de tarefas */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-1 rounded-full border bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-            <Clock className="h-3 w-3" /> {tasks.length} pendentes
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full border bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+              <Clock className="h-3 w-3" /> {tasks.length} pendentes
+            </span>
+            {overdueCount > 0 && (
+              <span className="inline-flex items-center rounded-full bg-destructive/10 px-3 py-1 text-xs font-bold text-destructive">
+                {overdueCount} atrasadas
+              </span>
+            )}
           </div>
-          <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
-            <button
-              onClick={() => setSortBy("time")}
-              className={`rounded-md px-3 py-1 text-xs font-bold ${
-                sortBy === "time" ? "bg-background shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              Horário
-            </button>
-            <button
-              onClick={() => setSortBy("bed")}
-              className={`rounded-md px-3 py-1 text-xs font-bold ${
-                sortBy === "bed" ? "bg-background shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              Leito
-            </button>
+          <div className="flex flex-wrap gap-2">
+            <Segmented
+              value={windowOpt}
+              onChange={(v) => setWindowOpt(v as typeof windowOpt)}
+              options={[
+                ["2h", "Próx. 2 h"],
+                ["shift", "Plantão"],
+                ["all", "Todas"],
+              ]}
+            />
+            <Segmented
+              value={sortBy}
+              onChange={(v) => setSortBy(v as typeof sortBy)}
+              options={[
+                ["time", "Horário"],
+                ["bed", "Leito"],
+              ]}
+            />
           </div>
         </div>
 
-        {sorted.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-muted-foreground">
             <CheckCircle2 className="mb-2 h-8 w-8 text-emerald-500" />
             <p className="font-semibold text-foreground">Tudo em dia</p>
-            <p className="text-sm">Nenhuma aferição pendente no momento.</p>
+            <p className="text-sm">
+              {hidden > 0 ? `Nada nesta janela (${hidden} mais tarde).` : "Nenhuma aferição pendente no momento."}
+            </p>
           </div>
         ) : (
-          <ul className="space-y-2">
-            {sorted.map((task) => {
-              const urgency = taskUrgency(task.timestamp, now);
-              const active = selected?.id === task.id;
-              return (
-                <li
-                  key={task.id}
-                  className={`rounded-xl border p-3 ${URGENCY_STYLE[urgency]} ${
-                    active ? "ring-2 ring-primary" : ""
+          <div className="space-y-3">
+            {groups.map((g) => (
+              <section key={g.key} className="overflow-hidden rounded-xl border bg-card">
+                <header
+                  className={`flex items-center gap-2 border-b px-3 py-1.5 ${
+                    g.urgency ? URGENCY_STYLE[g.urgency] : "bg-muted/40"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => openTask(task)}
-                      className="flex-1 text-left"
-                    >
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-mono text-xl font-bold">{hhmm(task.timestamp)}</span>
-                        {urgency === "overdue" && (
-                          <span className="text-xs font-bold text-destructive">atrasada</span>
-                        )}
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-                        <BedDouble className="h-3.5 w-3.5" />
-                        {task.bed ? `Leito ${task.bed}` : "sem leito"} · {task.patientName}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {task.focus.length > 0 ? (
-                          task.focus.map((f) => (
-                            <span
-                              key={f}
-                              className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
-                            >
-                              {f}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs italic text-muted-foreground">rotina padrão</span>
-                        )}
-                      </div>
-                    </button>
-
-                    <form action={updateTaskStatus}>
-                      <input type="hidden" name="patientId" value={task.patientId} />
-                      <input type="hidden" name="taskId" value={task.id} />
-                      <input type="hidden" name="status" value="completed" />
-                      <button
-                        type="submit"
-                        title="Marcar como feita"
-                        className="rounded-full p-1.5 text-muted-foreground hover:bg-emerald-100 hover:text-emerald-600"
+                  <span className={sortBy === "time" ? "font-mono text-lg font-bold" : "text-sm font-semibold"}>
+                    {g.title}
+                  </span>
+                  {g.urgency === "overdue" && (
+                    <span className="text-xs font-bold text-destructive">atrasada</span>
+                  )}
+                  {g.urgency === "due" && <span className="text-xs font-bold text-amber-700">agora</span>}
+                </header>
+                <ul className="divide-y">
+                  {g.items.map((task) => {
+                    const active = selected?.id === task.id && selected.patientId === task.patientId;
+                    const urgency = taskUrgency(task.timestamp, now);
+                    return (
+                      <li
+                        key={`${task.patientId}:${task.id}`}
+                        className={`flex items-center gap-2 px-3 py-2 ${active ? "bg-primary/5 ring-2 ring-inset ring-primary" : ""}`}
                       >
-                        <CheckCircle2 className="h-5 w-5" />
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                        <button
+                          type="button"
+                          onClick={() => openTask(task)}
+                          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left"
+                          title="Registrar esta aferição"
+                        >
+                          {sortBy === "time" ? (
+                            <span className="flex min-w-0 items-center gap-1 text-sm font-medium">
+                              <BedDouble className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              <span className="truncate">
+                                {task.bed ? `L${task.bed}` : "—"} · {task.patientName}
+                              </span>
+                            </span>
+                          ) : (
+                            <span
+                              className={`font-mono text-sm font-bold ${urgency === "overdue" ? "text-destructive" : urgency === "due" ? "text-amber-700" : ""}`}
+                            >
+                              {hhmm(task.timestamp)}
+                            </span>
+                          )}
+                          <span className="flex flex-wrap gap-1">
+                            {task.focus.map((f) => (
+                              <span
+                                key={f}
+                                className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${GROUP_ACCENT[paramGroup(f)]}`}
+                              >
+                                {f}
+                              </span>
+                            ))}
+                          </span>
+                        </button>
+                        <form action={updateTaskStatus}>
+                          <input type="hidden" name="patientId" value={task.patientId} />
+                          <input type="hidden" name="taskId" value={task.id} />
+                          <input type="hidden" name="status" value="completed" />
+                          <button
+                            type="submit"
+                            title="Marcar como feita (sem registrar valores)"
+                            className="rounded-full p-1.5 text-muted-foreground hover:bg-emerald-100 hover:text-emerald-600"
+                          >
+                            <CheckCircle2 className="h-5 w-5" />
+                          </button>
+                        </form>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+            {hidden > 0 && (
+              <button
+                type="button"
+                onClick={() => setWindowOpt("all")}
+                className="w-full rounded-lg border border-dashed py-2 text-sm text-muted-foreground hover:bg-muted"
+              >
+                Mostrar mais {hidden} aferições
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -189,15 +243,15 @@ export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
                 </div>
               </div>
               <EvolutionForm
-                key={selected.id}
+                key={`${selected.patientId}:${selected.id}`}
                 patient={{
                   id: selected.patientId,
                   useMethyldopa: selected.useMethyldopa,
                   useMagnesiumSulfate: selected.useMagnesiumSulfate,
                 }}
                 taskId={selected.id}
+                taskLabel={hhmm(selected.timestamp)}
                 focus={selected.focus}
-                defaultRecordedAt={toLocalInput(selected.timestamp)}
                 returnTo="/pre-parto/cronograma"
                 onCancel={() => setSelected(null)}
               />
@@ -211,6 +265,33 @@ export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Segmented({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+      {options.map(([v, label]) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          className={`rounded-md px-3 py-1 text-xs font-bold ${
+            value === v ? "bg-background shadow-sm" : "text-muted-foreground"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

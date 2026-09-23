@@ -1,18 +1,24 @@
 import Link from "next/link";
-import { BedDouble, Baby, Droplet, HeartPulse, Gauge } from "lucide-react";
+import { BedDouble, Baby, Droplet, HeartPulse, Gauge, CalendarClock, AlertTriangle } from "lucide-react";
 import type { Patient } from "@/core/patients/types";
 import type { Stats24h } from "@/core/patients/stats";
-import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE } from "@/core/patients/status";
+import { PATIENT_STATUS_LABELS, PATIENT_STATUS_BADGE, RESOLVED_STATUSES } from "@/core/patients/status";
+import { overdueTasks, upcomingTasks } from "@/core/schedule/planner";
 import { currentGaLabel } from "@/core/patients/display";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stats24h | null }) {
   const ga = currentGaLabel(patient);
+  const active = !RESOLVED_STATUSES.includes(patient.status);
+  const overdue = active ? overdueTasks(patient.schedule ?? []) : [];
+  const next = active ? upcomingTasks(patient.schedule ?? [], 1)[0] : undefined;
+  const hhmm = (iso: string) =>
+    new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
   return (
     <Link href={`/pre-parto/${patient.id}`} className="group block">
-      <Card className="h-full p-4 transition-shadow group-hover:shadow-md">
+      <Card className="flex h-full flex-col p-4 transition-shadow group-hover:shadow-md">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 text-sm font-semibold">
             <BedDouble className="h-4 w-4 text-muted-foreground" />
@@ -76,6 +82,31 @@ export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stat
               <Badge variant="outline" className="text-[10px]">
                 MgSO₄
               </Badge>
+            )}
+          </div>
+        )}
+        <div className="flex-1" />
+        {active && (
+          <div
+            className={`mt-3 flex items-center gap-1.5 border-t pt-2 text-xs ${
+              overdue.length > 0 ? "font-semibold text-rose-700" : next ? "text-muted-foreground" : "text-amber-700"
+            }`}
+          >
+            {overdue.length > 0 ? (
+              <>
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {overdue.length} aferição(ões) atrasada(s) · desde {hhmm(overdue[0]!.timestamp)}
+              </>
+            ) : next ? (
+              <>
+                <CalendarClock className="h-3.5 w-3.5" />
+                Próxima: <strong className="text-foreground">{hhmm(next.timestamp)}</strong>{" "}
+                {next.focus.join(" · ")}
+              </>
+            ) : (
+              <>
+                <CalendarClock className="h-3.5 w-3.5" /> Sem rotina de aferições
+              </>
             )}
           </div>
         )}
