@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info, FlaskConical, ExternalLink, Printer, Pill, Check, FileText } from "lucide-react";
+import { Plus, Trash2, Siren, Info, FlaskConical, ExternalLink, Printer, Pill, Check } from "lucide-react";
 import {
   emptyPsgoForm,
   HABITS,
@@ -2989,7 +2989,7 @@ export function PsgoGenerator({
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-base">
-                <FileText className="h-4 w-4 text-primary" /> Prontuário
+                <Siren className="h-4 w-4 text-rose-600" /> Prontuário
               </CardTitle>
               <AutoSaveIndicator state={autoState} ready={!!form.name.trim() && !!form.rg.trim()} />
             </div>

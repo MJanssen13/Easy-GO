@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Pencil, Ambulance } from "lucide-react";
+import { Siren, ArrowLeft, Pencil } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { patientToPsgoForm, type PsgoClinicalSummary } from "@/core/psgo/patient-mapper";
 import { renderPsgo } from "@/core/psgo/render";
@@ -34,7 +34,7 @@ export default async function PsgoPatientPage({ params }: { params: Promise<{ id
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-primary">
-            <Ambulance className="h-6 w-6" />
+            <Siren className="h-6 w-6" />
           </span>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{patient.name}</h1>

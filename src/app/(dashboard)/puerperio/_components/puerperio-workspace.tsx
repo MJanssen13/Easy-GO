@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, Loader2, RefreshCw, Save, FileText } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RefreshCw, Save, Stethoscope } from "lucide-react";
 import type { Observation, Patient } from "@/core/patients/types";
 import {
   DISCHARGE_ITEMS,
@@ -494,7 +494,7 @@ export function PuerperioWorkspace({
         <Card>
           <CardHeader className="space-y-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4 text-primary" /> Prontuário
+              <Stethoscope className="h-4 w-4 text-primary" /> Prontuário
             </CardTitle>
             <div className="grid grid-cols-2 gap-2">
               <Button type="button" onClick={() => save(true)} disabled={saving}>

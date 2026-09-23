@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Hospital, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { Activity, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { MODULES, type ModuleDef } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 import { ModuleTile } from "@/components/module-tile";
@@ -70,8 +70,8 @@ function NavList({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: 
         {item(
           "/",
           "Plantão",
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm">
-            <Hospital className="h-[18px] w-[18px]" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm">
+            <LayoutDashboard className="h-3.5 w-3.5" />
           </span>,
           isActive(pathname, "/"),
         )}
@@ -216,7 +216,7 @@ export function AppShell({ children, signOut }: { children: React.ReactNode; sig
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden print:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-6">
           {[
-            { href: "/", label: "Plantão", node: <Hospital className="h-5 w-5" /> },
+            { href: "/", label: "Plantão", node: <LayoutDashboard className="h-5 w-5" /> },
             ...MOBILE_TABS.map((slug) => {
               const m = MODULES.find((x) => x.slug === slug)!;
               const Icon = m.icon;
