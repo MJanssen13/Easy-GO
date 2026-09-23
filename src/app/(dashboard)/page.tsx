@@ -147,7 +147,7 @@ export default async function HubPage() {
       )}
 
       {/* Resumo por módulo */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {summaries.map((s) => {
           const m = getModule(s.slug)!;
           const Icon = m.icon;
@@ -190,14 +190,14 @@ export default async function HubPage() {
                   <li key={i}>
                     <Link
                       href={a.href}
-                      className="flex items-center gap-3 rounded px-1 py-2 text-sm hover:bg-muted/50"
+                      className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded px-1 py-2 text-sm hover:bg-muted/50"
                     >
                       <span
                         className={`h-2 w-2 shrink-0 rounded-full ${a.level === "danger" ? "bg-rose-500" : "bg-amber-400"}`}
                       />
-                      <span className="min-w-0 flex-1 truncate font-medium">{a.who}</span>
+                      <span className="min-w-0 flex-1 font-medium">{a.who}</span>
                       <span
-                        className={`shrink-0 text-xs ${a.level === "danger" ? "font-semibold text-rose-700" : "text-amber-700"}`}
+                        className={`w-full pl-5 text-xs sm:w-auto sm:pl-0 ${a.level === "danger" ? "font-semibold text-rose-700" : "text-amber-700"}`}
                       >
                         {a.what}
                       </span>
