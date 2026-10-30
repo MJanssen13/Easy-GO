@@ -73,7 +73,10 @@ export function PartogramWorkspace({
     };
   });
 
-  const autoUftm = useMemo(() => deriveUftm(observations, openedAt), [observations, openedAt]);
+  const autoUftm = useMemo(
+    () => deriveUftm(observations, openedAt, uftm.activePhaseStartIndex),
+    [observations, openedAt, uftm.activePhaseStartIndex],
+  );
   const autoFirst = useMemo(() => deriveLcgFirst(observations, openedAt), [observations, openedAt]);
   const autoSecond = useMemo(() => deriveLcgSecond(observations, lcg.secondStageAt), [observations, lcg.secondStageAt]);
 

@@ -5,6 +5,15 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Partograma HC-UFTM — colunas a partir da 1ª dilatação
+
+- A 1ª dilatação vai na coluna em que a linha de alerta **impressa** passa por
+  aquele valor (d cm → coluna d − 2: 4 cm na 3ª, 6 cm na 5ª), e a **hora real**
+  e a **hora de registro** (1, 2, 3…) começam nessa coluna; as anteriores ficam
+  em branco. As aferições seguintes são contadas a partir dela
+  (`uftmStartColumn`, `deriveUftm`). A coluna inicial pode ser trocada na tela.
+- As linhas de alerta e de ação **não são mais desenhadas**: já vêm na ficha.
+
 ### Pré-Parto — Evoluções
 
 - Sai o card **Evolução de plantão**. No card **Evoluções** (agora na coluna

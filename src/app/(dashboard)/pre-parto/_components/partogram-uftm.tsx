@@ -9,7 +9,7 @@ import type {
   UftmPoint,
   UftmTableColumn,
 } from "@/core/partogram/types";
-import { UFTM_COLS, type UftmAuto } from "@/core/partogram/derive";
+import { UFTM_COLS, type UftmAuto, type UftmLayout } from "@/core/partogram/derive";
 import { cn } from "@/lib/utils";
 
 /**
@@ -109,7 +109,7 @@ export function PartogramUftm({
   onChange,
 }: {
   manual: UftmManual;
-  auto: UftmAuto;
+  auto: UftmAuto & UftmLayout;
   onChange: (m: UftmManual) => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -146,14 +146,7 @@ export function PartogramUftm({
         examiner: pick("examiner"),
       };
     });
-    // Linha de alerta: manual; senão 1º ponto de dilatação ≥ 4 cm (partograma
-    // OMS 1994 — fase ativa a partir de 4 cm, linha de ação 4 h à direita).
-    const dil = points.filter((p) => p.type === "dilation").sort((a, b) => a.x - b.x);
-    const activeIdx =
-      manual.activePhaseStartIndex != null
-        ? manual.activePhaseStartIndex
-        : dil.find((p) => p.y >= 4)?.x;
-    return { points, blocks, table, activeIdx };
+    return { points, blocks, table };
   }, [manual, auto]);
 
   // --------------------------------- menus ---------------------------------
@@ -303,7 +296,7 @@ export function PartogramUftm({
         <button
           type="button"
           onClick={() => {
-            if (!window.confirm("Limpar todo o gráfico? Apaga os pontos, contrações e a linha de alerta lançados aqui (os automáticos das aferições continuam)."))
+            if (!window.confirm("Limpar todo o gráfico? Apaga os pontos e contrações lançados aqui. Os que vieram das aferições continuam."))
               return;
             set({ points: [], contractionBlocks: [], activePhaseStartIndex: undefined });
           }}
@@ -316,16 +309,16 @@ export function PartogramUftm({
           aferições (corrija na aferição); preto = lançado aqui.
         </span>
         <label className="ml-auto flex items-center gap-1 text-xs">
-          Linha de alerta na hora
+          Hora real começa na coluna
           <select
             className="h-7 rounded border px-1"
             value={manual.activePhaseStartIndex ?? ""}
             onChange={(e) => set({ activePhaseStartIndex: e.target.value === "" ? undefined : Number(e.target.value) })}
           >
-            <option value="">auto (1º ponto ≥ 4 cm)</option>
+            <option value="">{`auto: ${auto.startCol + 1}ª (1ª dilatação na linha de alerta)`}</option>
             {Array.from({ length: UFTM_COLS }, (_, i) => (
               <option key={i} value={i}>
-                {i + 1}
+                {i + 1}ª
               </option>
             ))}
           </select>
@@ -359,20 +352,7 @@ export function PartogramUftm({
                 </foreignObject>
               ))}
 
-              {merged.activeIdx != null &&
-                (() => {
-                  const p = merged.points.find((pt) => pt.x === merged.activeIdx && pt.type === "dilation");
-                  if (!p) return null;
-                  const x1 = GRID_X_START + merged.activeIdx * COL_WIDTH + COL_WIDTH / 2;
-                  const y1 = Y_DILATION_10 + ((10 - p.y) / 10) * GRAPH_H;
-                  const x2 = x1 + (10 - p.y) * COL_WIDTH;
-                  return (
-                    <g>
-                      <line x1={x1} y1={y1} x2={x2} y2={Y_DILATION_10} stroke="black" strokeWidth={6} />
-                      <line x1={x1 + 4 * COL_WIDTH} y1={y1} x2={x2 + 4 * COL_WIDTH} y2={Y_DILATION_10} stroke="black" strokeWidth={8} />
-                    </g>
-                  );
-                })()}
+              {/* Linhas de alerta e de ação: já impressas na ficha (não redesenhar). */}
 
               {merged.points
                 .filter((p) => p.type === "dilation")
@@ -470,10 +450,13 @@ export function PartogramUftm({
                 {merged.table.map((c, i) => (
                   <textarea
                     key={i}
-                    value={c.registerHour.v || String(i + 1)}
+                    value={c.registerHour.v}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => setCell(i, "registerHour", e.target.value)}
-                    className="h-full resize-none overflow-hidden border-none bg-transparent pt-[10px] text-center text-[36px] font-bold text-black outline-none"
+                    className={cn(
+                      "h-full resize-none overflow-hidden border-none bg-transparent pt-[10px] text-center text-[36px] font-bold outline-none",
+                      c.registerHour.auto ? "pg-auto-text" : "text-black",
+                    )}
                     style={{ width: `${100 / UFTM_COLS}%` }}
                   />
                 ))}

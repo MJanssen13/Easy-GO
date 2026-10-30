@@ -116,25 +116,67 @@ function medsText(o: Observation): string {
     .toUpperCase();
 }
 
-export function deriveUftm(observations: Observation[], openedAt: string): UftmAuto {
+/**
+ * Coluna da 1ª dilatação na ficha HC-UFTM. A linha de alerta já vem impressa:
+ * começa em 4 cm no início da 3ª coluna (índice 2) e sobe 1 cm por coluna; a
+ * de ação fica 4 colunas à direita. A 1ª dilatação vai na coluna em que a
+ * linha de alerta passa por aquele valor: d cm → coluna d − 2 (4 cm → 3ª,
+ * 6 cm → 5ª). Abaixo de 4 cm (fase latente) a coluna fica à esquerda da linha.
+ */
+export function uftmStartColumn(dilation: number): number {
+  return Math.max(0, Math.min(UFTM_COLS - 1, Math.round(dilation) - 2));
+}
+
+export interface UftmLayout {
+  /** Coluna da 1ª dilatação (onde começam hora real e hora de registro). */
+  startCol: number;
+  /** Momento da 1ª dilatação (hora real da coluna inicial). */
+  t0: string;
+}
+
+/**
+ * `startCol` força a coluna inicial (escolhida na tela); sem ele, vem da 1ª
+ * dilatação registrada.
+ */
+export function deriveUftm(
+  observations: Observation[],
+  openedAt: string,
+  startColOverride?: number,
+): UftmAuto & UftmLayout {
   const obs = afterOpening(observations, openedAt, true);
   const points: UftmPoint[] = [];
   const blocks: UftmContractionBlock[] = [];
-  const table: Partial<UftmTableColumn>[] = Array.from({ length: UFTM_COLS }, (_, i) => ({
-    hourIndex: i,
-    realTime: hhmm(slotTime(openedAt, i, 60)),
-  }));
+
+  // Hora real e de registro começam na coluna da 1ª dilatação.
+  const first = obs.find((o) => o.obstetric.dilation != null);
+  const t0 = first?.recordedAt ?? openedAt;
+  const startCol =
+    startColOverride != null
+      ? Math.max(0, Math.min(UFTM_COLS - 1, startColOverride))
+      : first?.obstetric.dilation != null
+        ? uftmStartColumn(first.obstetric.dilation)
+        : 0;
+  const colOf = (iso: string) => startCol + slotOf(iso, t0, 60);
+  const table: Partial<UftmTableColumn>[] = Array.from({ length: UFTM_COLS }, (_, i) =>
+    i < startCol
+      ? { hourIndex: i }
+      : {
+          hourIndex: i,
+          realTime: hhmm(slotTime(t0, i - startCol, 60)),
+          registerHour: String(i - startCol + 1),
+        },
+  );
 
   // Última aferição de cada hora para dilatação/estação/contrações/tabela.
   const lastByHour = new Map<number, Observation[]>();
   for (const o of obs) {
-    const h = slotOf(o.recordedAt, openedAt, 60);
+    const h = colOf(o.recordedAt);
     if (h < 0 || h >= UFTM_COLS) continue;
     lastByHour.set(h, [...(lastByHour.get(h) ?? []), o]);
 
     // BCF: cada aferição vira um ponto no minuto em que foi feita.
     if (o.obstetric.bcf != null && o.obstetric.bcf >= 80 && o.obstetric.bcf <= 180) {
-      const min = new Date(o.recordedAt).getMinutes() - new Date(openedAt).getMinutes();
+      const min = new Date(o.recordedAt).getMinutes() - new Date(t0).getMinutes();
       const frac = (((min % 60) + 60) % 60) / 60;
       points.push({ x: h + frac, y: o.obstetric.bcf, type: "fcf" });
     }
@@ -173,7 +215,7 @@ export function deriveUftm(observations: Observation[], openedAt: string): UftmA
     if (ex) col.examiner = ex;
   }
 
-  return { points, contractionBlocks: blocks, table };
+  return { points, contractionBlocks: blocks, table, startCol, t0 };
 }
 
 // -------------------------------- OMS — LCG --------------------------------
