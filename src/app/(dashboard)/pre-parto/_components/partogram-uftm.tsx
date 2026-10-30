@@ -10,6 +10,7 @@ import type {
   UftmTableColumn,
 } from "@/core/partogram/types";
 import { UFTM_COLS, type UftmAuto, type UftmLayout } from "@/core/partogram/derive";
+import { UFTM_BOLSA_OPTIONS, UFTM_LA_OPTIONS } from "@/core/partogram/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -46,10 +47,25 @@ const TIME_ROW_H = 88.0;
 const Y_TIME_REG_TOP = 1976.829;
 
 type TableKey = "amnioticFluid" | "la" | "oxytocin" | "meds" | "examiner";
-const TABLE_ROWS: { key: TableKey; y: number; h: number; rotate?: boolean; font: number }[] = [
-  { key: "amnioticFluid", y: 2994.665, h: 61.5, font: 20 },
-  { key: "la", y: 3056.164, h: 61.5, font: 18 },
-  { key: "oxytocin", y: 3117.664, h: 61.5, font: 18 },
+const ROW_LABELS: Record<TableKey, string> = {
+  amnioticFluid: "Bolsa",
+  la: "LA",
+  oxytocin: "Ocitocina",
+  meds: "Medicações",
+  examiner: "Examinador",
+};
+const TABLE_ROWS: {
+  key: TableKey;
+  y: number;
+  h: number;
+  rotate?: boolean;
+  font: number;
+  options?: { v: string; label: string }[];
+  kind?: FieldKind;
+}[] = [
+  { key: "amnioticFluid", y: 2994.665, h: 61.5, font: 24, options: UFTM_BOLSA_OPTIONS },
+  { key: "la", y: 3056.164, h: 61.5, font: 22, options: UFTM_LA_OPTIONS },
+  { key: "oxytocin", y: 3117.664, h: 61.5, font: 24, kind: "decimal" },
   { key: "meds", y: 3179.163, h: 553.066, rotate: true, font: 27 },
   { key: "examiner", y: 3732.229, h: 160.037, rotate: true, font: 27 },
 ];
@@ -65,19 +81,59 @@ export const VARIETIES = [
 ];
 const varietySrc = (id: string) => `/partograma/variedades/${id}.png`;
 
-const HEADER_FIELDS: { key: keyof UftmHeader; x: number; y: number; w: number }[] = [
+type FieldKind = "text" | "date" | "int" | "ga" | "time" | "decimal";
+
+/** Máscaras de digitação das células da ficha. */
+const digits = (s: string) => s.replace(/\D/g, "");
+const MASKS: Record<FieldKind, (raw: string) => string> = {
+  text: (s) => s.toUpperCase(),
+  // dd/mm/aa
+  date: (s) => {
+    const d = digits(s).slice(0, 8);
+    return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join("/");
+  },
+  int: (s) => digits(s).slice(0, 3),
+  // IG "39+2"
+  ga: (s) => {
+    const d = digits(s).slice(0, 3);
+    return d.length > 2 ? `${d.slice(0, 2)}+${d.slice(2)}` : d;
+  },
+  // hh:mm
+  time: (s) => {
+    const d = digits(s).slice(0, 4);
+    return d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d;
+  },
+  // número com vírgula decimal (ocitocina)
+  decimal: (s) => s.replace(".", ",").replace(/[^\d,]/g, "").replace(/,(?=.*,)/g, "").slice(0, 6),
+};
+
+const HEADER_FIELDS: { key: keyof UftmHeader; x: number; y: number; w: number; kind?: FieldKind }[] = [
   { key: "name", x: 400, y: 803, w: 1900 },
-  { key: "date", x: 330, y: 882, w: 550 },
+  { key: "date", x: 330, y: 882, w: 550, kind: "date" },
   { key: "id", x: 1130, y: 882, w: 600 },
-  { key: "age", x: 1980, y: 882, w: 250 },
-  { key: "dum", x: 340, y: 973, w: 500 },
-  { key: "dpp", x: 850, y: 973, w: 330 },
-  { key: "ig", x: 1427, y: 973, w: 480 },
-  { key: "us", x: 1938, y: 973, w: 280 },
+  { key: "age", x: 1980, y: 882, w: 250, kind: "int" },
+  { key: "dum", x: 340, y: 973, w: 500, kind: "date" },
+  { key: "dpp", x: 850, y: 973, w: 330, kind: "date" },
+  { key: "ig", x: 1427, y: 973, w: 480, kind: "ga" },
+  { key: "us", x: 1938, y: 973, w: 280, kind: "ga" },
   { key: "parity", x: 430, y: 1056, w: 500 },
   { key: "bloodType", x: 1120, y: 1056, w: 560 },
   { key: "babyName", x: 1700, y: 1056, w: 500 },
 ];
+
+const HEADER_LABELS: Record<keyof UftmHeader, string> = {
+  name: "Nome",
+  date: "Data",
+  id: "Registro",
+  age: "Idade",
+  dum: "DUM",
+  dpp: "DPP",
+  ig: "IG",
+  us: "IG pela USG",
+  parity: "Paridade",
+  bloodType: "ABO/Rh materno",
+  babyName: "RN",
+};
 
 export interface UftmManual {
   points: UftmPoint[];
@@ -325,6 +381,24 @@ export function PartogramUftm({
         </label>
       </div>
 
+      <dl className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border bg-white px-3 py-2 text-xs text-muted-foreground print:hidden">
+        <dt className="field-label self-center">Bolsa</dt>
+        {UFTM_BOLSA_OPTIONS.map((o) => (
+          <dd key={o.v}>
+            <strong className="text-foreground">{o.v}</strong> {o.label.toLowerCase()}
+          </dd>
+        ))}
+        <dt className="field-label ml-2 self-center">LA</dt>
+        {UFTM_LA_OPTIONS.map((o) => (
+          <dd key={o.v}>
+            <strong className="text-foreground">{o.v}</strong> {o.label.toLowerCase()}
+          </dd>
+        ))}
+        <dd>
+          <strong className="text-foreground">Ocitocina</strong> só o número
+        </dd>
+      </dl>
+
       <div className="overflow-x-auto print:overflow-visible">
         <div
           className="pg-sheet relative mx-auto bg-white shadow-lg print:shadow-none"
@@ -346,7 +420,9 @@ export function PartogramUftm({
                   <input
                     value={manual.headerData[f.key] ?? ""}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => set({ headerData: { ...manual.headerData, [f.key]: e.target.value.toUpperCase() } })}
+                    onChange={(e) => set({ headerData: { ...manual.headerData, [f.key]: MASKS[f.kind ?? "text"](e.target.value) } })}
+                    inputMode={f.kind && f.kind !== "text" ? "numeric" : undefined}
+                    aria-label={HEADER_LABELS[f.key]}
                     className="h-full w-full border-none bg-transparent text-[40px] font-bold uppercase text-black outline-none"
                   />
                 </foreignObject>
@@ -430,7 +506,9 @@ export function PartogramUftm({
                     key={i}
                     value={c.realTime.v}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setCell(i, "realTime", e.target.value)}
+                    onChange={(e) => setCell(i, "realTime", MASKS.time(e.target.value))}
+                    inputMode="numeric"
+                    aria-label={`Hora real — coluna ${i + 1}`}
                     className={cn(
                       "h-full resize-none overflow-hidden border-none bg-transparent p-0 text-center text-[28px] font-bold leading-[56px] outline-none [writing-mode:vertical-lr] rotate-180",
                       c.realTime.auto ? "pg-auto-text" : "text-black",
@@ -452,7 +530,9 @@ export function PartogramUftm({
                     key={i}
                     value={c.registerHour.v}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setCell(i, "registerHour", e.target.value)}
+                    onChange={(e) => setCell(i, "registerHour", MASKS.int(e.target.value))}
+                    inputMode="numeric"
+                    aria-label={`Hora de registro — coluna ${i + 1}`}
                     className={cn(
                       "h-full resize-none overflow-hidden border-none bg-transparent pt-[10px] text-center text-[36px] font-bold outline-none",
                       c.registerHour.auto ? "pg-auto-text" : "text-black",
@@ -472,23 +552,37 @@ export function PartogramUftm({
                 height={toVisualY(row.y + row.h) - toVisualY(row.y)}
               >
                 <div className="flex h-full w-full">
-                  {merged.table.map((c, i) => (
-                    <textarea
-                      key={i}
-                      value={c[row.key].v}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => setCell(i, row.key, e.target.value)}
-                      className={cn(
-                        "h-full resize-none overflow-hidden border-none bg-transparent p-0 text-center font-bold uppercase leading-[0.85] outline-none",
-                        c[row.key].auto ? "pg-auto-text" : "text-black",
-                      )}
-                      style={{
-                        width: `${100 / UFTM_COLS}%`,
-                        fontSize: row.font,
-                        ...(row.rotate ? { writingMode: "vertical-rl", transform: "rotate(180deg)" } : {}),
-                      }}
-                    />
-                  ))}
+                  {merged.table.map((c, i) =>
+                    row.options ? (
+                      <OptionCell
+                        key={i}
+                        value={c[row.key].v}
+                        auto={c[row.key].auto}
+                        options={row.options}
+                        font={row.font}
+                        label={`${row.key === "la" ? "LA" : "Bolsa"} — hora ${i + 1}`}
+                        onChange={(v) => setCell(i, row.key, v)}
+                      />
+                    ) : (
+                      <textarea
+                        key={i}
+                        value={c[row.key].v}
+                        aria-label={`${ROW_LABELS[row.key]} — hora ${i + 1}`}
+                        inputMode={row.kind === "decimal" ? "decimal" : undefined}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setCell(i, row.key, MASKS[row.kind ?? "text"](e.target.value))}
+                        className={cn(
+                          "h-full resize-none overflow-hidden border-none bg-transparent p-0 text-center font-bold uppercase leading-[0.85] outline-none",
+                          c[row.key].auto ? "pg-auto-text" : "text-black",
+                        )}
+                        style={{
+                          width: `${100 / UFTM_COLS}%`,
+                          fontSize: row.font,
+                          ...(row.rotate ? { writingMode: "vertical-rl", transform: "rotate(180deg)" } : {}),
+                        }}
+                      />
+                    ),
+                  )}
                 </div>
               </foreignObject>
             ))}
@@ -666,5 +760,76 @@ function MenuActions({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
         Confirmar
       </button>
     </div>
+  );
+}
+
+/**
+ * Célula de lista da ficha (Bolsa, LA): escolhe a sigla ou "Outro…" para
+ * digitar. Impressa como texto simples (sem seta do seletor).
+ */
+function OptionCell({
+  value,
+  auto,
+  options,
+  font,
+  label,
+  onChange,
+}: {
+  value: string;
+  auto: boolean;
+  options: { v: string; label: string }[];
+  font: number;
+  label: string;
+  onChange: (v: string) => void;
+}) {
+  const known = options.some((o) => o.v === value);
+  const [typing, setTyping] = useState(false);
+  const common = cn(
+    "h-full border-none bg-transparent p-0 text-center font-bold uppercase outline-none",
+    auto ? "pg-auto-text" : "text-black",
+  );
+  const style = { width: `${100 / UFTM_COLS}%`, fontSize: font };
+  if (typing)
+    return (
+      <input
+        autoFocus
+        value={value}
+        aria-label={`${label} (outro)`}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onChange(e.target.value.toUpperCase().slice(0, 6))}
+        onBlur={() => setTyping(false)}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === "Escape") && setTyping(false)}
+        className={cn(common, "bg-yellow-50")}
+        style={style}
+      />
+    );
+  // A célula mostra só a sigla; o seletor (invisível por cima) abre a lista
+  // com as legendas. Na impressão sai só o texto.
+  return (
+    <span className="relative flex h-full items-center justify-center" style={style}>
+      <span className={cn(common, "flex h-auto w-full items-center justify-center")} aria-hidden>
+        {value}
+      </span>
+      <select
+        value={value}
+        aria-label={label}
+        title={options.find((o) => o.v === value)?.label ?? value}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => {
+          if (e.target.value === "__outro") setTyping(true);
+          else onChange(e.target.value);
+        }}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 print:hidden"
+      >
+        <option value=""></option>
+        {options.map((o) => (
+          <option key={o.v} value={o.v}>
+            {o.v} · {o.label}
+          </option>
+        ))}
+        {value && !known && <option value={value}>{value}</option>}
+        <option value="__outro">Outro…</option>
+      </select>
+    </span>
   );
 }

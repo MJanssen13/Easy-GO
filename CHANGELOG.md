@@ -5,6 +5,18 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Partograma HC-UFTM — campos da ficha
+
+- **Bolsa**: BI, BR ou "Outro…" para digitar. **LA**: -, LC, LCG, LM1, LM2,
+  LM3, LS ou "Outro…", com legenda das siglas acima da ficha. A célula mostra
+  só a sigla; a lista abre com a descrição.
+- Automáticos das aferições nas siglas da ficha: BI/BR; LA "-" (íntegra), LC
+  (claro) ou LM (meconial, grau a escolher).
+- **Ocitocina** aceita só número (vírgula decimal).
+- Máscaras: data, DUM e DPP (dd/mm/aaaa), idade (número), IG e IG USG
+  (39+2), hora real (hh:mm), hora de registro (número). Campos com rótulo
+  acessível.
+
 ### Partograma HC-UFTM — colunas a partir da 1ª dilatação
 
 - A 1ª dilatação vai na coluna em que a linha de alerta **impressa** passa por

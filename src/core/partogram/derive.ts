@@ -204,11 +204,13 @@ export function deriveUftm(
     const mem = pick((o) => o.obstetric.membranes);
     const col = table[h]!;
     if (mem) {
-      col.amnioticFluid = mem === "intact" ? "ÍNTEGRA" : "ROTA";
-      if (mem !== "intact") col.la = mem === "ruptured_meconium" ? "MECONIAL" : "CLARO";
+      // Siglas da ficha: BI/BR; LA "-" (bolsa íntegra), LC (claro). Meconial
+      // sai "LM": o grau (LM1/2/3) não vem da aferição; escolha na ficha.
+      col.amnioticFluid = mem === "intact" ? "BI" : "BR";
+      col.la = mem === "intact" ? "-" : mem === "ruptured_meconium" ? "LM" : "LC";
     }
     const oxy = pick((o) => o.medication?.oxytocinDose);
-    if (oxy != null) col.oxytocin = `${String(oxy).replace(".", ",")} ML/H`;
+    if (oxy != null) col.oxytocin = String(oxy).replace(".", ",");
     const meds = list.map(medsText).filter(Boolean);
     if (meds.length) col.meds = [...new Set(meds)].join(" / ");
     const ex = pick((o) => o.examinerName?.toUpperCase());

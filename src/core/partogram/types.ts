@@ -59,6 +59,21 @@ export interface UftmHeader {
   babyName: string;
 }
 
+/** Opções das linhas Bolsa e LA da ficha HC-UFTM (siglas e legendas). */
+export const UFTM_BOLSA_OPTIONS: { v: string; label: string }[] = [
+  { v: "BI", label: "Bolsa íntegra" },
+  { v: "BR", label: "Bolsa rota" },
+];
+export const UFTM_LA_OPTIONS: { v: string; label: string }[] = [
+  { v: "-", label: "Sem líquido visível (bolsa íntegra)" },
+  { v: "LC", label: "Líquido claro" },
+  { v: "LCG", label: "Líquido claro com grumos" },
+  { v: "LM1", label: "Meconial + (fluido)" },
+  { v: "LM2", label: "Meconial ++" },
+  { v: "LM3", label: "Meconial +++ (espesso)" },
+  { v: "LS", label: "Sanguinolento" },
+];
+
 // ------------------------------ OMS — LCG 2020 ------------------------------
 
 /** Valores de uma coluna do LCG (1ª fase: meia hora; 2ª fase: 15 min). */
