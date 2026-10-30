@@ -63,7 +63,8 @@ const admissionSchema = z.object({
   riskFactors: z.string().trim().optional(),
 });
 
-export type AdmissionState = { error?: string };
+/** `redirectTo`: o formulário navega até lá (ver `useActionRedirect`). */
+export type AdmissionState = { error?: string; redirectTo?: string };
 
 export async function admitPatient(
   _prev: AdmissionState,
@@ -146,9 +147,11 @@ export async function admitPatient(
     // best-effort: a rotina pode ser criada/ajustada depois em "Editar Rotina"
   }
 
-  revalidatePath("/pre-parto");
-  revalidatePath(`/pre-parto/${created.id}`);
-  redirect(`/pre-parto/${created.id}`);
+  // Sem redirect() na Server Action: em produção o navegador às vezes não
+  // aplicava o redirecionamento e o botão ficava "carregando" para sempre.
+  // O formulário navega com o endereço devolvido. As páginas são dinâmicas,
+  // então não é preciso revalidar.
+  return { redirectTo: `/pre-parto/${created.id}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +211,7 @@ const observationSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-export type ObservationState = { error?: string };
+export type ObservationState = { error?: string; redirectTo?: string };
 
 export async function recordObservation(
   _prev: ObservationState,
@@ -345,7 +348,7 @@ export async function recordObservation(
   // Volta para a origem (ex.: cronograma na escrita rápida) quando informado.
   const dest =
     d.returnTo && d.returnTo.startsWith("/pre-parto") ? d.returnTo : `/pre-parto/${d.patientId}`;
-  redirect(dest);
+  return { redirectTo: dest };
 }
 
 // ---------------------------------------------------------------------------
@@ -363,7 +366,7 @@ const routineSchema = z.object({
   tasks: z.array(incomingTaskSchema),
 });
 
-export type RoutineState = { error?: string };
+export type RoutineState = { error?: string; redirectTo?: string };
 
 export async function saveRoutine(
   _prev: RoutineState,
@@ -411,7 +414,7 @@ export async function saveRoutine(
 
   revalidatePath(`/pre-parto/${patientId}`);
   revalidatePath("/pre-parto/cronograma");
-  redirect(`/pre-parto/${patientId}`);
+  return { redirectTo: `/pre-parto/${patientId}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -436,7 +439,7 @@ const ctgSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-export type CtgState = { error?: string };
+export type CtgState = { error?: string; redirectTo?: string };
 
 export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgState> {
   const raw = {
@@ -505,7 +508,7 @@ export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgS
   }
 
   revalidatePath(`/pre-parto/${d.patientId}`);
-  redirect(`/pre-parto/${d.patientId}`);
+  return { redirectTo: `/pre-parto/${d.patientId}` };
 }
 
 export async function removeCtg(formData: FormData): Promise<void> {
@@ -601,7 +604,7 @@ const editSchema = z.object({
   magnesiumSulfateEndTime: z.string().trim().optional(),
 });
 
-export type EditPatientState = { error?: string };
+export type EditPatientState = { error?: string; redirectTo?: string };
 
 export async function editPatient(
   _prev: EditPatientState,
@@ -693,7 +696,7 @@ export async function editPatient(
 
   revalidatePath(`/pre-parto/${d.id}`);
   revalidatePath("/pre-parto");
-  redirect(`/pre-parto/${d.id}`);
+  return { redirectTo: `/pre-parto/${d.id}` };
 }
 
 // ---------------------------------------------------------------------------

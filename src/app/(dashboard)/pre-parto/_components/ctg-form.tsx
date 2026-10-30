@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Activity, Calculator, Camera, Info, Loader2, Save, Gauge, NotebookPen, ClipboardList } from "lucide-react";
 import { saveCtg, type CtgState } from "../actions";
+import { useActionRedirect } from "@/lib/use-action-redirect";
 import type { Patient } from "@/core/patients/types";
 import type { CtgRecord } from "@/core/ctg/types";
 import { PhotoField } from "@/components/photo-field";
@@ -43,7 +44,10 @@ const CONCLUSION_OPTIONS = [
 
 /** Formulário de CTG — nova ou edição (`ctg`), com foto do traçado. */
 export function CtgForm({ patient, ctg }: { patient: Patient; ctg?: CtgRecord }) {
-  const [state, formAction, pending] = useActionState(saveCtg, initialState);
+  const [state, formAction, submitting] = useActionState(saveCtg, initialState);
+  useActionRedirect(state);
+  // Segue carregando até a página de destino abrir.
+  const pending = submitting || !!state.redirectTo;
 
   const [baseline, setBaseline] = useState(ctg?.baseline != null ? String(ctg.baseline) : "");
   const [variability, setVariability] = useState<CtgVariability | "">(ctg ? (ctg.variability ?? "") : "6-25");

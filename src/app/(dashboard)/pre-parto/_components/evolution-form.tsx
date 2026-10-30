@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Check, Loader2, Plus, Save, Target, Calculator, Link2, Hand, Activity, Pill, FlaskConical, HeartPulse, NotebookPen, ClipboardList } from "lucide-react";
 import { recordObservation, type ObservationState } from "../actions";
+import { useActionRedirect } from "@/lib/use-action-redirect";
 import type { Patient } from "@/core/patients/types";
 import { MONITOR_PARAMS, paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import {
@@ -107,7 +108,10 @@ export function EvolutionForm({
   returnTo?: string;
   onCancel?: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(recordObservation, initialState);
+  const [state, formAction, submitting] = useActionState(recordObservation, initialState);
+  useActionRedirect(state);
+  // Segue carregando até a página de destino abrir.
+  const pending = submitting || !!state.redirectTo;
 
   // Seleção de parâmetros: o cronograma (focus) começa selecionado; clicar em
   // qualquer chip abre/fecha o campo correspondente.

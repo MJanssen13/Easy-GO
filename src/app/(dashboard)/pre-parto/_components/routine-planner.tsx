@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, Check, Loader2, Pencil, Plus, RotateCcw, X } from "lucide-react";
 import { saveRoutine, type RoutineState } from "../actions";
+import { useActionRedirect } from "@/lib/use-action-redirect";
 import type { Patient } from "@/core/patients/types";
 import {
   BASE_ROUTINES,
@@ -99,7 +100,10 @@ const rmKey = (iso: string, param: string) => `${iso}|${param}`;
  * do horário; horários avulsos podem ser adicionados.
  */
 export function RoutinePlanner({ patient }: { patient: Patient }) {
-  const [state, formAction, pending] = useActionState(saveRoutine, initialState);
+  const [state, formAction, submitting] = useActionState(saveRoutine, initialState);
+  useActionRedirect(state);
+  // Segue carregando até a página de destino abrir.
+  const pending = submitting || !!state.redirectTo;
 
   const diabetesAuto = hasDiabetesRisk(patient.riskFactors);
 

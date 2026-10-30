@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, UserPlus } from "lucide-react";
 import { admitPatient, type AdmissionState } from "../actions";
+import { useActionRedirect } from "@/lib/use-action-redirect";
 import { datingFromGestationalAges, formatDateBR } from "@/core/obstetric/gestational-age";
 import { ADMISSION_STATUS_OPTIONS, PATIENT_STATUS_LABELS } from "@/core/patients/status";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,9 @@ function num(v: string): number | undefined {
 
 export default function AdmissionPage() {
   const [state, formAction, pending] = useActionState(admitPatient, initialState);
+  useActionRedirect(state);
+  // Mantém o botão em "carregando" até a página da paciente abrir.
+  const busy = pending || !!state.redirectTo;
   const [dumWeeks, setDumWeeks] = useState("");
   const [dumDays, setDumDays] = useState("");
   const [usWeeks, setUsWeeks] = useState("");
@@ -198,8 +202,8 @@ export default function AdmissionPage() {
               <Link href="/pre-parto" className="inline-flex min-h-10 items-center px-2 text-sm text-muted-foreground hover:text-foreground self-center">
                 Cancelar
               </Link>
-              <Button type="submit" disabled={pending}>
-                {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={busy}>
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                 Admitir paciente
               </Button>
             </div>

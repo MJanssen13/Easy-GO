@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, Save, ShieldPlus, IdCard } from "lucide-react";
 import { editPatient, type EditPatientState } from "../actions";
+import { useActionRedirect } from "@/lib/use-action-redirect";
 import {
   datingFromGestationalAges,
   formatDateBR,
@@ -46,7 +47,10 @@ function dtLocal(v?: string | null): string {
 }
 
 export function EditPatientForm({ patient }: { patient: Patient }) {
-  const [state, formAction, pending] = useActionState(editPatient, initialState);
+  const [state, formAction, submitting] = useActionState(editPatient, initialState);
+  useActionRedirect(state);
+  // Segue carregando até a página de destino abrir.
+  const pending = submitting || !!state.redirectTo;
 
   // A IG vigente (hoje) preenche o método atual; o outro fica em branco.
   const current = currentGaParts(patient);

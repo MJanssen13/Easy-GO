@@ -5,6 +5,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Correção — salvar ficava carregando para sempre
+
+- Admissão, aferição, rotina, CTG e editar paciente devolvem o destino em vez de
+  `redirect()` na Server Action; o cliente navega e, se a navegação for abortada
+  (acontecia em produção), faz navegação completa após 1,5 s.
+- Páginas de admissão passam a ser dinâmicas (a resposta da action vinha de cache).
+
 ### Partograma HC-UFTM — campos da ficha
 
 - **Bolsa**: BI, BR ou "Outro…" para digitar. **LA**: -, LC, LCG, LM1, LM2,
