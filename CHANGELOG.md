@@ -13,8 +13,8 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - Automáticos das aferições nas siglas da ficha: BI/BR; LA "-" (íntegra), LC
   (claro) ou LM (meconial, grau a escolher).
 - **Ocitocina** aceita só número (vírgula decimal).
-- Máscaras: data, DUM e DPP (dd/mm/aaaa), idade (número), IG e IG USG
-  (39+2), hora real (hh:mm), hora de registro (número). Campos com rótulo
+- Máscaras: data, DUM e DPP (dd/mm/aaaa), idade (número), IG e IG USG no
+  padrão "39 sem +2 d" (formata ao sair do campo; `formatGaWeeks`), hora real (hh:mm), hora de registro (número). Campos com rótulo
   acessível.
 
 ### Partograma HC-UFTM — colunas a partir da 1ª dilatação

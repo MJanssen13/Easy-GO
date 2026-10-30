@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { savePartogram } from "../partogram-actions";
 import { PartogramLcg } from "./partogram-lcg";
-import { PartogramUftm, emptyTable, type UftmManual } from "./partogram-uftm";
+import { formatGaWeeks, PartogramUftm, emptyTable, type UftmManual } from "./partogram-uftm";
 
 export interface PartogramPatient {
   id: string;
@@ -63,6 +63,9 @@ export function PartogramWorkspace({
       babyName: patient.babyName ?? "",
       ...(initial.headerData ?? {}),
     };
+    // IG no padrão da ficha ("39 sem +2 d"), inclusive em fichas já salvas.
+    header.ig = formatGaWeeks(header.ig);
+    header.us = formatGaWeeks(header.us);
     return {
       points: initial.points ?? [],
       contractionBlocks: initial.contractionBlocks ?? [],

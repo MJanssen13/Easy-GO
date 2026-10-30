@@ -93,11 +93,8 @@ const MASKS: Record<FieldKind, (raw: string) => string> = {
     return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join("/");
   },
   int: (s) => digits(s).slice(0, 3),
-  // IG "39+2"
-  ga: (s) => {
-    const d = digits(s).slice(0, 3);
-    return d.length > 2 ? `${d.slice(0, 2)}+${d.slice(2)}` : d;
-  },
+  // IG: livre ao digitar; formata "X sem +Y d" ao sair do campo.
+  ga: (s) => s.replace(/[^\dsemd+ ]/gi, "").slice(0, 14),
   // hh:mm
   time: (s) => {
     const d = digits(s).slice(0, 4);
@@ -134,6 +131,21 @@ const HEADER_LABELS: Record<keyof UftmHeader, string> = {
   bloodType: "ABO/Rh materno",
   babyName: "RN",
 };
+
+/**
+ * IG no padrão da ficha: "39 sem +2 d". Aceita "392", "39+2", "39s2d",
+ * "39 sem 2 d" ou só as semanas ("39" → "39 sem").
+ */
+export function formatGaWeeks(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  const m = t.match(/^(\d{1,2})\D*?(\d)?\D*$/) ?? (/^\d{3}$/.test(t) ? [t, t.slice(0, 2), t.slice(2)] : null);
+  if (!m) return t;
+  const w = Number(m[1]);
+  const d = m[2] != null ? Number(m[2]) : null;
+  if (w > 45 || (d != null && d > 6)) return t;
+  return d != null ? `${w} sem +${d} d` : `${w} sem`;
+}
 
 export interface UftmManual {
   points: UftmPoint[];
@@ -421,9 +433,14 @@ export function PartogramUftm({
                     value={manual.headerData[f.key] ?? ""}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => set({ headerData: { ...manual.headerData, [f.key]: MASKS[f.kind ?? "text"](e.target.value) } })}
+                    onBlur={
+                      f.kind === "ga"
+                        ? (e) => set({ headerData: { ...manual.headerData, [f.key]: formatGaWeeks(e.target.value) } })
+                        : undefined
+                    }
                     inputMode={f.kind && f.kind !== "text" ? "numeric" : undefined}
                     aria-label={HEADER_LABELS[f.key]}
-                    className="h-full w-full border-none bg-transparent text-[40px] font-bold uppercase text-black outline-none"
+                    className={cn("h-full w-full border-none bg-transparent text-[40px] font-bold text-black outline-none", f.kind !== "ga" && "uppercase")}
                   />
                 </foreignObject>
               ))}
