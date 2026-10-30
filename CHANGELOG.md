@@ -5,6 +5,21 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Desempenho — salvamento mais rápido
+
+- **Salvamento automático (PSGO e partograma) não revalida mais rotas**: antes,
+  a cada 1,5 s o servidor re-renderizava a página inteira (com novas consultas
+  ao banco) só para devolvê-la ao navegador. As páginas são dinâmicas, então a
+  navegação seguinte já traz os dados novos.
+- **Puerpério/Onco**: "Salvar evolução" deixava de fazer 3 renderizações (ação
+  + revalidação + `router.refresh()`) para 1; a leitura antes de gravar usa só
+  a linha da paciente (`getPatientRecord`, sem as observações) e a gravação da
+  paciente e da aferição correm em paralelo.
+- **Aferição do Pré-Parto**: a leitura do cronograma corre junto com a gravação.
+- `updatePatient` não devolve mais a linha inteira (JSONs grandes) pela rede.
+- `created_by` lido do cookie da sessão (`getSession`), sem ida ao servidor de
+  autenticação a cada gravação.
+
 ### Design — minimalista (padrão LabFlow)
 
 - Sai o visual de banners em gradiente: cabeçalhos sóbrios (ícone do módulo em

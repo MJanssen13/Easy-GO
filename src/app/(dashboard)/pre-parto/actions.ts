@@ -317,6 +317,9 @@ export async function recordObservation(
     notes: d.notes ?? null,
   };
 
+  // A leitura do cronograma corre junto com a gravação da aferição (uma ida ao
+  // banco a menos); a tarefa só é marcada depois que a aferição foi gravada.
+  const scheduleRead = d.taskId ? getSchedule(d.patientId).catch(() => null) : null;
   try {
     await addObservation(input);
   } catch (err) {
@@ -328,10 +331,10 @@ export async function recordObservation(
   }
 
   // Best-effort: if this evolution fulfils a scheduled task, mark it done.
-  if (d.taskId) {
+  if (d.taskId && scheduleRead) {
     try {
-      const schedule = await getSchedule(d.patientId);
-      await updateSchedule(d.patientId, markCompleted(schedule, d.taskId));
+      const schedule = await scheduleRead;
+      if (schedule) await updateSchedule(d.patientId, markCompleted(schedule, d.taskId));
     } catch {
       // schedule update is non-critical; the observation is already saved
     }

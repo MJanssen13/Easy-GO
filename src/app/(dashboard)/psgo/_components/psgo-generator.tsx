@@ -396,7 +396,6 @@ export function PsgoGenerator({
       const r = await persist(form);
       if (r.ok && r.id) {
         router.push(`/psgo/${r.id}`);
-        router.refresh();
       }
     });
   }

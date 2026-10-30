@@ -48,7 +48,6 @@ export function PsgoTransfer({ patientId }: { patientId: string }) {
       }
       // No Pré-Parto, abre direto a paciente (rotina já criada).
       router.push(target === "pre_parto" ? `/pre-parto/${patientId}` : (dest?.path ?? "/psgo"));
-      router.refresh();
     });
   }
 

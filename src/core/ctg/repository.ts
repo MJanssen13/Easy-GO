@@ -64,10 +64,11 @@ function newCtgToInsert(input: NewCtgInput, createdBy: string | null): CtgInsert
 
 async function currentUserId(): Promise<string | null> {
   const supabase = await createClient();
+  // Sessão do cookie, sem ida à rede (só para atribuição — ver patients/repository).
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
 }
 
 /** All CTGs of a patient, most recent first. */

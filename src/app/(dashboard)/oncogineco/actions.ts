@@ -6,7 +6,7 @@ import {
   addObservation,
   createPatient,
   deletePatient,
-  getPatient,
+  getPatientRecord,
   transferPatient,
   updatePatient,
   RepositoryError,
@@ -100,7 +100,7 @@ export async function saveOncoWorkspace(
 ): Promise<ActionResult> {
   const at = new Date().toISOString();
   try {
-    const patient = await getPatient(patientId);
+    const patient = await getPatientRecord(patientId);
     if (!patient) return { error: "Paciente não encontrada." };
     const current = readOnco(patient.clinicalSummary);
     const next: OncoSummary = {
@@ -114,7 +114,9 @@ export async function saveOncoWorkspace(
           ].slice(0, 60)
         : current.evolutions,
     };
-    await updatePatient(patientId, {
+    // Grava a paciente e a aferição em paralelo (uma ida ao banco a menos).
+    const writes: Promise<unknown>[] = [];
+    writes.push(updatePatient(patientId, {
       name: data.basics.name.trim().toUpperCase() || patient.name,
       medicalRecordNumber: data.basics.medicalRecordNumber.trim() || null,
       bed: data.basics.bed.trim() || null,
@@ -122,7 +124,7 @@ export async function saveOncoWorkspace(
       parity: data.basics.parity.trim() || null,
       bloodType: data.basics.bloodType.trim() || null,
       clinicalSummary: { ...(patient.clinicalSummary ?? {}), onco: next },
-    });
+    }));
     if (data.evolve) {
       const vitals: VitalSigns = {
         paSystolic: num(data.form.vitals.paSystolic),
@@ -132,16 +134,17 @@ export async function saveOncoWorkspace(
         spo2: num(data.form.vitals.spo2),
       };
       if (Object.values(vitals).some((v) => v != null)) {
-        await addObservation({
+        writes.push(addObservation({
           patientId,
           recordedAt: at,
           vitals,
           obstetric: {},
           examinerName: data.author.trim() || null,
           notes: "EVOLUÇÃO ONCOGINECOLOGIA",
-        });
+        }));
       }
     }
+    await Promise.all(writes);
   } catch (err) {
     return { error: message(err, "Não foi possível salvar.") };
   }
@@ -154,7 +157,7 @@ export async function removeOncoEvolution(formData: FormData): Promise<void> {
   const evoId = String(formData.get("evolutionId") ?? "");
   if (!id || !evoId) return;
   try {
-    const patient = await getPatient(id);
+    const patient = await getPatientRecord(id);
     if (patient) {
       const s = readOnco(patient.clinicalSummary);
       await updatePatient(id, {

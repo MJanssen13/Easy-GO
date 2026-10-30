@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getPatient, updatePatient, RepositoryError } from "@/core/patients/repository";
+import { getPatientRecord, updatePatient, RepositoryError } from "@/core/patients/repository";
 import { readPartogram, emptyLcg, type PartogramData, type PartogramModel } from "@/core/partogram/types";
 
 export interface PartogramResult {
@@ -26,7 +26,7 @@ export async function openPartogram(
   model: PartogramModel,
 ): Promise<PartogramResult> {
   try {
-    const patient = await getPatient(patientId);
+    const patient = await getPatientRecord(patientId);
     if (!patient) return { error: "Paciente não encontrada." };
     const current = readPartogram(patient.partogramData);
     const data: PartogramData = {
@@ -62,6 +62,6 @@ export async function savePartogram(patientId: string, data: PartogramData): Pro
       error: err instanceof RepositoryError ? err.message : "Não foi possível salvar o partograma.",
     };
   }
-  paths(patientId);
+  // Sem revalidar: salvamento automático (ver savePsgoAdmission).
   return {};
 }

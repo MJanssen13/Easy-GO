@@ -8,7 +8,7 @@ import {
   resolvePatient,
   reopenPatient,
   deletePatient,
-  getPatient,
+  getPatientRecord,
   updateSchedule,
   RepositoryError,
 } from "@/core/patients/repository";
@@ -22,6 +22,9 @@ export type PsgoAdmissionState = { error?: string; patientId?: string };
 /**
  * Persiste a admissão do PSGO como paciente (module="psgo"). Se `patientId`
  * for informado, atualiza a admissão existente em vez de criar uma nova.
+ * Chamada pelo salvamento automático: NÃO revalida rotas — revalidar faria o
+ * servidor re-renderizar a página inteira a cada 1,5 s (lento). As páginas são
+ * dinâmicas, então a navegação seguinte já busca os dados novos.
  */
 export async function savePsgoAdmission(
   form: PsgoForm,
@@ -47,13 +50,10 @@ export async function savePsgoAdmission(
         riskFactors: input.riskFactors,
         clinicalSummary: input.clinicalSummary,
       });
-      revalidatePath("/psgo");
-      revalidatePath(`/psgo/${patientId}`);
       return { patientId };
     }
 
     const patient = await createPatient(input);
-    revalidatePath("/psgo");
     return { patientId: patient.id };
   } catch (err) {
     const message =
@@ -91,7 +91,7 @@ export async function transferPsgoPatient(
       const status = arrival?.status ?? "induction";
       await updatePatient(patientId, { bed: arrival?.bed?.trim() || null, status });
       try {
-        const patient = await getPatient(patientId);
+        const patient = await getPatientRecord(patientId);
         const tasks = initialRoutineTasks(status, patient?.riskFactors ?? []);
         if (tasks.length > 0) await updateSchedule(patientId, tasks);
       } catch {

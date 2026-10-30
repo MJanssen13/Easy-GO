@@ -2,7 +2,6 @@
 
 import { JumpToOutput } from "@/components/jump-to-output";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Loader2, RefreshCw, Save, Stethoscope } from "lucide-react";
 import type { Observation, Patient } from "@/core/patients/types";
 import {
@@ -55,7 +54,6 @@ export function PuerperioWorkspace({
   summary: PuerperioSummary;
   observations: Observation[];
 }) {
-  const router = useRouter();
   const [saving, startSaving] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -139,7 +137,6 @@ export function PuerperioWorkspace({
       if (res.error) setMsg({ ok: false, text: res.error });
       else {
         setMsg({ ok: true, text: evolve ? "Evolução salva no histórico." : "Dados salvos." });
-        router.refresh();
       }
     });
   }

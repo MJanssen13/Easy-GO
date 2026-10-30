@@ -6,7 +6,7 @@ import {
   addObservation,
   createPatient,
   deletePatient,
-  getPatient,
+  getPatientRecord,
   transferPatient,
   updatePatient,
   RepositoryError,
@@ -47,7 +47,7 @@ async function patchSummary(
   id: string,
   patch: (current: PuerperioSummary) => PuerperioSummary,
 ): Promise<void> {
-  const patient = await getPatient(id);
+  const patient = await getPatientRecord(id);
   if (!patient) throw new RepositoryError("Paciente não encontrada.");
   const current = readPuerperio(patient.clinicalSummary);
   await updatePatient(id, {
@@ -110,7 +110,7 @@ export async function transferToPuerperio(
   bed?: string,
 ): Promise<ActionResult> {
   try {
-    const patient = await getPatient(patientId);
+    const patient = await getPatientRecord(patientId);
     if (!patient) return { error: "Paciente não encontrada." };
     const current = readPuerperio(patient.clinicalSummary);
     // Antecedentes: os já existentes, senão importados da admissão do PSGO.
@@ -178,7 +178,7 @@ export async function saveWorkspace(
   const at = new Date().toISOString();
   const age = data.basics.age.trim() ? Number(data.basics.age) : null;
   try {
-    const patient = await getPatient(patientId);
+    const patient = await getPatientRecord(patientId);
     if (!patient) return { error: "Paciente não encontrada." };
     const current = readPuerperio(patient.clinicalSummary);
     const next: PuerperioSummary = {
@@ -193,7 +193,9 @@ export async function saveWorkspace(
           ].slice(0, 60)
         : current.evolutions,
     };
-    await updatePatient(patientId, {
+    // Grava a paciente e a aferição em paralelo (uma ida ao banco a menos).
+    const writes: Promise<unknown>[] = [];
+    writes.push(updatePatient(patientId, {
       name: data.basics.name.trim().toUpperCase() || patient.name,
       medicalRecordNumber: data.basics.medicalRecordNumber.trim() || null,
       bed: data.basics.bed.trim() || null,
@@ -202,7 +204,7 @@ export async function saveWorkspace(
       bloodType: data.basics.bloodType.trim() || null,
       outcome: outcomeFor(data.delivery),
       clinicalSummary: { ...(patient.clinicalSummary ?? {}), puerperio: next },
-    });
+    }));
     if (data.evolve) {
       const vitals: VitalSigns = {
         paSystolic: num(data.form.vitals.paSystolic),
@@ -212,16 +214,17 @@ export async function saveWorkspace(
         spo2: num(data.form.vitals.spo2),
       };
       if (Object.values(vitals).some((v) => v != null)) {
-        await addObservation({
+        writes.push(addObservation({
           patientId,
           recordedAt: at,
           vitals,
           obstetric: {},
           examinerName: data.author.trim() || null,
           notes: "EVOLUÇÃO PUERPÉRIO",
-        });
+        }));
       }
     }
+    await Promise.all(writes);
   } catch (err) {
     return { error: message(err, "Não foi possível salvar.") };
   }

@@ -46,12 +46,17 @@ function withDetail(base: string, error: unknown): string {
   return detail ? `${base} (${detail})` : base;
 }
 
+/**
+ * Id do usuário para `created_by`. Lê a sessão do cookie (sem ida ao servidor
+ * de autenticação a cada gravação — `getUser()` valida na rede e pode até
+ * renovar token). Serve só para atribuição; o acesso continua protegido pelo RLS.
+ */
 async function currentUserId(): Promise<string | null> {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
 }
 
 /** All patients of a module, ordered by bed (natural). */
@@ -93,6 +98,20 @@ export async function getPatient(id: string): Promise<Patient | null> {
   return patient;
 }
 
+/**
+ * Só a linha da paciente (sem observações) — 1 consulta. Para server actions
+ * que precisam ler antes de gravar (ex.: mesclar `clinical_summary`).
+ */
+export async function getPatientRecord(id: string): Promise<Patient | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("patients").select("*").eq("id", id).single();
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw new RepositoryError("Falha ao carregar a paciente.", error);
+  }
+  return data ? dbToPatient(data) : null;
+}
+
 /** Observations of several patients since a timestamp (for board 24h stats). */
 export async function listObservationsSince(
   patientIds: string[],
@@ -126,19 +145,22 @@ export async function createPatient(input: NewPatientInput): Promise<Patient> {
   return dbToPatient(data);
 }
 
-export async function updatePatient(id: string, input: UpdatePatientInput): Promise<Patient> {
+/**
+ * Atualiza a paciente. Devolve só o id: a linha inteira (com `clinical_summary`
+ * e `partogram_data`, JSONs grandes) não volta pela rede a cada salvamento.
+ */
+export async function updatePatient(id: string, input: UpdatePatientInput): Promise<void> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("patients")
     .update(updatePatientToDb(input))
     .eq("id", id)
-    .select()
+    .select("id")
     .single();
   if (error || !data) {
     console.error("updatePatient failed:", error);
     throw new RepositoryError(withDetail("Não foi possível atualizar a paciente.", error), error);
   }
-  return dbToPatient(data);
 }
 
 /**
