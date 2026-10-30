@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Eraser, MousePointer2, X } from "lucide-react";
+import { Eraser, MousePointer2, Trash2, X } from "lucide-react";
 import type {
   ContractionStrength,
   UftmContractionBlock,
@@ -300,6 +300,17 @@ export function PartogramUftm({
             <Eraser className="h-3.5 w-3.5" /> Apagar
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (!window.confirm("Limpar todo o gráfico? Apaga os pontos, contrações e a linha de alerta lançados aqui (os automáticos das aferições continuam)."))
+              return;
+            set({ points: [], contractionBlocks: [], activePhaseStartIndex: undefined });
+          }}
+          className="flex min-h-8 items-center gap-1 rounded-lg border px-3 text-xs font-semibold text-muted-foreground hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Limpar gráfico
+        </button>
         <span className="text-xs text-muted-foreground">
           Toque no gráfico de dilatação, BCF ou contrações da hora. <span className="font-semibold text-blue-700">Azul</span> = veio das
           aferições (corrija na aferição); preto = lançado aqui.

@@ -28,6 +28,8 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - **Folha de parâmetros para impressão** (A4, modelo HC-UFTM "PARÂMETROS |
   SULFATO DE MAGNÉSIO" e variante de sinais vitais), preenchida hora a hora com
   as aferições — Pré-Parto, Puerpério e Onco (`/[módulo]/[id]/folha`).
+- **Partograma HC-UFTM**: botão "Limpar gráfico" (como na plataforma
+  original) — apaga os lançamentos manuais; os automáticos das aferições ficam.
 - **App instalável** (manifest, ícones, service worker): estáticos em cache;
   sem internet só as ferramentas locais abrem do cache — páginas de pacientes
   mostram `/offline` (nunca dados desatualizados).
