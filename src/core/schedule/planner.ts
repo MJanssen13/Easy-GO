@@ -115,7 +115,10 @@ export function tasksFromRoutines(
   const byTime = new Map<number, Set<string>>();
   for (const routine of routines) {
     for (const rule of routine.rules) {
-      for (let t = start.getTime(); t <= end.getTime(); t += rule.intervalMin * 60000) {
+      // Regra com início próprio: segue a cadência dela, só dentro do período.
+      const first = rule.startAt ? new Date(rule.startAt).getTime() : start.getTime();
+      for (let t = first; t <= end.getTime(); t += rule.intervalMin * 60000) {
+        if (t < start.getTime()) continue;
         const set = byTime.get(t) ?? new Set<string>();
         rule.params.forEach((p) => set.add(p));
         byTime.set(t, set);
@@ -200,8 +203,9 @@ export function upcomingTasks(schedule: ScheduledTask[], limit = 5): ScheduledTa
 }
 
 /**
- * Tarefa "da vez" para uma aferição feita agora: a pendente mais próxima entre
- * as já vencidas e as que vencem nos próximos `aheadMin` minutos. Usada para
+ * Tarefa "da vez" para uma aferição feita agora: a pendente com horário mais
+ * próximo de agora, entre as já vencidas e as que vencem nos próximos
+ * `aheadMin` minutos (às 13:41, a das 13:30, não a das 14:00). Usada para
  * vincular automaticamente "Registrar aferição" ao cronograma.
  */
 export function dueTask(
@@ -213,7 +217,8 @@ export function dueTask(
   const candidates = pendingTasks(schedule).filter(
     (t) => new Date(t.timestamp).getTime() <= limit,
   );
-  return candidates[candidates.length - 1];
+  const dist = (t: ScheduledTask) => Math.abs(new Date(t.timestamp).getTime() - now.getTime());
+  return candidates.reduce<ScheduledTask | undefined>((best, t) => (!best || dist(t) < dist(best) ? t : best), undefined);
 }
 
 /** Pendentes já atrasadas (mais de 10 min — ver `taskUrgency`). */

@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { isoToLocalInput, localInputToIso } from "@/components/local-datetime-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { vitalAlerts, parseDiuresisMlH, type VitalAlert } from "@/core/obstetric/alerts";
@@ -39,22 +40,19 @@ function num(fd: FormData, k: string): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-const VITAL_PARAMS = ["PA", "FC", "TAX", "Sat", "DXT"];
+const VITAL_PARAMS = ["PA", "PA em pé", "FC", "TAX", "Sat", "DXT"];
 const MG_PARAMS = ["Reflexo", "Diurese", "FR"];
 
 /** Só o que o formulário realmente usa da paciente (permite reuso inline). */
 type EvolutionPatient = Pick<Patient, "id" | "useMethyldopa" | "useMagnesiumSulfate">;
 
 /** Local "YYYY-MM-DDTHH:mm" for a datetime-local default value. */
-function nowLocal(): string {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-}
+const toLocalInput = isoToLocalInput;
 
 /** Campos (name) de cada parâmetro — para avisar antes de fechar um preenchido. */
 const PARAM_FIELDS: Record<string, string[]> = {
-  PA: ["paSystolic", "paDiastolic", "paStandingSystolic", "paStandingDiastolic"],
+  PA: ["paSystolic", "paDiastolic"],
+  "PA em pé": ["paStandingSystolic", "paStandingDiastolic"],
   FC: ["fc"],
   TAX: ["tax"],
   Sat: ["spo2"],
@@ -93,6 +91,7 @@ export function EvolutionForm({
   taskLabel,
   unlinkHref,
   focus = [],
+  taskTimestamp,
   defaultRecordedAt,
   returnTo,
   onCancel,
@@ -104,6 +103,8 @@ export function EvolutionForm({
   /** Link para registrar sem vincular à tarefa. */
   unlinkHref?: string;
   focus?: string[];
+  /** Horário da tarefa do cronograma: a aferição é registrada nesse horário. */
+  taskTimestamp?: string;
   defaultRecordedAt?: string;
   returnTo?: string;
   onCancel?: () => void;
@@ -116,9 +117,21 @@ export function EvolutionForm({
   // Seleção de parâmetros: o cronograma (focus) começa selecionado; clicar em
   // qualquer chip abre/fecha o campo correspondente.
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set([...focus, ...(patient.useMagnesiumSulfate ? MG_PARAMS : [])]),
+    () =>
+      new Set([
+        ...focus,
+        ...(patient.useMagnesiumSulfate ? MG_PARAMS : []),
+        // Rotinas salvas antes de existir "PA em pé": metildopa pede as duas.
+        ...(patient.useMethyldopa && focus.includes("PA") ? ["PA em pé"] : []),
+      ]),
   );
   const show = (p: string) => selected.has(p);
+  // Vinculada ao cronograma, a aferição fica no horário da rotina (ex.: lançada
+  // às 13:41 a das 13:30 fica 13:30). Calculado no navegador (fuso do aparelho).
+  const [recordedAt, setRecordedAt] = useState("");
+  useEffect(() => {
+    setRecordedAt(defaultRecordedAt ?? toLocalInput(taskTimestamp));
+  }, [defaultRecordedAt, taskTimestamp]);
   const formRef = useRef<HTMLFormElement>(null);
   // Fechar um parâmetro com valores digitados apagaria esses valores: confirma antes.
   const toggle = (p: string) => {
@@ -284,10 +297,15 @@ export function EvolutionForm({
             <Field label="Data e hora" htmlFor="recordedAt">
               <Input
                 id="recordedAt"
-                name="recordedAt"
                 type="datetime-local"
-                defaultValue={defaultRecordedAt ?? nowLocal()}
+                value={recordedAt}
+                onChange={(e) => setRecordedAt(e.target.value)}
               />
+              {/* ISO convertido no navegador: o servidor roda em UTC. */}
+              <input type="hidden" name="recordedAt" value={localInputToIso(recordedAt)} />
+              {taskTimestamp && (
+                <p className="text-xs text-muted-foreground">Horário da rotina, não o do lançamento.</p>
+              )}
             </Field>
             <Field label="Examinador(a)" htmlFor="examinerName">
               <Input
@@ -321,20 +339,20 @@ export function EvolutionForm({
               {show("PA") && (
                 <>
                   <Field
-                    label={patient.useMethyldopa ? "PA sist. (sentada)" : "PA sistólica"}
+                    label={show("PA em pé") ? "PA sist. (sentada)" : "PA sistólica"}
                     htmlFor="paSystolic"
                   >
                     <Input id="paSystolic" name="paSystolic" type="number" inputMode="numeric" placeholder="mmHg" />
                   </Field>
                   <Field
-                    label={patient.useMethyldopa ? "PA diast. (sentada)" : "PA diastólica"}
+                    label={show("PA em pé") ? "PA diast. (sentada)" : "PA diastólica"}
                     htmlFor="paDiastolic"
                   >
                     <Input id="paDiastolic" name="paDiastolic" type="number" inputMode="numeric" placeholder="mmHg" />
                   </Field>
                 </>
               )}
-              {show("PA") && patient.useMethyldopa && (
+              {show("PA em pé") && (
                 <>
                   <Field label="PA sist. (em pé)" htmlFor="paStandingSystolic">
                     <Input

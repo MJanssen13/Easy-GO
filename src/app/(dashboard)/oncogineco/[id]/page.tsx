@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { LocalDateTimeInput } from "@/components/local-datetime-input";
 import { CopyButton } from "@/components/copy-button";
 import { ActionForm } from "@/components/action-form";
 import { ConfirmSubmit, SubmitButton } from "@/components/confirm-submit";
@@ -162,7 +163,7 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
                   <input type="hidden" name="id" value={patient.id} />
                   <div className="space-y-1">
                     <span className="text-xs text-muted-foreground">Data/hora (opcional)</span>
-                    <Input aria-label="Data e hora da alta" type="datetime-local" name="dischargeTime" className="w-52" />
+                    <LocalDateTimeInput aria-label="Data e hora da alta" name="dischargeTime" className="w-52" />
                   </div>
                   <ConfirmSubmit size="sm" message={`Registrar a alta de ${patient.name}?`}>
                     <LogOut className="h-4 w-4" /> Dar alta

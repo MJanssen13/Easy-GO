@@ -91,6 +91,17 @@ function isoAt(value: string, ref: Date): string {
   return d.toISOString();
 }
 
+/** HH:mm mais próximo de `ref` (até 12 h antes ou depois). */
+function isoNear(value: string, ref: Date): string {
+  const [h, m] = value.split(":").map(Number);
+  const d = new Date(ref);
+  d.setHours(h ?? 0, m ?? 0, 0, 0);
+  const diff = d.getTime() - ref.getTime();
+  if (diff < -12 * 3600000) d.setDate(d.getDate() + 1);
+  if (diff > 12 * 3600000) d.setDate(d.getDate() - 1);
+  return d.toISOString();
+}
+
 const rmKey = (iso: string, param: string) => `${iso}|${param}`;
 
 /**
@@ -110,7 +121,10 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
   const [phaseId, setPhaseId] = useState<string | null>(() =>
     suggestedBaseRoutine(patient.status),
   );
-  const [protocols, setProtocols] = useState<string[]>(() => (diabetesAuto ? ["diabetes"] : []));
+  const [protocols, setProtocols] = useState<string[]>(() => [
+    ...(diabetesAuto ? ["diabetes"] : []),
+    ...(patient.useMethyldopa ? ["methyldopa"] : []),
+  ]);
   const [horizon, setHorizon] = useState("shift");
   // Definido após montar (hora local do navegador; evita divergência de hidratação).
   const [startTime, setStartTime] = useState("");
@@ -118,6 +132,9 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
   const [customRules, setCustomRules] = useState<RoutineRule[]>([]);
   const [draftParams, setDraftParams] = useState<string[]>([]);
   const [draftInterval, setDraftInterval] = useState(60);
+  // Medicação nem sempre começa na admissão: pergunta o horário da 1ª dose.
+  const [draftMedStart, setDraftMedStart] = useState("");
+  const draftHasMed = draftParams.includes("Medicação");
   const [replaceFuture, setReplaceFuture] = useState(true);
 
   // Ajustes manuais sobre a linha do tempo gerada.
@@ -180,9 +197,12 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
   }
 
   function addCustomRule() {
-    if (draftParams.length === 0) return;
-    setCustomRules((prev) => [...prev, { params: draftParams, intervalMin: draftInterval }]);
+    if (draftParams.length === 0 || (draftHasMed && !draftMedStart) || !start) return;
+    const rule: RoutineRule = { params: draftParams, intervalMin: draftInterval };
+    if (draftHasMed) rule.startAt = isoNear(draftMedStart, start);
+    setCustomRules((prev) => [...prev, rule]);
     setDraftParams([]);
+    setDraftMedStart("");
   }
 
   function toggleRemoved(iso: string, param: string) {
@@ -256,7 +276,13 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
                     title={r.label}
                     rules={r.rules}
                     references={r.references}
-                    badge={r.id === "diabetes" && diabetesAuto ? "DMG" : undefined}
+                    badge={
+                      r.id === "diabetes" && diabetesAuto
+                        ? "DMG"
+                        : r.id === "methyldopa" && patient.useMethyldopa
+                          ? "Em uso"
+                          : undefined
+                    }
                     multi
                   />
                 ))}
@@ -297,6 +323,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
                         className="inline-flex items-center gap-1 rounded-full border bg-muted px-2.5 py-1 text-xs font-medium"
                       >
                         {r.params.join(" + ")} · {intervalLabel(r.intervalMin)}
+                        {r.startAt && ` · início ${hhmm(r.startAt)}`}
                         <button
                           type="button"
                           onClick={() => setCustomRules((prev) => prev.filter((_, j) => j !== i))}
@@ -333,12 +360,24 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
                       </option>
                     ))}
                   </select>
+                  {draftHasMed && (
+                    <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      início da medicação
+                      <input
+                        type="time"
+                        value={draftMedStart}
+                        onChange={(e) => setDraftMedStart(e.target.value)}
+                        aria-label="Horário de início da medicação"
+                        className="h-9 rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground"
+                      />
+                    </label>
+                  )}
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     onClick={addCustomRule}
-                    disabled={draftParams.length === 0}
+                    disabled={draftParams.length === 0 || (draftHasMed && !draftMedStart)}
                   >
                     <Plus className="h-4 w-4" /> Adicionar
                   </Button>

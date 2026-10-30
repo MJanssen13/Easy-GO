@@ -246,6 +246,7 @@ export function CronogramaBoard({ tasks }: { tasks: FlatTask[] }) {
                 }}
                 taskId={selected.id}
                 taskLabel={hhmm(selected.timestamp)}
+                taskTimestamp={selected.timestamp}
                 focus={selected.focus}
                 returnTo="/pre-parto/cronograma"
                 onCancel={() => setSelected(null)}

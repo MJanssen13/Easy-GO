@@ -13,6 +13,8 @@ export interface RoutineRule {
   params: string[];
   /** Interval in minutes between measurements. */
   intervalMin: number;
+  /** Início próprio (ex.: medicação iniciada fora da admissão); senão, o da rotina. */
+  startAt?: string;
 }
 
 export interface MonitoringRoutine {
@@ -31,12 +33,12 @@ export const BASE_ROUTINES: MonitoringRoutine[] = [
   {
     id: "latent_induction",
     label: "Indução / Condução / Fase latente",
-    description:
-      "BCF a cada 30 min; PA a cada 2 h; medicação a cada 4 h (misoprostol) ou ocitocina em dose crescente.",
+    // Medicação (misoprostol/ocitocina) entra como aferição extra, com o
+    // horário de início escolhido no planejador.
+    description: "BCF a cada 30 min; PA a cada 2 h.",
     rules: [
       { params: ["BCF"], intervalMin: 30 },
       { params: ["PA"], intervalMin: 120 },
-      { params: ["Medicação"], intervalMin: 240 },
     ],
     references: [
       "FEBRASGO. Indução do trabalho de parto.",
@@ -47,11 +49,12 @@ export const BASE_ROUTINES: MonitoringRoutine[] = [
   {
     id: "active_phase",
     label: "Fase ativa",
-    description: "BCF a cada 30 min; PA a cada 1 h; toque e dinâmica a cada 2 h.",
+    // Toque fica a critério da equipe (adicionar como extra ou horário avulso).
+    description: "BCF a cada 30 min; PA a cada 1 h; dinâmica a cada 2 h.",
     rules: [
       { params: ["BCF"], intervalMin: 30 },
       { params: ["PA"], intervalMin: 60 },
-      { params: ["Toque", "Dinâmica"], intervalMin: 120 },
+      { params: ["Dinâmica"], intervalMin: 120 },
     ],
     references: [
       "WHO. Intrapartum care for a positive childbirth experience, 2018.",
@@ -121,7 +124,7 @@ export const PROTOCOL_ROUTINES: MonitoringRoutine[] = [
     id: "methyldopa",
     label: "Metildopa",
     description: "PA aferida em pé e sentada a cada hora.",
-    rules: [{ params: ["PA"], intervalMin: 60 }],
+    rules: [{ params: ["PA", "PA em pé"], intervalMin: 60 }],
     references: ["FEBRASGO. Hipertensão na gestação.", "MS. Gestação de Alto Risco, 2022."],
   },
 ];

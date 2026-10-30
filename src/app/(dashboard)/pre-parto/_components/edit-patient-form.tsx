@@ -15,6 +15,7 @@ import { EDITABLE_STATUS_OPTIONS, PATIENT_STATUS_LABELS } from "@/core/patients/
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { LocalDateTimeInput } from "@/components/local-datetime-input";
 import { Label } from "@/components/ui/label";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -41,10 +42,6 @@ function currentGaParts(patient: Patient): { w: string; d: string } {
   return { w: "", d: "" };
 }
 
-/** Slice a stored datetime/text to the value a datetime-local input accepts. */
-function dtLocal(v?: string | null): string {
-  return v ? v.slice(0, 16) : "";
-}
 
 export function EditPatientForm({ patient }: { patient: Patient }) {
   const [state, formAction, submitting] = useActionState(editPatient, initialState);
@@ -261,21 +258,11 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="methyldopaStartTime">Início</Label>
-                  <Input
-                    id="methyldopaStartTime"
-                    name="methyldopaStartTime"
-                    type="datetime-local"
-                    defaultValue={dtLocal(patient.methyldopaStartTime)}
-                  />
+                  <LocalDateTimeInput id="methyldopaStartTime" name="methyldopaStartTime" defaultIso={patient.methyldopaStartTime} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="methyldopaEndTime">Término</Label>
-                  <Input
-                    id="methyldopaEndTime"
-                    name="methyldopaEndTime"
-                    type="datetime-local"
-                    defaultValue={dtLocal(patient.methyldopaEndTime)}
-                  />
+                  <LocalDateTimeInput id="methyldopaEndTime" name="methyldopaEndTime" defaultIso={patient.methyldopaEndTime} />
                 </div>
               </div>
             )}
@@ -300,21 +287,11 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="magnesiumSulfateStartTime">Início</Label>
-                  <Input
-                    id="magnesiumSulfateStartTime"
-                    name="magnesiumSulfateStartTime"
-                    type="datetime-local"
-                    defaultValue={dtLocal(patient.magnesiumSulfateStartTime)}
-                  />
+                  <LocalDateTimeInput id="magnesiumSulfateStartTime" name="magnesiumSulfateStartTime" defaultIso={patient.magnesiumSulfateStartTime} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="magnesiumSulfateEndTime">Término</Label>
-                  <Input
-                    id="magnesiumSulfateEndTime"
-                    name="magnesiumSulfateEndTime"
-                    type="datetime-local"
-                    defaultValue={dtLocal(patient.magnesiumSulfateEndTime)}
-                  />
+                  <LocalDateTimeInput id="magnesiumSulfateEndTime" name="magnesiumSulfateEndTime" defaultIso={patient.magnesiumSulfateEndTime} />
                 </div>
               </div>
             )}

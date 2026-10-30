@@ -47,6 +47,7 @@ export default async function EvolutionPage({
         patient={patient}
         taskId={task?.id}
         taskLabel={taskLabel}
+        taskTimestamp={task?.timestamp}
         unlinkHref={`/pre-parto/${patient.id}/evolucao?taskId=none`}
         focus={task?.focus ?? []}
       />

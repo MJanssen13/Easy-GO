@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { LocalDateTimeInput } from "@/components/local-datetime-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -26,11 +27,6 @@ const selectClass =
 
 const initialState: CtgState = {};
 
-function nowLocal(iso?: string): string {
-  const d = iso ? new Date(iso) : new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-}
 
 const CONCLUSION_OPTIONS = [
   "Feto ativo",
@@ -80,7 +76,7 @@ export function CtgForm({ patient, ctg }: { patient: Patient; ctg?: CtgRecord })
         <CardContent>
           <div className="space-y-1.5">
             <Label htmlFor="recordedAt">Data e hora</Label>
-            <Input id="recordedAt" name="recordedAt" type="datetime-local" defaultValue={nowLocal(ctg?.recordedAt)} />
+            <LocalDateTimeInput id="recordedAt" name="recordedAt" defaultIso={ctg?.recordedAt} defaultNow />
           </div>
         </CardContent>
       </Card>

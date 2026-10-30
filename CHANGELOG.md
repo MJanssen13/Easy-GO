@@ -5,6 +5,20 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Rotina e aferição
+
+- Novo parâmetro **PA em pé**: no protocolo de Metildopa (PA + PA em pé de 1/1 h)
+  e disponível para adicionar à mão. O protocolo vem marcado se a paciente usa
+  metildopa.
+- Fase latente sem medicação fixa; fase ativa sem toque fixo (adicionar como
+  extra ou horário avulso).
+- Medicação como aferição extra pergunta o horário de início (1ª dose).
+- A aferição vinculada ao cronograma fica no **horário da rotina** (lançada às
+  13:41, a das 13:30 fica 13:30). A vinculação automática escolhe a tarefa mais
+  próxima do horário atual.
+- Datas e horas dos formulários (aferição, CTG, desfecho/alta, metildopa,
+  MgSO₄) seguem em ISO convertido no navegador, sem depender do fuso do servidor.
+
 ### Partograma — hora real a partir do 1º toque
 
 - Ignora o campo legado `activePhaseStartIndex` (vinha 0 das fichas antigas e

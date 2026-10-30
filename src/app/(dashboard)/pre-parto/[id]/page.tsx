@@ -23,7 +23,7 @@ import { paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { LocalDateTimeInput } from "@/components/local-datetime-input";
 import { Label } from "@/components/ui/label";
 import { CopyButton } from "@/components/copy-button";
 import { ActionForm } from "@/components/action-form";
@@ -436,7 +436,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
               </div>
               <div className="space-y-1">
                 <Label className="field-label">Data/hora (opcional)</Label>
-                <Input type="datetime-local" name="dischargeTime" className="w-52" />
+                <LocalDateTimeInput aria-label="Data e hora" name="dischargeTime" className="w-52" />
               </div>
               <SubmitButton size="sm">
                 <CheckCircle2 className="h-4 w-4" /> Resolver
