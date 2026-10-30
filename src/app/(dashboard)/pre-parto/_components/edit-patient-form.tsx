@@ -2,8 +2,9 @@
 
 import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Save, ShieldPlus } from "lucide-react";
+import { Loader2, Save, ShieldPlus, IdCard } from "lucide-react";
 import { editPatient, type EditPatientState } from "../actions";
+import { useActionRedirect } from "@/lib/use-action-redirect";
 import {
   datingFromGestationalAges,
   formatDateBR,
@@ -14,11 +15,12 @@ import { EDITABLE_STATUS_OPTIONS, PATIENT_STATUS_LABELS } from "@/core/patients/
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { LocalDateTimeInput } from "@/components/local-datetime-input";
 import { Label } from "@/components/ui/label";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const initialState: EditPatientState = {};
 
@@ -40,13 +42,12 @@ function currentGaParts(patient: Patient): { w: string; d: string } {
   return { w: "", d: "" };
 }
 
-/** Slice a stored datetime/text to the value a datetime-local input accepts. */
-function dtLocal(v?: string | null): string {
-  return v ? v.slice(0, 16) : "";
-}
 
 export function EditPatientForm({ patient }: { patient: Patient }) {
-  const [state, formAction, pending] = useActionState(editPatient, initialState);
+  const [state, formAction, submitting] = useActionState(editPatient, initialState);
+  const navigating = useActionRedirect(state);
+  // Segue carregando até a página de destino abrir.
+  const pending = submitting || navigating;
 
   // A IG vigente (hoje) preenche o método atual; o outro fica em branco.
   const current = currentGaParts(patient);
@@ -78,7 +79,9 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Dados da paciente</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IdCard className="h-4 w-4" /> Dados da paciente
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -255,21 +258,11 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="methyldopaStartTime">Início</Label>
-                  <Input
-                    id="methyldopaStartTime"
-                    name="methyldopaStartTime"
-                    type="datetime-local"
-                    defaultValue={dtLocal(patient.methyldopaStartTime)}
-                  />
+                  <LocalDateTimeInput id="methyldopaStartTime" name="methyldopaStartTime" defaultIso={patient.methyldopaStartTime} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="methyldopaEndTime">Término</Label>
-                  <Input
-                    id="methyldopaEndTime"
-                    name="methyldopaEndTime"
-                    type="datetime-local"
-                    defaultValue={dtLocal(patient.methyldopaEndTime)}
-                  />
+                  <LocalDateTimeInput id="methyldopaEndTime" name="methyldopaEndTime" defaultIso={patient.methyldopaEndTime} />
                 </div>
               </div>
             )}
@@ -294,21 +287,11 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="magnesiumSulfateStartTime">Início</Label>
-                  <Input
-                    id="magnesiumSulfateStartTime"
-                    name="magnesiumSulfateStartTime"
-                    type="datetime-local"
-                    defaultValue={dtLocal(patient.magnesiumSulfateStartTime)}
-                  />
+                  <LocalDateTimeInput id="magnesiumSulfateStartTime" name="magnesiumSulfateStartTime" defaultIso={patient.magnesiumSulfateStartTime} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="magnesiumSulfateEndTime">Término</Label>
-                  <Input
-                    id="magnesiumSulfateEndTime"
-                    name="magnesiumSulfateEndTime"
-                    type="datetime-local"
-                    defaultValue={dtLocal(patient.magnesiumSulfateEndTime)}
-                  />
+                  <LocalDateTimeInput id="magnesiumSulfateEndTime" name="magnesiumSulfateEndTime" defaultIso={patient.magnesiumSulfateEndTime} />
                 </div>
               </div>
             )}
@@ -326,7 +309,7 @@ export function EditPatientForm({ patient }: { patient: Patient }) {
       <div className="flex justify-end gap-2">
         <Link
           href={`/pre-parto/${patient.id}`}
-          className="self-center text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex min-h-10 items-center px-2 self-center text-sm text-muted-foreground hover:text-foreground"
         >
           Cancelar
         </Link>

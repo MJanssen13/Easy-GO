@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, UserPlus } from "lucide-react";
 import { admitPatient, type AdmissionState } from "../actions";
+import { useActionRedirect } from "@/lib/use-action-redirect";
 import { datingFromGestationalAges, formatDateBR } from "@/core/obstetric/gestational-age";
 import { ADMISSION_STATUS_OPTIONS, PATIENT_STATUS_LABELS } from "@/core/patients/status";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const initialState: AdmissionState = {};
 
@@ -23,6 +24,9 @@ function num(v: string): number | undefined {
 
 export default function AdmissionPage() {
   const [state, formAction, pending] = useActionState(admitPatient, initialState);
+  const navigating = useActionRedirect(state);
+  // Mantém o botão em "carregando" até a página da paciente abrir.
+  const busy = pending || navigating;
   const [dumWeeks, setDumWeeks] = useState("");
   const [dumDays, setDumDays] = useState("");
   const [usWeeks, setUsWeeks] = useState("");
@@ -45,7 +49,7 @@ export default function AdmissionPage() {
     <div className="mx-auto max-w-2xl space-y-4">
       <Link
         href="/pre-parto"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="-my-1.5 inline-flex min-h-9 items-center gap-1 py-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Voltar aos leitos
       </Link>
@@ -195,11 +199,11 @@ export default function AdmissionPage() {
             )}
 
             <div className="flex justify-end gap-2">
-              <Link href="/pre-parto" className="text-sm text-muted-foreground hover:text-foreground self-center">
+              <Link href="/pre-parto" className="inline-flex min-h-10 items-center px-2 text-sm text-muted-foreground hover:text-foreground self-center">
                 Cancelar
               </Link>
-              <Button type="submit" disabled={pending}>
-                {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={busy}>
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                 Admitir paciente
               </Button>
             </div>

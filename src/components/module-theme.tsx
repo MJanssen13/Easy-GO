@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 /** Cor principal por módulo (rosa pré-parto/puerpério, vermelho PSGO, roxo onco, teal pré-natal). */
 const MODULE_THEME: Record<string, string> = {
   "pre-parto": "theme-pink",
-  puerperio: "theme-pink",
+  puerperio: "theme-fuchsia",
   psgo: "theme-red",
   oncogineco: "theme-purple",
   "pre-natal": "theme-teal",

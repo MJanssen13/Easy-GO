@@ -1,13 +1,12 @@
 "use client";
 
+import { LabeledBox } from "@/components/form-controls";
 import { useMemo, useState } from "react";
 import {
   Plus,
   Trash2,
   Stethoscope,
   Info,
-  ChevronDown,
-  ChevronUp,
   FlaskConical,
   ExternalLink,
 } from "lucide-react";
@@ -97,11 +96,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CopyButton } from "@/components/copy-button";
+import { DraftNotice } from "@/components/draft-notice";
+import { JumpToOutput } from "@/components/jump-to-output";
+import { useDraft } from "@/lib/use-draft";
 import { DateBRInput } from "@/components/date-br-input";
+import { Section, SectionIndex, SectionNavProvider } from "@/components/form-section";
 import { PrenatalCharts } from "./prenatal-charts";
 
 const selectClass =
-  "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full max-w-[11rem] rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -123,10 +126,9 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={`space-y-1 ${className ?? ""}`}>
-      <Label className="text-xs">{label}</Label>
+    <LabeledBox label={label} className={className}>
       {children}
-    </div>
+    </LabeledBox>
   );
 }
 
@@ -145,7 +147,7 @@ function Chip({
       onClick={onClick}
       className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
         active
-          ? "border-primary bg-primary text-primary-foreground"
+          ? "chip-on"
           : "bg-background text-muted-foreground"
       }`}
     >
@@ -163,7 +165,7 @@ function InfoTip({ title, children }: { title?: string; children: React.ReactNod
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
         aria-label={title ?? "Mais informações"}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="-m-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Info className="h-3.5 w-3.5" />
       </button>
@@ -197,7 +199,7 @@ function Segmented<T extends string>({
             i > 0 ? "border-l" : ""
           } ${
             value === opt.value
-              ? "bg-primary text-primary-foreground"
+              ? "chip-on"
               : "text-muted-foreground hover:bg-muted"
           }`}
         >
@@ -208,58 +210,6 @@ function Segmented<T extends string>({
   );
 }
 
-function Section({
-  title,
-  children,
-  headerExtra,
-  defaultOpen = true,
-  contentClassName,
-}: {
-  title: React.ReactNode;
-  children: React.ReactNode;
-  headerExtra?: React.ReactNode;
-  defaultOpen?: boolean;
-  contentClassName?: string;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Card>
-      <div className="flex items-center justify-between gap-2 p-6">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex flex-1 items-center gap-2 text-left"
-        >
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-              open ? "" : "-rotate-90"
-            }`}
-          />
-          <span className="text-base font-semibold leading-none tracking-tight">{title}</span>
-        </button>
-        {headerExtra && <div className="flex items-center gap-2">{headerExtra}</div>}
-      </div>
-      {open && (
-        <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>
-          {children}
-          <div className="flex justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Recolher seção"
-              title="Recolher"
-              className="inline-flex h-6 w-12 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
 /** Botão para abrir o LabFlow (laboratório) em nova aba. */
 function LabflowButton() {
   return (
@@ -267,7 +217,7 @@ function LabflowButton() {
       href="https://labflowai.vercel.app/"
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(105deg,hsl(176_88%_22%),hsl(174_92%_30%)_52%,hsl(172_74%_41%))] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-[0.98]"
+      className="inline-flex items-center gap-2 rounded-md border border-teal-200 bg-teal-50 px-3.5 py-2 text-sm font-semibold text-teal-800 transition hover:bg-teal-100"
     >
       <FlaskConical className="h-4 w-4" />
       Acessar LabFlow
@@ -282,6 +232,29 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
   const [form, setForm] = useState<PrenatalForm>(() => emptyPrenatalForm(today));
   const [medInput, setMedInput] = useState("");
   const update = (patch: Partial<PrenatalForm>) => setForm((f) => ({ ...f, ...patch }));
+
+  // Índice de seções: uma seção conta como preenchida quando algum campo difere do vazio.
+  const emptyForm = useMemo(() => emptyPrenatalForm(today), [today]);
+  const changed = (...keys: (keyof PrenatalForm)[]) =>
+    keys.some((k) => JSON.stringify(form[k]) !== JSON.stringify(emptyForm[k]));
+  const filledIdent = changed(
+    "name", "socialName", "rg", "age", "origin", "companion", "companionRelation",
+    "prenatalPlace", "prenatalCount", "prenatalIrregular",
+  );
+
+  // Rascunho local: recarregar/fechar a aba não perde a consulta.
+  const emptyJson = useMemo(() => JSON.stringify(emptyForm), [emptyForm]);
+  const draft = useDraft<PrenatalForm>(
+    "prenatal",
+    form,
+    (v) => setForm({ ...emptyForm, ...v }),
+    (v) => JSON.stringify(v) === emptyJson,
+  );
+  const newConsult = () => {
+    if (!window.confirm("Limpar o formulário e começar uma nova consulta?")) return;
+    draft.discard();
+    setForm(emptyPrenatalForm(today));
+  };
 
   const text = useMemo(() => renderPrenatal(form), [form]);
   const parityView = useMemo(() => formatParity(form.priorPregnancies, true), [form.priorPregnancies]);
@@ -509,7 +482,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
 
   const gyField = (field: GyField) => (
     <div key={field.id} className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{field.label}</Label>
+      <Label className="field-label">{field.label}</Label>
       {field.render === "select" ? (
         <select
           className={`${selectClass} h-8 w-40`}
@@ -539,7 +512,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
   );
   const gyChipRow = (label: string, fieldId: string, options: { label: string }[]) => (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="field-label">{label}</Label>
       <div className="flex flex-wrap gap-1.5">
         {options.map((op) => (
           <Chip
@@ -597,17 +570,25 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <SectionNavProvider className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
+        <DraftNotice
+          restoredAt={draft.restoredAt}
+          onDiscard={() => {
+            draft.discard();
+            setForm(emptyPrenatalForm(today));
+          }}
+        />
+        <SectionIndex />
         {/* Identificação */}
-        <Section title="Identificação" contentClassName="space-y-3">
+        <Section title="Identificação" filled={filledIdent} contentClassName="space-y-3">
           <div className="flex flex-wrap gap-3">
             <Field label="Data da consulta" className="w-44">
               <DateBRInput value={form.date} onChange={(iso) => update({ date: iso })} />
             </Field>
             <Field label="Idade" className="w-24">
-              <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
+              <Input value={form.age} onChange={(e) => update({ age: e.target.value.replace(/\D/g, "").slice(0, 2) })} inputMode="numeric" />
             </Field>
             <Field label="RG" className="min-w-[8rem] flex-1">
               <Input value={form.rg} onChange={(e) => update({ rg: e.target.value })} />
@@ -681,6 +662,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Paridade (GPA)"
+          navLabel="Paridade"
+          filled={changed("priorPregnancies")}
           contentClassName="space-y-3"
           headerExtra={
             <>
@@ -775,7 +758,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Datação */}
-        <Section title="Datação (DUM / IG)" contentClassName="space-y-3">
+        <Section title="Datação (DUM / IG)" navLabel="Datação / USG" filled={changed("lmp", "lmpUncertain", "imagingExams", "otherImaging")} contentClassName="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <Field label="DUM" className="w-40">
               <DateBRInput value={form.lmp} onChange={(iso) => update({ lmp: iso })} />
@@ -791,7 +774,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             </label>
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
-                <Label className="text-xs">Datação</Label>
+                <Label className="field-label">Datação</Label>
                 <InfoTip title="Como é feita a datação">
                   <p>O USG usado é sempre a <strong>1ª coluna</strong> do quadro de exames de imagem.</p>
                   <p><strong>DUM</strong> — regra de Naegele (DUM + 280 dias).</p>
@@ -892,7 +875,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                       <span className="text-xs font-semibold text-muted-foreground">
                         USG {idx + 1}
                         {isDating && (
-                          <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                          <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
                             datação
                           </span>
                         )}
@@ -975,19 +958,19 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                       <Field label="CC (mm)">
                         <div className="flex items-center gap-1">
                           <Input className="h-8" inputMode="numeric" value={e.hc ?? ""} onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })} />
-                          <span className="text-[10px] text-muted-foreground">{centiles.hc}</span>
+                          <span className="text-[11px] text-muted-foreground">{centiles.hc}</span>
                         </div>
                       </Field>
                       <Field label="CA (mm)">
                         <div className="flex items-center gap-1">
                           <Input className="h-8" inputMode="numeric" value={e.ac ?? ""} onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })} />
-                          <span className="text-[10px] text-muted-foreground">{centiles.ac}</span>
+                          <span className="text-[11px] text-muted-foreground">{centiles.ac}</span>
                         </div>
                       </Field>
                       <Field label="PFE (g)">
                         <div className="flex items-center gap-1">
                           <Input className="h-8" inputMode="numeric" value={e.efw ?? ""} onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })} />
-                          <span className="text-[10px] text-muted-foreground">{centiles.efw}</span>
+                          <span className="text-[11px] text-muted-foreground">{centiles.efw}</span>
                         </div>
                       </Field>
                       <Field label="ILA (cm)">
@@ -1063,7 +1046,13 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Tipo sanguíneo / Coombs */}
-        <Section defaultOpen={false} title="Tipo sanguíneo e Coombs indireto" contentClassName="space-y-3">
+        <Section
+          defaultOpen={false}
+          title="Tipo sanguíneo e Coombs indireto"
+          navLabel="Tipo sanguíneo"
+          filled={changed("bloodType", "coombsList")}
+          contentClassName="space-y-3"
+        >
           <div className="flex items-center justify-between gap-2">
             <Field label="Tipo sanguíneo (TS)" className="w-40">
               <select
@@ -1084,7 +1073,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             </Button>
           </div>
           <div className="space-y-2">
-            <Label className="text-xs">Coombs indireto (CI)</Label>
+            <Label className="field-label">Coombs indireto (CI)</Label>
             {form.coombsList.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Nenhum CI registrado. Use &ldquo;+ CI&rdquo; para adicionar.
@@ -1117,7 +1106,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Comorbidades */}
-        <Section defaultOpen={false} title="Comorbidades (CMB)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Comorbidades (CMB)" navLabel="Comorbidades" filled={changed("comorbidities", "comorbiditiesOther")} contentClassName="space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {COMMON_COMORBIDITIES.map((c) => (
               <Chip key={c} active={form.comorbidities.includes(c)} onClick={() => toggleArray("comorbidities", c)}>
@@ -1126,7 +1115,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             ))}
           </div>
           <Input
-            placeholder="Outras (separadas por vírgula)"
+            placeholder="Outras (separadas por vírgula)" aria-label="Outras comorbidades"
             value={form.comorbiditiesOther}
             onChange={(e) => update({ comorbiditiesOther: e.target.value })}
           />
@@ -1134,7 +1123,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Medicamentos */}
-        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" navLabel="Medicamentos" filled={changed("medications", "medicationsOther", "medicationsPast")} contentClassName="space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {COMMON_MEDICATIONS.map((m) => (
               <Chip key={m} active={form.medications.some((x) => x.label === m)} onClick={() => addMed(m)}>
@@ -1144,7 +1133,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           </div>
           <div className="flex gap-2">
             <Input
-              placeholder="Adicionar medicamento…"
+              placeholder="Adicionar medicamento…" aria-label="Adicionar medicamento em uso"
               value={medInput}
               onChange={(e) => setMedInput(e.target.value)}
               onKeyDown={(e) => {
@@ -1205,10 +1194,16 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Cirurgias / alergias / hábitos */}
-        <Section defaultOpen={false} title="Cirurgias, alergias e hábitos (HCV)" contentClassName="space-y-3">
+        <Section
+          defaultOpen={false}
+          title="Cirurgias, alergias e hábitos (HCV)"
+          navLabel="Cirurgias / alergias"
+          filled={changed("surgeries", "surgeriesDenied", "allergies", "allergiesDenied", "habits", "habitsOther", "udiWhich")}
+          contentClassName="space-y-3"
+        >
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-xs">Cirurgias prévias (CX prévias)</Label>
+              <Label className="field-label">Cirurgias prévias (CX prévias)</Label>
               <Chip active={form.surgeriesDenied} onClick={() => update({ surgeriesDenied: !form.surgeriesDenied })}>
                 Nega
               </Chip>
@@ -1229,7 +1224,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-xs">Alergias</Label>
+              <Label className="field-label">Alergias</Label>
               <Chip active={form.allergiesDenied} onClick={() => update({ allergiesDenied: !form.allergiesDenied })}>
                 Nega
               </Chip>
@@ -1257,7 +1252,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             />
           )}
           <Input
-            placeholder="Outros hábitos"
+            placeholder="Outros hábitos" aria-label="Outros hábitos"
             value={form.habitsOther}
             onChange={(e) => update({ habitsOther: e.target.value })}
           />
@@ -1267,6 +1262,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Cartão de vacinas"
+          navLabel="Vacinas"
+          filled={changed("vaccines", "vaccinesOther")}
           contentClassName="space-y-2"
           headerExtra={
             <>
@@ -1277,7 +1274,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
               )}
               <InfoTip title="Vacinas na gestação (PNI/MS)">
                 <p>Hep B e dT: esquema (doses com data; vazio → PENDENTE). dTpa (20–36 sem) e VSR (28–36 sem): data; na janela e sem data → PENDENTE. Influenza e COVID-19: data.</p>
-                <p>Apoio à decisão — validar com a caderneta e o calendário vigente.</p>
+                <p>Apoio à decisão. Valide com a caderneta e o calendário vigente.</p>
               </InfoTip>
             </>
           }
@@ -1293,6 +1290,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                   <span className="w-24 text-sm font-semibold">{v.label}</span>
                   {v.kind === "scheme" ? (
                     <select
+                      aria-label={`${v.label} — situação`}
                       className={`${selectClass} h-8 w-56`}
                       value={entry.status}
                       onChange={(e) => updateVaccine(v.id, { status: e.target.value })}
@@ -1307,6 +1305,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Data</span>
                       <DateBRInput
+                        aria-label={`${v.label} — data`}
                         className="h-8 w-32"
                         value={entry.date}
                         onChange={(iso) => updateVaccine(v.id, { date: iso })}
@@ -1336,7 +1335,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             );
           })}
           <div className="space-y-1 border-t pt-2">
-            <Label className="text-xs">Outras vacinas</Label>
+            <Label className="field-label">Outras vacinas</Label>
             <Textarea
               rows={2}
               placeholder="Ex.: Febre amarela (pré-gestacional); Hepatite A…"
@@ -1350,6 +1349,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="VCE (Papanicolau)"
+          navLabel="VCE"
+          filled={changed("vceList")}
           contentClassName="space-y-2"
           headerExtra={
             <Button type="button" size="sm" variant="outline" onClick={addVce}>
@@ -1396,6 +1397,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Sorologias e laboratoriais"
+          navLabel="Sorologias / labs"
+          filled={changed("serologyPasted", "serologyGrid", "labs")}
           contentClassName="space-y-4"
           headerExtra={<LabflowButton />}
         >
@@ -1481,7 +1484,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
               </div>
             )}
             <div className="space-y-1">
-              <Label className="text-xs">Colar sorologias do hospital (internas)</Label>
+              <Label className="field-label">Colar sorologias do hospital (internas)</Label>
               <Textarea
                 rows={3}
                 placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
@@ -1494,7 +1497,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
             <p className="text-sm font-semibold">Exames laboratoriais</p>
             <Textarea
               rows={3}
-              placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …"
+              placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …" aria-label="Exames laboratoriais"
               value={form.labs}
               onChange={(e) => update({ labs: e.target.value })}
             />
@@ -1506,7 +1509,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
 
         {/* HPMA / Contexto — revisão dirigida (sempre respondida) + queixas atuais.
             Adaptada do PSGO, sem o gerador de HPMA por QP (a pedido). */}
-        <Section title="HPMA" contentClassName="space-y-3">
+        <Section title="HPMA" filled={changed("revision", "currentComplaints")} contentClassName="space-y-3">
           <Field label="Queixas atuais">
             <Textarea
               rows={2}
@@ -1549,7 +1552,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Exame físico */}
-        <Section defaultOpen={false} title="Exame físico" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Exame físico" filled={changed("weight", "height", "vitals", "exam")} contentClassName="space-y-3">
           <div className="grid grid-cols-4 gap-2">
             <Field label="Peso (kg)">
               <Input value={form.weight} onChange={(e) => update({ weight: e.target.value })} inputMode="decimal" />
@@ -1641,6 +1644,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Exame ginecológico e obstétrico"
+          navLabel="Gineco / obstétrico"
+          filled={changed("gyneco")}
           contentClassName="space-y-4"
         >
           {/* Mamas e inspeção vulvar (normal / alterado / não realizado) */}
@@ -1819,7 +1824,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                 </p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{toqueFieldsFor(true).map(gyField)}</div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Dor ao toque (pode marcar mais de um)</Label>
+                  <Label className="field-label">Dor ao toque (pode marcar mais de um)</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {TOQUE_DOR_OPTIONS.map((op) => (
                       <Chip key={op.key} active={form.gyneco.values[op.key] === "1"} onClick={() => toggleDor(op.key)}>
@@ -1837,6 +1842,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="HD (hipótese diagnóstica)"
+          navLabel="HD"
+          filled={changed("hd")}
           contentClassName="space-y-2"
           headerExtra={
             <Button
@@ -1852,7 +1859,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         >
           <Textarea
             rows={2}
-            placeholder={autoHd}
+            placeholder={autoHd} aria-label="Hipótese diagnóstica"
             value={form.hd}
             onChange={(e) => update({ hd: e.target.value })}
           />
@@ -1862,10 +1869,10 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         </Section>
 
         {/* Conduta */}
-        <Section defaultOpen={false} title="Conduta" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Conduta" filled={changed("cd")} contentClassName="space-y-2">
           <Textarea
             rows={3}
-            placeholder="DISCUTIDA&#10;- ORIENTAÇÕES DIETÉTICAS&#10;- RETORNO CONFORME ROTINA"
+            placeholder="DISCUTIDA&#10;- ORIENTAÇÕES DIETÉTICAS&#10;- RETORNO CONFORME ROTINA" aria-label="Conduta"
             value={form.cd}
             onChange={(e) => update({ cd: e.target.value })}
           />
@@ -1876,6 +1883,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
         <Section
           defaultOpen={false}
           title="Sugestões (exames e USG por trimestre)"
+          navLabel=""
           contentClassName="space-y-2"
           headerExtra={
             trimester != null ? (
@@ -1902,8 +1910,8 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                   </li>
                 ))}
               </ul>
-              <p className="text-[10px] text-muted-foreground">
-                Fonte: MS (Pré-Natal de Baixo Risco) / Febrasgo — sugestões (inclui USG), validar com o protocolo do serviço.
+              <p className="text-[11px] text-muted-foreground">
+                Fonte: MS (Pré-Natal de Baixo Risco) / Febrasgo. Sugestões (inclui USG), validar com o protocolo do serviço.
               </p>
             </>
           )}
@@ -1911,21 +1919,27 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
       </div>
 
       {/* ----- Preview ----- */}
-      <div className="lg:sticky lg:top-20 lg:h-fit">
-        <Card>
+      <div className="lg:sticky lg:top-6 lg:h-fit">
+        <JumpToOutput />
+        <Card id="prontuario" className="scroll-mt-20">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
+            <CardTitle className="flex flex-wrap items-center justify-between gap-y-2 gap-2 text-base">
               <span className="flex items-center gap-2">
                 <Stethoscope className="h-4 w-4 text-teal-600" /> Prontuário
               </span>
-              <CopyButton text={text} />
+              <span className="flex items-center gap-1.5">
+                <Button type="button" variant="ghost" size="sm" onClick={newConsult}>
+                  Nova consulta
+                </Button>
+                <CopyButton text={text} />
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="prontuario-text max-h-[70vh] overflow-y-auto text-xs">{text}</pre>
+            <pre className="prontuario-text max-h-[70vh] overflow-y-auto rounded-xl bg-slate-50 p-4 text-xs ring-1 ring-inset ring-border/60">{text}</pre>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </SectionNavProvider>
   );
 }

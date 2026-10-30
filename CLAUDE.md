@@ -52,6 +52,16 @@ Todos os módulos compartilham as tabelas `patients` (com o campo **`module`**),
   **Nunca fabrique coeficientes**; sem a referência, não calcule e sinalize a pendência.
 - Nunca faça commit de segredos (`.env.local` é ignorado).
 
+## Design (manter o padrão)
+
+Visual sóbrio, no padrão do LabFlow: fundo liso, cards brancos com borda fina
+(sem sombra), cantos de 6–10 px, uma cor por módulo usada só em tons claros
+(seleção = `.chip-on`) e no botão principal. Rótulos de campo em caixa-alta
+pequena (`.field-label`). Evite: degradês, brilhos/blur decorativos, ícones em
+"bolhas" coloridas, rótulo-sobrancelha acima de título, efeito de levantar no
+hover, emojis como marcadores. Texto da interface direto e em frases curtas,
+sem travessões decorativos.
+
 ## Fluxo colaborativo
 
 1. Branch por tarefa a partir do `main` atualizado.

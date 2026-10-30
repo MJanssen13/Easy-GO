@@ -11,11 +11,20 @@ export interface ModuleDef {
   accent: string;
   /** Rótulo do selo no hub (sobrepõe o padrão "Armazena dados"/"Gera prontuário"). */
   badge?: string;
+  /** Gradiente do ícone do módulo (legado). */
+  tile: string;
+  /** Ícone do módulo em tinta suave (navegação, cards) — visual minimalista. */
+  soft: string;
+  /** Agrupamento na navegação. */
+  group: "Internação" | "Atendimento" | "Utilitários";
 }
 
 export const MODULES: ModuleDef[] = [
   {
     slug: "pre-parto",
+    soft: "bg-pink-50 text-pink-600 ring-pink-100",
+    tile: "from-pink-500 to-rose-500",
+    group: "Internação",
     label: "Pré-Parto",
     short: "Trabalho de parto",
     description:
@@ -26,6 +35,9 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "pre-natal",
+    soft: "bg-teal-50 text-teal-600 ring-teal-100",
+    tile: "from-teal-500 to-emerald-500",
+    group: "Atendimento",
     label: "Pré-Natal",
     short: "Consulta por trimestre",
     description:
@@ -36,6 +48,9 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "psgo",
+    soft: "bg-orange-50 text-orange-600 ring-orange-100",
+    tile: "from-red-500 to-orange-500",
+    group: "Atendimento",
     label: "PSGO",
     short: "Pronto-socorro obstétrico",
     description:
@@ -46,6 +61,9 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "puerperio",
+    soft: "bg-fuchsia-50 text-fuchsia-600 ring-fuchsia-100",
+    tile: "from-fuchsia-500 to-pink-500",
+    group: "Internação",
     label: "Puerpério",
     short: "Evolução de enfermaria",
     description:
@@ -56,6 +74,9 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "oncogineco",
+    soft: "bg-violet-50 text-violet-600 ring-violet-100",
+    tile: "from-violet-500 to-purple-600",
+    group: "Internação",
     label: "Onco-Ginecologia",
     short: "Enfermaria oncológica",
     description:
@@ -66,6 +87,9 @@ export const MODULES: ModuleDef[] = [
   },
   {
     slug: "ferramentas",
+    soft: "bg-slate-100 text-slate-600 ring-slate-200",
+    tile: "from-slate-500 to-slate-700",
+    group: "Utilitários",
     label: "Ferramentas",
     short: "Utilitários clínicos",
     description:
@@ -76,6 +100,11 @@ export const MODULES: ModuleDef[] = [
     badge: "Utilitário",
   },
 ];
+
+export { ENABLED_MODULE_SLUGS, ALWAYS_ALLOWED_PATHS, isModuleEnabled } from "./module-flags";
+import { isModuleEnabled } from "./module-flags";
+
+export const ENABLED_MODULES: ModuleDef[] = MODULES.filter((m) => isModuleEnabled(m.slug));
 
 export function getModule(slug: string): ModuleDef | undefined {
   return MODULES.find((m) => m.slug === slug);

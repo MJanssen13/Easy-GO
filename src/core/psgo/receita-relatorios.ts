@@ -12,6 +12,7 @@
  * doses/condutas são as da equipe (ver CLAUDE.md).
  */
 import { DEFAULT_LETTERHEAD, type LaudoLetterhead } from "@/core/ctg/laudo";
+import { NO_BROWSER_HEADERS_CSS } from "@/core/print/page-css";
 
 export type ReceitaDocId =
   | "curva-termica"
@@ -269,6 +270,7 @@ export function receitaDocsSheetsHtml(
 
 export const RECEITA_DOCS_STYLE = `
   @page { size: A4 landscape; margin: 8mm; }
+  ${NO_BROWSER_HEADERS_CSS}
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5pt; line-height: 1.3; color: #000; }

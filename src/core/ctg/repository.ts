@@ -64,10 +64,11 @@ function newCtgToInsert(input: NewCtgInput, createdBy: string | null): CtgInsert
 
 async function currentUserId(): Promise<string | null> {
   const supabase = await createClient();
+  // Sessão do cookie, sem ida à rede (só para atribuição — ver patients/repository).
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
 }
 
 /** All CTGs of a patient, most recent first. */
@@ -102,6 +103,14 @@ export async function createCtg(input: NewCtgInput): Promise<CtgRecord> {
     .single();
   if (error || !data) throw new RepositoryError("Não foi possível salvar a CTG.", error);
   return dbToCtg(data);
+}
+
+/** Atualiza uma CTG (edição). */
+export async function updateCtg(id: string, input: NewCtgInput): Promise<void> {
+  const supabase = await createClient();
+  const { created_by: _ignored, ...row } = newCtgToInsert(input, null);
+  const { error } = await supabase.from("ctgs").update(row).eq("id", id).eq("patient_id", input.patientId);
+  if (error) throw new RepositoryError("Não foi possível atualizar a CTG.", error);
 }
 
 export async function deleteCtg(id: string): Promise<void> {

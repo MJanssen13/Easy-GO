@@ -1,7 +1,7 @@
 "use server";
 
+import type { RedirectState } from "@/components/action-form";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   createPatient,
@@ -18,12 +18,10 @@ import {
   mergeSchedule,
   markCompleted,
   setTaskStatus,
-  tasksFromRoutines,
-  nextHalfHour,
-  shiftEnd,
+  overdueTasks,
 } from "@/core/schedule/planner";
-import { getRoutine, hasDiabetesRisk } from "@/core/schedule/routines";
-import { createCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
+import { initialRoutineTasks } from "@/core/schedule/initial-routine";
+import { createCtg, updateCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
 import { computeCtgScore, suggestConclusion } from "@/core/ctg/scoring";
 import type { NewCtgInput } from "@/core/ctg/types";
 import type { ScheduledTask } from "@/core/patients/types";
@@ -65,7 +63,8 @@ const admissionSchema = z.object({
   riskFactors: z.string().trim().optional(),
 });
 
-export type AdmissionState = { error?: string };
+/** `redirectTo`: o formulário navega até lá (ver `useActionRedirect`). */
+export type AdmissionState = { error?: string; redirectTo?: string };
 
 export async function admitPatient(
   _prev: AdmissionState,
@@ -97,7 +96,7 @@ export async function admitPatient(
 
   const input: NewPatientInput = {
     module: "pre_parto",
-    name: d.name,
+    name: d.name.toUpperCase(),
     medicalRecordNumber: d.medicalRecordNumber ?? null,
     bed: d.bed ?? null,
     age: d.age ?? null,
@@ -142,22 +141,17 @@ export async function admitPatient(
   // Rotina de aferições já na admissão (editável depois): fase de base pela
   // situação + protocolo de diabetes se houver DMG/Overt nos fatores de risco.
   try {
-    const baseId = d.status === "active_labor" ? "active_phase" : "latent_induction";
-    const routines = [getRoutine(baseId)!];
-    if (hasDiabetesRisk(input.riskFactors ?? [])) {
-      const diabetes = getRoutine("diabetes");
-      if (diabetes) routines.push(diabetes);
-    }
-    const from = nextHalfHour();
-    const tasks = tasksFromRoutines(routines, from, shiftEnd(from));
+    const tasks = initialRoutineTasks(d.status, input.riskFactors ?? []);
     if (tasks.length > 0) await updateSchedule(created.id, tasks);
   } catch {
     // best-effort: a rotina pode ser criada/ajustada depois em "Editar Rotina"
   }
 
-  revalidatePath("/pre-parto");
-  revalidatePath(`/pre-parto/${created.id}`);
-  redirect(`/pre-parto/${created.id}`);
+  // Sem redirect() na Server Action: em produção o navegador às vezes não
+  // aplicava o redirecionamento e o botão ficava "carregando" para sempre.
+  // O formulário navega com o endereço devolvido. As páginas são dinâmicas,
+  // então não é preciso revalidar.
+  return { redirectTo: `/pre-parto/${created.id}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +211,7 @@ const observationSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-export type ObservationState = { error?: string };
+export type ObservationState = { error?: string; redirectTo?: string };
 
 export async function recordObservation(
   _prev: ObservationState,
@@ -326,6 +320,9 @@ export async function recordObservation(
     notes: d.notes ?? null,
   };
 
+  // A leitura do cronograma corre junto com a gravação da aferição (uma ida ao
+  // banco a menos); a tarefa só é marcada depois que a aferição foi gravada.
+  const scheduleRead = d.taskId ? getSchedule(d.patientId).catch(() => null) : null;
   try {
     await addObservation(input);
   } catch (err) {
@@ -337,10 +334,10 @@ export async function recordObservation(
   }
 
   // Best-effort: if this evolution fulfils a scheduled task, mark it done.
-  if (d.taskId) {
+  if (d.taskId && scheduleRead) {
     try {
-      const schedule = await getSchedule(d.patientId);
-      await updateSchedule(d.patientId, markCompleted(schedule, d.taskId));
+      const schedule = await scheduleRead;
+      if (schedule) await updateSchedule(d.patientId, markCompleted(schedule, d.taskId));
     } catch {
       // schedule update is non-critical; the observation is already saved
     }
@@ -351,7 +348,7 @@ export async function recordObservation(
   // Volta para a origem (ex.: cronograma na escrita rápida) quando informado.
   const dest =
     d.returnTo && d.returnTo.startsWith("/pre-parto") ? d.returnTo : `/pre-parto/${d.patientId}`;
-  redirect(dest);
+  return { redirectTo: dest };
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +366,7 @@ const routineSchema = z.object({
   tasks: z.array(incomingTaskSchema),
 });
 
-export type RoutineState = { error?: string };
+export type RoutineState = { error?: string; redirectTo?: string };
 
 export async function saveRoutine(
   _prev: RoutineState,
@@ -417,7 +414,7 @@ export async function saveRoutine(
 
   revalidatePath(`/pre-parto/${patientId}`);
   revalidatePath("/pre-parto/cronograma");
-  redirect(`/pre-parto/${patientId}`);
+  return { redirectTo: `/pre-parto/${patientId}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -442,7 +439,7 @@ const ctgSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-export type CtgState = { error?: string };
+export type CtgState = { error?: string; redirectTo?: string };
 
 export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgState> {
   const raw = {
@@ -462,6 +459,11 @@ export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgS
     conclusion: opt(formData.get("conclusion")),
     notes: opt(formData.get("notes")),
   };
+  const ctgId = opt(formData.get("ctgId"));
+  const image = opt(formData.get("image"));
+  if (image && (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 3_000_000)) {
+    return { error: "Foto inválida ou grande demais." };
+  }
 
   const parsed = ctgSchema.safeParse(raw);
   if (!parsed.success) {
@@ -493,10 +495,12 @@ export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgS
     score,
     conclusion: d.conclusion && d.conclusion !== "" ? d.conclusion : suggestConclusion(score),
     notes: d.notes ?? null,
+    imagePath: image ?? null,
   };
 
   try {
-    await createCtg(input);
+    if (ctgId) await updateCtg(ctgId, input);
+    else await createCtg(input);
   } catch (err) {
     const message =
       err instanceof RepositoryError ? err.message : "Não foi possível salvar a CTG.";
@@ -504,7 +508,7 @@ export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgS
   }
 
   revalidatePath(`/pre-parto/${d.patientId}`);
-  redirect(`/pre-parto/${d.patientId}`);
+  return { redirectTo: `/pre-parto/${d.patientId}` };
 }
 
 export async function removeCtg(formData: FormData): Promise<void> {
@@ -533,6 +537,27 @@ export async function updateTaskStatus(formData: FormData): Promise<void> {
   } catch {
     // best-effort
   }
+  revalidatePath("/pre-parto/cronograma");
+  revalidatePath(`/pre-parto/${patientId}`);
+}
+
+/** Marca como puladas (canceladas) todas as aferições já atrasadas da paciente. */
+export async function skipOverdueTasks(formData: FormData): Promise<void> {
+  const patientId = String(formData.get("patientId") ?? "");
+  if (!patientId) return;
+  try {
+    const schedule = await getSchedule(patientId);
+    const overdue = new Set(overdueTasks(schedule).map((t) => t.id));
+    if (overdue.size > 0) {
+      await updateSchedule(
+        patientId,
+        schedule.map((t) => (overdue.has(t.id) ? { ...t, status: "cancelled" as const } : t)),
+      );
+    }
+  } catch {
+    // best-effort
+  }
+  revalidatePath("/pre-parto");
   revalidatePath("/pre-parto/cronograma");
   revalidatePath(`/pre-parto/${patientId}`);
 }
@@ -579,7 +604,7 @@ const editSchema = z.object({
   magnesiumSulfateEndTime: z.string().trim().optional(),
 });
 
-export type EditPatientState = { error?: string };
+export type EditPatientState = { error?: string; redirectTo?: string };
 
 export async function editPatient(
   _prev: EditPatientState,
@@ -617,7 +642,7 @@ export async function editPatient(
   const d = parsed.data;
 
   const input: UpdatePatientInput = {
-    name: d.name,
+    name: d.name.toUpperCase(),
     bed: d.bed ?? null,
     medicalRecordNumber: d.medicalRecordNumber ?? null,
     age: d.age ?? null,
@@ -671,7 +696,7 @@ export async function editPatient(
 
   revalidatePath(`/pre-parto/${d.id}`);
   revalidatePath("/pre-parto");
-  redirect(`/pre-parto/${d.id}`);
+  return { redirectTo: `/pre-parto/${d.id}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -680,11 +705,11 @@ export async function editPatient(
 
 const RESOLVE_OUTCOMES = ["vaginal_delivery", "c_section", "discharge", "transfer"] as const;
 
-export async function resolvePatientAction(formData: FormData): Promise<void> {
+export async function resolvePatientAction(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
   const outcome = String(formData.get("outcome") ?? "");
   const dischargeRaw = opt(formData.get("dischargeTime"));
-  if (!id || !RESOLVE_OUTCOMES.includes(outcome as (typeof RESOLVE_OUTCOMES)[number])) return;
+  if (!id || !RESOLVE_OUTCOMES.includes(outcome as (typeof RESOLVE_OUTCOMES)[number])) return {};
 
   const iso = dischargeRaw ? new Date(dischargeRaw).toISOString() : undefined;
   try {
@@ -694,12 +719,12 @@ export async function resolvePatientAction(formData: FormData): Promise<void> {
   }
   revalidatePath("/pre-parto");
   revalidatePath(`/pre-parto/${id}`);
-  redirect(`/pre-parto/${id}`);
+  return { redirectTo: `/pre-parto/${id}` };
 }
 
-export async function reopenPatientAction(formData: FormData): Promise<void> {
+export async function reopenPatientAction(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await reopenPatient(id);
   } catch {
@@ -707,17 +732,18 @@ export async function reopenPatientAction(formData: FormData): Promise<void> {
   }
   revalidatePath("/pre-parto");
   revalidatePath(`/pre-parto/${id}`);
-  redirect(`/pre-parto/${id}`);
+  return { redirectTo: `/pre-parto/${id}` };
 }
 
-export async function removePatient(formData: FormData): Promise<void> {
+export async function removePatient(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await deletePatient(id);
   } catch {
     // surfaced on next load; deletion is best-effort from the detail page
   }
-  revalidatePath("/pre-parto");
-  redirect("/pre-parto");
+  // Sem revalidar: a página atual deixaria de existir (404) antes de navegar;
+  // a lista é dinâmica e vem atualizada.
+  return { redirectTo: "/pre-parto" };
 }

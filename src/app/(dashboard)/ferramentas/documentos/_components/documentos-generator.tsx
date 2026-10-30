@@ -1,7 +1,8 @@
 "use client";
 
+import { LabeledBox } from "@/components/form-controls";
 import { useState } from "react";
-import { Printer } from "lucide-react";
+import { Printer, LineChart, IdCard, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,9 +40,9 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
+      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
         active
-          ? "border-primary bg-primary text-primary-foreground"
+          ? "chip-on"
           : "bg-background text-muted-foreground hover:bg-muted"
       }`}
     >
@@ -52,10 +53,9 @@ function Chip({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+    <LabeledBox label={label} labelClassName="text-muted-foreground">
       {children}
-    </div>
+    </LabeledBox>
   );
 }
 
@@ -99,7 +99,9 @@ export function DocumentosGenerator({ today }: { today: string }) {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Identificação</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IdCard className="h-4 w-4" /> Identificação
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Field label="Paciente">
@@ -137,7 +139,9 @@ export function DocumentosGenerator({ today }: { today: string }) {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Curvas</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <LineChart className="h-4 w-4" /> Curvas
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex flex-wrap gap-2">
@@ -155,7 +159,9 @@ export function DocumentosGenerator({ today }: { today: string }) {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Relatórios e cartas</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-4 w-4" /> Relatórios e cartas
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">

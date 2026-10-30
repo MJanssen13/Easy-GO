@@ -1,8 +1,9 @@
 "use client";
 
+import { LabeledBox } from "@/components/form-controls";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Siren, Info, ChevronDown, ChevronUp, FlaskConical, ExternalLink, Printer, Pill, Check } from "lucide-react";
+import { Plus, Trash2, Siren, Info, FlaskConical, ExternalLink, Printer, Pill, Check } from "lucide-react";
 import {
   emptyPsgoForm,
   HABITS,
@@ -55,6 +56,7 @@ import {
   type ArrivalMode,
 } from "@/core/psgo/hpma";
 import { savePsgoAdmission } from "../actions";
+import { Section, SectionIndex, SectionNavProvider } from "@/components/form-section";
 import {
   PRIOR_TYPE_LABELS,
   NO_COMPLICATIONS_LABEL,
@@ -91,6 +93,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DraftNotice } from "@/components/draft-notice";
+import { JumpToOutput } from "@/components/jump-to-output";
+import { clearDraft, useDraft } from "@/lib/use-draft";
 import { CopyButton } from "@/components/copy-button";
 import { buildPassagemBlock, passagemText, passagemHtml } from "@/core/psgo/passagem";
 import { PassagemButton } from "./passagem-button";
@@ -99,7 +104,7 @@ import { PsgoTermosButton } from "./psgo-termos-button";
 
 // Largura padronizada das listas suspensas (~ tamanho de um campo de data).
 const selectClass =
-  "flex h-9 w-full max-w-[11rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full max-w-[11rem] rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const CTG_CONCLUSIONS = [
   "Feto ativo",
@@ -135,10 +140,9 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={`space-y-1 ${className ?? ""}`}>
-      <Label className="text-xs">{label}</Label>
+    <LabeledBox label={label} className={className}>
       {children}
-    </div>
+    </LabeledBox>
   );
 }
 
@@ -156,7 +160,7 @@ function Chip({
       type="button"
       onClick={onClick}
       className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-        active ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground"
+        active ? "chip-on" : "bg-background text-muted-foreground"
       }`}
     >
       {children}
@@ -174,7 +178,7 @@ function InfoTip({ title, children }: { title?: string; children: React.ReactNod
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
         aria-label={title ?? "Mais informações"}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="-m-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Info className="h-3.5 w-3.5" />
       </button>
@@ -207,7 +211,7 @@ function Segmented<T extends string>({
           onClick={() => onChange(opt.value)}
           className={`flex-1 whitespace-nowrap px-3 py-1.5 text-center transition-colors ${i > 0 ? "border-l" : ""} ${
             value === opt.value
-              ? "bg-primary text-primary-foreground"
+              ? "chip-on"
               : "text-muted-foreground hover:bg-muted"
           }`}
         >
@@ -245,84 +249,14 @@ function AutoGrowTextarea({
   );
 }
 
-/**
- * Card de seção colapsável. `headerExtra` recebe ações/badges (fora do toggle).
- * Pode ser controlada por `open`/`onOpenChange` (ex.: abrir ao adicionar item).
- */
-function Section({
-  title,
-  children,
-  headerExtra,
-  defaultOpen = true,
-  open: openProp,
-  onOpenChange,
-  id,
-  contentClassName,
-}: {
-  title: React.ReactNode;
-  children: React.ReactNode;
-  headerExtra?: React.ReactNode;
-  defaultOpen?: boolean;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  id?: string;
-  contentClassName?: string;
-}) {
-  const [openState, setOpenState] = useState(defaultOpen);
-  const isControlled = openProp !== undefined;
-  const open = isControlled ? openProp : openState;
-  const setOpen = (updater: boolean | ((o: boolean) => boolean)) => {
-    const next = typeof updater === "function" ? updater(open) : updater;
-    if (isControlled) onOpenChange?.(next);
-    else setOpenState(next);
-  };
-  return (
-    <Card id={id}>
-      <div className="flex items-center justify-between gap-2 p-6">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex flex-1 items-center gap-2 text-left"
-        >
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-              open ? "" : "-rotate-90"
-            }`}
-          />
-          <span className="text-base font-semibold leading-none tracking-tight">{title}</span>
-        </button>
-        {headerExtra && <div className="flex items-center gap-2">{headerExtra}</div>}
-      </div>
-      {open && (
-        <div className={`px-6 pb-6 ${contentClassName ?? ""}`}>
-          {children}
-          {/* Botão de recolher a seção (^), ao fim do conteúdo. */}
-          <div className="flex justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Recolher seção"
-              title="Recolher"
-              className="inline-flex h-6 w-12 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-/** Botão único para abrir o LabFlow (laboratório) em nova aba — gradiente teal da marca. */
+/** Botão para abrir o LabFlow (laboratório) em nova aba, na cor da marca. */
 function LabflowButton() {
   return (
     <a
       href="https://labflowai.vercel.app/"
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(105deg,hsl(176_88%_22%),hsl(174_92%_30%)_52%,hsl(172_74%_41%))] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-[0.98]"
+      className="inline-flex items-center gap-2 rounded-md border border-teal-200 bg-teal-50 px-3.5 py-2 text-sm font-semibold text-teal-800 transition hover:bg-teal-100"
     >
       <FlaskConical className="h-4 w-4" />
       Acessar LabFlow
@@ -386,6 +320,15 @@ export function PsgoGenerator({
 
   const update = (patch: Partial<PsgoForm>) => setForm((f) => ({ ...f, ...patch }));
 
+  // Índice de seções: uma seção conta como preenchida quando algum campo difere do vazio.
+  const emptyForm = useMemo(() => emptyPsgoForm(today), [today]);
+  const changed = (...keys: (keyof PsgoForm)[]) =>
+    keys.some((k) => JSON.stringify(form[k]) !== JSON.stringify(emptyForm[k]));
+  const filledIdent = changed(
+    "name", "socialName", "rg", "age", "origin", "companion", "companionRelation",
+    "prenatalCount", "prenatalPlace", "prenatalIrregular",
+  );
+
   // ----- Salvamento automático -----
   // Guarda o id da admissão (criada no 1º save) para os próximos serem update.
   const currentIdRef = useRef<string | undefined>(patientId);
@@ -404,6 +347,10 @@ export function PsgoGenerator({
         return { ok: false, id: currentIdRef.current };
       }
       if (res.patientId) {
+        // 1º save: o endereço passa a apontar para a admissão salva, para que
+        // recarregar a página edite esta admissão em vez de criar outra.
+        if (!currentIdRef.current)
+          window.history.replaceState(null, "", `/psgo/admissao?id=${res.patientId}`);
         currentIdRef.current = res.patientId;
         setSavedId(res.patientId);
       }
@@ -415,6 +362,19 @@ export function PsgoGenerator({
     saveChain.current = p.catch(() => {});
     return p.catch(() => ({ ok: false, id: currentIdRef.current }));
   };
+
+  // Rascunho local só para admissão nova ainda não salva no banco (antes de
+  // nome + RG): recarregar a página não perde o que foi digitado.
+  const draftKey = patientId || savedId ? null : "psgo-new";
+  const draft = useDraft<PsgoForm>(
+    draftKey,
+    form,
+    (v) => setForm({ ...emptyForm, ...v }),
+    (v) => JSON.stringify(v) === JSON.stringify(emptyForm),
+  );
+  useEffect(() => {
+    if (savedId && !patientId) clearDraft("psgo-new");
+  }, [savedId, patientId]);
 
   // Auto-save: inicia só quando nome E prontuário (RG) estão preenchidos; se não,
   // aguarda. Debounce de 1,5s após a última alteração.
@@ -436,7 +396,6 @@ export function PsgoGenerator({
       const r = await persist(form);
       if (r.ok && r.id) {
         router.push(`/psgo/${r.id}`);
-        router.refresh();
       }
     });
   }
@@ -799,7 +758,7 @@ export function PsgoGenerator({
   }
   const gyField = (field: GyField) => (
     <div key={field.id} className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{field.label}</Label>
+      <Label className="field-label">{field.label}</Label>
       {field.render === "select" ? (
         <select
           className={`${selectClass} h-8 w-40`}
@@ -830,7 +789,7 @@ export function PsgoGenerator({
   // Linha de chips de seleção única (especular).
   const gyChipRow = (label: string, fieldId: string, options: { label: string }[]) => (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="field-label">{label}</Label>
       <div className="flex flex-wrap gap-1.5">
         {options.map((op) => (
           <Chip
@@ -863,7 +822,7 @@ export function PsgoGenerator({
   const hpmaChipCls = (active: boolean) =>
     `rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
       active
-        ? "border-primary bg-primary text-primary-foreground"
+        ? "chip-on"
         : "bg-background text-muted-foreground hover:bg-muted"
     }`;
   const hpmaInputCls =
@@ -1123,9 +1082,9 @@ export function PsgoGenerator({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-semibold">CTG {idx + 1}</p>
           <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Data</Label>
+            <Label className="field-label">Data</Label>
             <DateBRInput className="h-8 w-28" value={c.date} onChange={(iso) => set({ date: iso })} />
-            <Label className="text-xs text-muted-foreground">Horário</Label>
+            <Label className="field-label">Horário</Label>
             <Input type="time" className="h-8 w-28" value={c.time} onChange={(e) => set({ time: e.target.value })} />
             <Button
               type="button"
@@ -1268,7 +1227,7 @@ export function PsgoGenerator({
             Pontuação: <strong className="text-primary">{psgoCtgScore(c)}/5</strong>
           </span>
           <div className="flex items-center gap-2">
-            <Label className="text-xs">Conclusão</Label>
+            <Label className="field-label">Conclusão</Label>
             <select
               className={`${selectClass} h-8 w-44 font-semibold`}
               value={psgoCtgConclusion(c)}
@@ -1298,12 +1257,21 @@ export function PsgoGenerator({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <SectionNavProvider className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* ----- Formulário (2/3) ----- */}
       <div className="space-y-4 lg:col-span-2">
+        <DraftNotice
+          restoredAt={draft.restoredAt}
+          onDiscard={() => {
+            draft.discard();
+            setForm(emptyPsgoForm(today));
+          }}
+        />
+        <SectionIndex />
         {/* Identificação (toggle gestante/não gestante no cabeçalho, à direita) */}
         <Section
           title="Identificação"
+          filled={filledIdent}
           contentClassName="space-y-3"
           headerExtra={
             <div className="w-56 max-w-full">
@@ -1324,7 +1292,12 @@ export function PsgoGenerator({
                 <DateBRInput value={form.date} onChange={(iso) => update({ date: iso })} />
               </Field>
               <Field label="Idade" className="w-24">
-                <Input value={form.age} onChange={(e) => update({ age: e.target.value })} inputMode="numeric" />
+                <Input
+                  value={form.age}
+                  onChange={(e) => update({ age: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+                  inputMode="numeric"
+                  aria-invalid={!!form.age && (Number(form.age) < 10 || Number(form.age) > 60)}
+                />
               </Field>
               <Field label="RG" className="min-w-[8rem] flex-1">
                 <Input value={form.rg} onChange={(e) => update({ rg: e.target.value })} />
@@ -1409,6 +1382,7 @@ export function PsgoGenerator({
         <Section
           defaultOpen={false}
           title="Paridade"
+          filled={changed("priorPregnancies")}
           contentClassName="space-y-3"
           headerExtra={
             <>
@@ -1419,7 +1393,7 @@ export function PsgoGenerator({
                     normal, <strong>A</strong> abortos.
                   </p>
                   <p>Ex.: 1 cesárea + 1 normal, gestante → <strong>G3C1N1</strong>.</p>
-                  <p>Modelo em calibração — validar com a equipe.</p>
+                  <p>Modelo em calibração. Valide com a equipe.</p>
               </InfoTip>
               {parityView.summary && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-bold tabular-nums text-primary">
@@ -1524,6 +1498,8 @@ export function PsgoGenerator({
         {/* Datação, dados obstétricos e exames de imagem (USG) — seção unificada */}
         <Section
           id="psgo-usg"
+          navLabel={form.pregnant ? "Datação / USG" : "DUM e MAC"}
+          filled={changed("lmp", "lmpUncertain", "mac", "presentation", "fetuses", "laborOnset", "multiplicity", "chorionAmnion", "imagingExams", "otherImaging")}
           title={
             form.pregnant
               ? "Datação, dados obstétricos e exames de imagem (USG)"
@@ -1558,7 +1534,7 @@ export function PsgoGenerator({
               {form.pregnant && (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <Label className="text-xs">Datação</Label>
+                  <Label className="field-label">Datação</Label>
                   <InfoTip title="Como é feita a datação">
                     <p>
                       O USG usado é sempre a <strong>1ª coluna</strong> do quadro de exames de
@@ -1603,7 +1579,7 @@ export function PsgoGenerator({
                     IG pela DUM
                   </span>
                   {datingView.chosen === "DUM" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
                       usada
                     </span>
                   )}
@@ -1635,7 +1611,7 @@ export function PsgoGenerator({
                     IG pela USG
                   </span>
                   {datingView.chosen === "US" && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
                       usada
                     </span>
                   )}
@@ -1664,7 +1640,7 @@ export function PsgoGenerator({
             {/* Nº de fetos · Apresentação · Início do TP na mesma linha */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
-                <Label className="text-xs">Nº de fetos</Label>
+                <Label className="field-label">Nº de fetos</Label>
                 <Segmented
                   value={form.fetuses}
                   onChange={(v) =>
@@ -1680,7 +1656,7 @@ export function PsgoGenerator({
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Apresentação</Label>
+                <Label className="field-label">Apresentação</Label>
                 <Segmented
                   value={form.presentation}
                   onChange={(v) => update({ presentation: v })}
@@ -1692,7 +1668,7 @@ export function PsgoGenerator({
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Início do TP (Atual ou predição)</Label>
+                <Label className="field-label">Início do TP (Atual ou predição)</Label>
                 <Segmented
                   value={form.laborOnset}
                   onChange={(v) => update({ laborOnset: v })}
@@ -1707,7 +1683,7 @@ export function PsgoGenerator({
             {form.fetuses === "multiple" && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Gemelaridade</Label>
+                  <Label className="field-label">Gemelaridade</Label>
                   <Segmented
                     value={form.multiplicity}
                     onChange={(v) => update({ multiplicity: v, chorionAmnion: "" })}
@@ -1719,7 +1695,7 @@ export function PsgoGenerator({
                 </div>
                 {form.multiplicity && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Corionicidade e amnionicidade</Label>
+                    <Label className="field-label">Corionicidade e amnionicidade</Label>
                     <select
                       className={`${selectClass} max-w-full`}
                       value={form.chorionAmnion}
@@ -1738,7 +1714,7 @@ export function PsgoGenerator({
             )}
             {robsonMissing.length > 0 && (
               <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                Robson incompleto — faltam: {robsonMissing.join(", ")}.
+                Robson incompleto. Faltam: {robsonMissing.join(", ")}.
               </p>
             )}
             </>
@@ -1783,7 +1759,7 @@ export function PsgoGenerator({
                         <span className="text-xs font-semibold text-muted-foreground">
                           USG {idx + 1}
                           {isDG && (
-                            <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary-foreground">
+                            <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-bold uppercase text-primary-foreground">
                               datação
                             </span>
                           )}
@@ -1877,7 +1853,7 @@ export function PsgoGenerator({
                             <div className="space-y-2.5">
                               {/* Biometria fetal */}
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Biometria fetal
                                 </p>
                                 <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
@@ -1895,13 +1871,13 @@ export function PsgoGenerator({
                                   </Field>
                                   <Field label="BCF">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="inline-flex overflow-hidden rounded-full border text-[10px] font-medium">
+                                      <div className="inline-flex overflow-hidden rounded-full border text-[11px] font-medium">
                                         <button
                                           type="button"
                                           onClick={() => updateImaging(e.id, { fhr: absent ? "" : (e.fhr ?? "") })}
                                           className={`px-2 py-1 transition-colors ${
                                             !absent
-                                              ? "bg-primary text-primary-foreground"
+                                              ? "chip-on"
                                               : "text-muted-foreground hover:bg-muted"
                                           }`}
                                         >
@@ -1938,7 +1914,7 @@ export function PsgoGenerator({
                                         value={e.hc ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { hc: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.hc}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.hc}</span>
                                     </div>
                                   </Field>
                                   <Field label="Circ. abd. (mm)">
@@ -1949,7 +1925,7 @@ export function PsgoGenerator({
                                         value={e.ac ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { ac: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.ac}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.ac}</span>
                                     </div>
                                   </Field>
                                   <Field label="Peso (g)">
@@ -1960,7 +1936,7 @@ export function PsgoGenerator({
                                         value={e.efw ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { efw: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.efw}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.efw}</span>
                                     </div>
                                   </Field>
                                 </div>
@@ -1968,7 +1944,7 @@ export function PsgoGenerator({
 
                               {/* Gestação inicial */}
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Gestação inicial
                                 </p>
                                 <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
@@ -2001,19 +1977,19 @@ export function PsgoGenerator({
 
                               {/* Líquido e placenta */}
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Líquido e placenta
                                 </p>
                                 <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
                                   <Field label="Líquido amniótico">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="inline-flex overflow-hidden rounded-full border text-[10px] font-medium">
+                                      <div className="inline-flex overflow-hidden rounded-full border text-[11px] font-medium">
                                         <button
                                           type="button"
                                           onClick={() => updateImaging(e.id, { laNl: true })}
                                           className={`px-2 py-1 transition-colors ${
                                             e.laNl
-                                              ? "bg-primary text-primary-foreground"
+                                              ? "chip-on"
                                               : "text-muted-foreground hover:bg-muted"
                                           }`}
                                         >
@@ -2024,7 +2000,7 @@ export function PsgoGenerator({
                                           onClick={() => updateImaging(e.id, { laNl: false })}
                                           className={`border-l px-2 py-1 transition-colors ${
                                             !e.laNl
-                                              ? "bg-primary text-primary-foreground"
+                                              ? "chip-on"
                                               : "text-muted-foreground hover:bg-muted"
                                           }`}
                                         >
@@ -2084,7 +2060,7 @@ export function PsgoGenerator({
 
                               {/* Doppler (padrões FMF) */}
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Doppler (FMF)
                                 </p>
                                 <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
@@ -2096,7 +2072,7 @@ export function PsgoGenerator({
                                         value={e.uaPi ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { uaPi: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.uaPi}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.uaPi}</span>
                                     </div>
                                   </Field>
                                   <Field label="IP ACM">
@@ -2107,7 +2083,7 @@ export function PsgoGenerator({
                                         value={e.mcaPi ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { mcaPi: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.mcaPi}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.mcaPi}</span>
                                     </div>
                                   </Field>
                                   <Field label="RCP">
@@ -2115,7 +2091,7 @@ export function PsgoGenerator({
                                       <span className="font-medium tabular-nums">
                                         {rcp != null ? rcp.toFixed(3).replace(".", ",") : "—"}
                                       </span>
-                                      <span className="text-[10px] text-muted-foreground">{c?.cpr}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.cpr}</span>
                                     </div>
                                   </Field>
                                   <Field label="IP a. uterina">
@@ -2126,7 +2102,7 @@ export function PsgoGenerator({
                                         value={e.utPi ?? ""}
                                         onChange={(ev) => updateImaging(e.id, { utPi: ev.target.value })}
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{c?.utPi}</span>
+                                      <span className="text-[11px] text-muted-foreground">{c?.utPi}</span>
                                     </div>
                                   </Field>
                                 </div>
@@ -2139,14 +2115,14 @@ export function PsgoGenerator({
                       {/* Prévia editável + avisos */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between gap-2 px-1">
-                          <span className="text-[10px] font-medium text-muted-foreground">
+                          <span className="text-[11px] font-medium text-muted-foreground">
                             Prévia editável {edited ? "(editada)" : "(automática)"}
                           </span>
                           {edited && (
                             <button
                               type="button"
                               onClick={() => updateImaging(first.id, { overrideText: undefined })}
-                              className="text-[10px] font-medium text-primary hover:underline"
+                              className="text-[11px] font-medium text-primary hover:underline"
                               title="Descartar edição e regerar automaticamente"
                             >
                               regenerar
@@ -2172,17 +2148,17 @@ export function PsgoGenerator({
                 })}
 
                 <p className="text-[11px] text-muted-foreground">
-                  Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, SG, VV, BCF,
+                  Preencha apenas o que constar no laudo. Nem todos os aspectos (CCN, SG, VV, BCF,
                   biometria, Doppler, IP da a. uterina) aparecem no mesmo US. A IG do 1º USG (usado
                   para datar) é digitada; a dos demais é <strong>automática</strong>, definida pela
-                  data conforme o método (DUM/USG) — e determina os percentis.
+                  data conforme o método (DUM/USG) e determina os percentis.
                 </p>
               </>
             )}
 
             {/* Outros exames de imagem (RX, TC, RM…) — texto livre, datado. */}
             <div className="space-y-1 border-t pt-3">
-              <Label className="text-xs">Outros exames de imagem</Label>
+              <Label className="field-label">Outros exames de imagem</Label>
               <Textarea
                 rows={2}
                 placeholder="-(dd/mm/aa): RX DE TÓRAX SEM ALTERAÇÕES / -(dd/mm/aa): TC DE CRÂNIO…"
@@ -2199,7 +2175,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Comorbidades */}
-        <Section defaultOpen={false} title="Comorbidades (CMB)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Comorbidades (CMB)" navLabel="Comorbidades" filled={changed("comorbidities", "comorbiditiesOther")} contentClassName="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {COMMON_COMORBIDITIES.map((c) => (
                 <Chip key={c} active={form.comorbidities.includes(c)} onClick={() => toggleArray("comorbidities", c)}>
@@ -2208,7 +2184,7 @@ export function PsgoGenerator({
               ))}
             </div>
             <Input
-              placeholder="Outras (separadas por vírgula)"
+              placeholder="Outras (separadas por vírgula)" aria-label="Outras comorbidades"
               value={form.comorbiditiesOther}
               onChange={(e) => update({ comorbiditiesOther: e.target.value })}
             />
@@ -2218,7 +2194,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Medicamentos */}
-        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" contentClassName="space-y-2">
+        <Section defaultOpen={false} title="Medicamentos (MEU / fez uso)" navLabel="Medicamentos" filled={changed("medications", "medicationsOther", "medicationsPast")} contentClassName="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {COMMON_MEDICATIONS.map((m) => (
                 <Chip key={m} active={form.medications.some((x) => x.label === m)} onClick={() => addMed(m)}>
@@ -2232,7 +2208,7 @@ export function PsgoGenerator({
             </p>
             <div className="flex gap-2">
               <Input
-                placeholder="Adicionar medicamento…"
+                placeholder="Adicionar medicamento…" aria-label="Adicionar medicamento em uso"
                 value={medInput}
                 onChange={(e) => setMedInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -2293,10 +2269,16 @@ export function PsgoGenerator({
         </Section>
 
         {/* Cirurgias / alergias / hábitos */}
-        <Section defaultOpen={false} title="Cirurgias, alergias e hábitos" contentClassName="space-y-3">
+        <Section
+          defaultOpen={false}
+          title="Cirurgias, alergias e hábitos"
+          navLabel="Cirurgias / alergias"
+          filled={changed("surgeries", "surgeriesDenied", "allergies", "allergiesDenied", "habits", "habitsOther", "udiWhich")}
+          contentClassName="space-y-3"
+        >
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">Cirurgias prévias</Label>
+                <Label className="field-label">Cirurgias prévias</Label>
                 <Chip
                   active={form.surgeriesDenied}
                   onClick={() => update({ surgeriesDenied: !form.surgeriesDenied })}
@@ -2322,7 +2304,7 @@ export function PsgoGenerator({
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">Alergias</Label>
+                <Label className="field-label">Alergias</Label>
                 <Chip
                   active={form.allergiesDenied}
                   onClick={() => update({ allergiesDenied: !form.allergiesDenied })}
@@ -2353,7 +2335,7 @@ export function PsgoGenerator({
               />
             )}
             <Input
-              placeholder="Outros hábitos"
+              placeholder="Outros hábitos" aria-label="Outros hábitos"
               value={form.habitsOther}
               onChange={(e) => update({ habitsOther: e.target.value })}
             />
@@ -2363,6 +2345,8 @@ export function PsgoGenerator({
         <Section
           defaultOpen={false}
           title="Sorologias e Laboratoriais"
+          navLabel="Sorologias / labs"
+          filled={changed("bloodType", "coombsList", "serologyPasted", "serologyGrid", "labs")}
           contentClassName="space-y-4"
           headerExtra={<LabflowButton />}
         >
@@ -2389,7 +2373,7 @@ export function PsgoGenerator({
                 </select>
               </Field>
               <div className="space-y-2">
-                <Label className="text-xs">Coombs indireto (CI)</Label>
+                <Label className="field-label">Coombs indireto (CI)</Label>
                 {form.coombsList.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     Nenhum CI registrado. Use &ldquo;+ CI&rdquo; para adicionar.
@@ -2519,7 +2503,7 @@ export function PsgoGenerator({
               {/* Sorologias do hospital (internas) — coladas abaixo das externas;
                   são mescladas e ordenadas por data na colagem. */}
               <div className="space-y-1">
-                <Label className="text-xs">Colar sorologias do hospital (internas)</Label>
+                <Label className="field-label">Colar sorologias do hospital (internas)</Label>
                 <Textarea
                   rows={3}
                   placeholder="-(dd/mm/aaaa): TOXO SUSCETÍVEL / HBSAG NR / ..."
@@ -2534,7 +2518,7 @@ export function PsgoGenerator({
               <p className="text-sm font-semibold">Exames laboratoriais</p>
               <Textarea
                 rows={3}
-                placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …"
+                placeholder="-(dd/mm/aa): HB 11,2 / HT 34 / PLAQ 210000 …" aria-label="Exames laboratoriais"
                 value={form.labs}
                 onChange={(e) => update({ labs: e.target.value })}
               />
@@ -2546,7 +2530,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* QP / HPMA */}
-        <Section defaultOpen={false} title="Queixa e história" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Queixa e história" navLabel="Queixa / HPMA" filled={hpmaSel.length > 0 || changed("qp", "hpma")} contentClassName="space-y-3">
             <Field label="Queixa principal (QP)">
               <Input value={form.qp} onChange={(e) => update({ qp: e.target.value })} />
             </Field>
@@ -2556,7 +2540,7 @@ export function PsgoGenerator({
               {/* Chegada da paciente */}
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Chegada</Label>
+                  <Label className="field-label">Chegada</Label>
                   <Segmented
                     value={hpmaArrival}
                     onChange={setHpmaArrival}
@@ -2692,7 +2676,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Exame físico */}
-        <Section defaultOpen={false} title="Exame físico" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Exame físico" filled={changed("weight", "height", "vitals", "exam")} contentClassName="space-y-3">
             <div className="grid grid-cols-4 gap-2">
               <Field label="Peso (kg)">
                 <Input value={form.weight} onChange={(e) => update({ weight: e.target.value })} inputMode="decimal" />
@@ -2805,6 +2789,8 @@ export function PsgoGenerator({
         <Section
           defaultOpen={false}
           title={form.pregnant ? "Exame ginecológico e obstétrico" : "Exame ginecológico"}
+          navLabel={form.pregnant ? "Gineco / obstétrico" : "Gineco"}
+          filled={changed("gyneco")}
           contentClassName="space-y-4"
         >
             {/* Abdome */}
@@ -2854,7 +2840,7 @@ export function PsgoGenerator({
                   </div>
                   {/* Dor ao toque (multi; "Indolor" exclusivo) */}
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
+                    <Label className="field-label">
                       Dor ao toque (pode marcar mais de um)
                     </Label>
                     <div className="flex flex-wrap gap-1.5">
@@ -2968,6 +2954,7 @@ export function PsgoGenerator({
           <Section
             defaultOpen={false}
             title="CTG"
+            filled={changed("ctgLaudos", "ctg")}
             contentClassName="space-y-3"
             headerExtra={
               <Button type="button" size="sm" variant="outline" onClick={addCtg}>
@@ -2990,6 +2977,8 @@ export function PsgoGenerator({
         <Section
           defaultOpen={false}
           title="HD (hipótese diagnóstica)"
+          navLabel="HD"
+          filled={changed("hd")}
           contentClassName="space-y-2"
           headerExtra={
             <Button
@@ -3009,7 +2998,7 @@ export function PsgoGenerator({
                 rows={2}
                 value={form.hd}
                 onChange={(e) => update({ hd: e.target.value })}
-                placeholder={autoHd || "GESTAÇÃO DE..."}
+                placeholder={autoHd || "GESTAÇÃO DE..."} aria-label="Hipótese diagnóstica"
               />
             </Field>
             <p className="text-xs text-muted-foreground">
@@ -3018,7 +3007,7 @@ export function PsgoGenerator({
         </Section>
 
         {/* Conduta — card próprio */}
-        <Section defaultOpen={false} title="Conduta" contentClassName="space-y-3">
+        <Section defaultOpen={false} title="Conduta" filled={changed("cd")} contentClassName="space-y-3">
             <Field label="Conduta (CD)">
               <Textarea rows={2} value={form.cd} onChange={(e) => update({ cd: e.target.value })} />
             </Field>
@@ -3026,49 +3015,53 @@ export function PsgoGenerator({
       </div>
 
       {/* ----- Preview ----- */}
-      <div className="lg:sticky lg:top-20 lg:h-fit">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base">
-              <span className="flex items-center gap-2">
+      <div className="lg:sticky lg:top-6 lg:h-fit">
+        <JumpToOutput />
+        <Card id="prontuario" className="scroll-mt-20">
+          <CardHeader className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Siren className="h-4 w-4 text-rose-600" /> Prontuário
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <AutoSaveIndicator state={autoState} ready={!!form.name.trim() && !!form.rg.trim()} />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handlePrescribe}
-                  disabled={saving || !form.name.trim()}
-                  title={
-                    !form.name.trim()
-                      ? "Informe o nome para prescrever"
-                      : "Salvar e ir para a Receita"
-                  }
-                >
-                  <Pill className="h-4 w-4" /> Prescrever
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={saving || !form.name.trim()}
-                  title={!form.name.trim() ? "Informe o nome para salvar" : "Salvar admissão"}
-                >
-                  {saving ? "Salvando…" : (savedId ?? patientId) ? "Salvar alterações" : "Salvar admissão"}
-                </Button>
-                <PsgoTermosButton name={form.name} rg={form.rg} />
-                <PassagemButton
-                  text={passagemTxt}
-                  html={passagemHtm}
-                  count={passagem ? 1 : 0}
-                  label="Passagem"
-                  size="sm"
-                />
-                <CopyButton text={text} />
-              </div>
-            </CardTitle>
+              </CardTitle>
+              <AutoSaveIndicator state={autoState} ready={!!form.name.trim() && !!form.rg.trim()} />
+            </div>
+            {/* Ações principais: salvar e copiar o texto. */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !form.name.trim()}
+                title={!form.name.trim() ? "Informe o nome para salvar" : "Salvar admissão"}
+              >
+                {saving ? "Salvando…" : (savedId ?? patientId) ? "Salvar alterações" : "Salvar admissão"}
+              </Button>
+              <CopyButton text={text} className="h-9 px-4 text-sm" />
+            </div>
+            {/* Ações secundárias. */}
+            <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handlePrescribe}
+                disabled={saving || !form.name.trim()}
+                title={
+                  !form.name.trim()
+                    ? "Informe o nome para prescrever"
+                    : "Salvar e ir para a Receita"
+                }
+              >
+                <Pill className="h-4 w-4" /> Prescrever
+              </Button>
+              <PsgoTermosButton name={form.name} rg={form.rg} />
+              <PassagemButton
+                text={passagemTxt}
+                html={passagemHtm}
+                count={passagem ? 1 : 0}
+                label="Passagem"
+                size="sm"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             {saveMsg && (
@@ -3082,10 +3075,10 @@ export function PsgoGenerator({
                 {saveMsg.text}
               </p>
             )}
-            <pre className="prontuario-text max-h-[70vh] overflow-y-auto text-xs">{text}</pre>
+            <pre className="prontuario-text max-h-[70vh] overflow-y-auto rounded-xl bg-slate-50 p-4 text-xs ring-1 ring-inset ring-border/60">{text}</pre>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </SectionNavProvider>
   );
 }

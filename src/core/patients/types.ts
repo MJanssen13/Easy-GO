@@ -101,6 +101,8 @@ export interface Patient {
   schedule: ScheduledTask[];
   /** Dados específicos do módulo (JSON). Ex.: admissão completa do PSGO. */
   clinicalSummary?: Record<string, unknown> | null;
+  /** Partograma (JSON; ver `src/core/partogram/types.ts`). */
+  partogramData?: Record<string, unknown> | null;
   admissionDate: string;
   dischargeTime?: string | null;
   createdAt: string;
@@ -161,6 +163,10 @@ export interface UpdatePatientInput {
   magnesiumSulfateStartTime?: string | null;
   magnesiumSulfateEndTime?: string | null;
   clinicalSummary?: Record<string, unknown> | null;
+  outcome?: PatientOutcome;
+  dischargeTime?: string | null;
+  schedule?: ScheduledTask[];
+  partogramData?: Record<string, unknown> | null;
 }
 
 export interface NewObservationInput {

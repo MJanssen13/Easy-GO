@@ -5,6 +5,377 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Só Pré-Parto e PSGO liberados
+
+- Menu, abas do celular, plantão e atalhos mostram apenas Pré-Parto e PSGO.
+  Rotas dos demais módulos voltam ao plantão (a receita, usada pelo PSGO,
+  continua acessível). Transferências para Puerpério/Onco ficam ocultas.
+- Liberar outros módulos: `NEXT_PUBLIC_ENABLED_MODULES=pre-parto,psgo,puerperio`.
+
+### Celular — anotação rápida
+
+- Botão **Aferir** no cartão da paciente (quadro): abre a aferição da vez e,
+  ao salvar, volta ao quadro.
+- Aferição: só os parâmetros da tarefa aparecem ("Outros" abre o resto);
+  campo de examinador removido e o horário foi para o fim; o 1º campo já vem focado; Enter /
+  "próximo" do teclado pula para o campo seguinte; **Salvar** fixo acima das
+  abas inferiores.
+- Busca do quadro sem o "X" duplicado.
+
+### Impressão sem notas de rodapé
+
+- Removida a nota "Gerado pelo Easy-GO…" da folha de parâmetros.
+- Todas as impressões (folha, partograma, laudo e traçado de CTG, receitas,
+  relatórios e termos) declaram as caixas de margem da página vazias, o que faz
+  o Chrome/Edge omitir cabeçalho e rodapé próprios (URL, data, nº de página).
+
+### Rotina e aferição
+
+- Novo parâmetro **PA em pé**: no protocolo de Metildopa (PA + PA em pé de 1/1 h)
+  e disponível para adicionar à mão. O protocolo vem marcado se a paciente usa
+  metildopa.
+- Fase latente sem medicação fixa; fase ativa sem toque fixo (adicionar como
+  extra ou horário avulso).
+- Medicação como aferição extra pergunta o horário de início (1ª dose).
+- A aferição vinculada ao cronograma fica no **horário da rotina** (lançada às
+  13:41, a das 13:30 fica 13:30). A vinculação automática escolhe a tarefa mais
+  próxima do horário atual.
+- Datas e horas dos formulários (aferição, CTG, desfecho/alta, metildopa,
+  MgSO₄) seguem em ISO convertido no navegador, sem depender do fuso do servidor.
+
+### Partograma — hora real a partir do 1º toque
+
+- Ignora o campo legado `activePhaseStartIndex` (vinha 0 das fichas antigas e
+  forçava a 1ª coluna). A escolha manual agora fica em `startColumn`.
+- Considera também a 1ª dilatação marcada à mão no gráfico, não só as aferições.
+- Bolsa, LA, Ocitocina, Medicamentos e Examinador: texto centralizado na
+  célula (vertical e horizontal); tocar abre a edição.
+
+### Correção — salvar ficava carregando para sempre
+
+- Causa: o `loading.tsx` do dashboard, combinado com `revalidatePath` nas Server
+  Actions, deixava a transição do roteador pendente para sempre em produção
+  (botão girando sem fim). Removido.
+- Admissão, aferição, rotina, CTG, editar, desfecho/alta, reabrir, remover e
+  transferir Onco → PSGO devolvem o destino (`redirectTo`) em vez de `redirect()`;
+  o cliente navega e, se não concluir em 4 s, faz navegação completa.
+- Novos `ActionForm` e `SubmitButton`: botão mostra carregamento e bloqueia
+  clique duplo.
+- Páginas de admissão passam a ser dinâmicas (a resposta da action vinha de cache).
+
+### Partograma HC-UFTM — campos da ficha
+
+- **Bolsa**: BI, BR ou "Outro…" para digitar. **LA**: -, LC, LCG, LM1, LM2,
+  LM3, LS ou "Outro…", com legenda das siglas acima da ficha. A célula mostra
+  só a sigla; a lista abre com a descrição.
+- Automáticos das aferições nas siglas da ficha: BI/BR; LA "-" (íntegra), LC
+  (claro) ou LM (meconial, grau a escolher).
+- **Ocitocina** aceita só número (vírgula decimal).
+- Máscaras: data, DUM e DPP (dd/mm/aaaa), idade (número), IG e IG USG no
+  padrão "39 sem +2 d" (formata ao sair do campo; `formatGaWeeks`), hora real (hh:mm), hora de registro (número). Campos com rótulo
+  acessível.
+
+### Partograma HC-UFTM — colunas a partir da 1ª dilatação
+
+- A 1ª dilatação vai na coluna em que a linha de alerta **impressa** passa por
+  aquele valor (d cm → coluna d − 2: 4 cm na 3ª, 6 cm na 5ª), e a **hora real**
+  e a **hora de registro** (1, 2, 3…) começam nessa coluna; as anteriores ficam
+  em branco. As aferições seguintes são contadas a partir dela
+  (`uftmStartColumn`, `deriveUftm`). A coluna inicial pode ser trocada na tela.
+- As linhas de alerta e de ação **não são mais desenhadas**: já vêm na ficha.
+
+### Pré-Parto — Evoluções
+
+- Sai o card **Evolução de plantão**. No card **Evoluções** (agora na coluna
+  principal) fica, no topo, a caixa **Colar no prontuário** com os horários e
+  aferições das últimas 12 h, 24 h ou todas (editável antes de copiar;
+  `renderParametersBlock`). As aferições ficam num menu recolhível abaixo.
+
+### Design — menos "cara de IA"
+
+- Cantos menores (6–10 px) e sem sombras decorativas; sai o efeito de
+  levantar o card no hover.
+- Cabeçalhos só com título, subtítulo e ações (sem ícone em quadrado nem
+  rótulo-sobrancelha); páginas de paciente mostram "Leito N" em mono antes do
+  nome.
+- Plantão: sai o banner escuro com brilhos; entra cabeçalho de texto e um
+  resumo por módulo em faixa única com números alinhados.
+- Menu lateral com ícones simples (sem quadrados coloridos) e marca sóbria.
+- Fundo liso; ícones de títulos de card em cinza; botão do LabFlow sem degradê.
+- Textos da interface reescritos em frases diretas (menos travessões).
+- Regras registradas em CLAUDE.md ("Design").
+
+### Funcionalidades da plataforma original (Preparto) + folha de parâmetros
+
+- **Planilha de aferições** (`/pre-parto/[id]/planilha`): lançar e editar em
+  lote direto na plataforma, com os atalhos do Google Planilhas — setas, Tab,
+  Enter/F2/duplo clique, digitar substitui, Esc, Shift+setas/arrastar, Ctrl+A,
+  Delete, Ctrl+C/X/V (inclusive colar do Excel/Sheets), Ctrl+D/R, Ctrl+Z/Y,
+  Ctrl+Enter / Ctrl+Alt+= (inserir), Ctrl+Alt+− (excluir), Ctrl+S. Listas
+  aceitam abreviações ("8", "r", "am", "+1"), "3x40" vira "3x40''/10'",
+  validação por célula, alertas clínicos em vermelho, "Gerar horários",
+  grupos de colunas, linhas novas/editadas/excluídas marcadas. Salva tudo em
+  uma ação (`saveObservationSheet`) e conclui tarefas do cronograma ± 20 min.
+  Lógica pura em `core/observations/sheet.ts`.
+- **Editar / excluir aferição** no histórico da paciente.
+- **Copiar linha do tempo** (aferições por data + partograma + CTGs) para o
+  prontuário (`core/prontuario/timeline.ts`).
+- **CTG com foto do traçado** (câmera ou galeria, comprimida no aparelho) e
+  **edição de CTG** (`/pre-parto/[id]/ctg/[ctgId]`); foto em tela cheia.
+- **Quadro do Pré-Parto** com busca (nome, leito, prontuário), filtro
+  Ativas/Resolvidas/Todas e ordenação por leito/nome/internação; card mostra o
+  **último toque** (dilatação, De Lee, hora).
+- **Folha de parâmetros para impressão** (A4, modelo HC-UFTM "PARÂMETROS |
+  SULFATO DE MAGNÉSIO" e variante de sinais vitais), preenchida hora a hora com
+  as aferições — Pré-Parto, Puerpério e Onco (`/[módulo]/[id]/folha`).
+- **Partograma HC-UFTM**: botão "Limpar gráfico" (como na plataforma
+  original) — apaga os lançamentos manuais; os automáticos das aferições ficam.
+- **App instalável** (manifest, ícones, service worker): estáticos em cache;
+  sem internet só as ferramentas locais abrem do cache — páginas de pacientes
+  mostram `/offline` (nunca dados desatualizados).
+
+### Desempenho — salvamento mais rápido
+
+- **Salvamento automático (PSGO e partograma) não revalida mais rotas**: antes,
+  a cada 1,5 s o servidor re-renderizava a página inteira (com novas consultas
+  ao banco) só para devolvê-la ao navegador. As páginas são dinâmicas, então a
+  navegação seguinte já traz os dados novos.
+- **Puerpério/Onco**: "Salvar evolução" deixava de fazer 3 renderizações (ação
+  + revalidação + `router.refresh()`) para 1; a leitura antes de gravar usa só
+  a linha da paciente (`getPatientRecord`, sem as observações) e a gravação da
+  paciente e da aferição correm em paralelo.
+- **Aferição do Pré-Parto**: a leitura do cronograma corre junto com a gravação.
+- `updatePatient` não devolve mais a linha inteira (JSONs grandes) pela rede.
+- `created_by` lido do cookie da sessão (`getSession`), sem ida ao servidor de
+  autenticação a cada gravação.
+
+### Design — minimalista (padrão LabFlow)
+
+- Sai o visual de banners em gradiente: cabeçalhos sóbrios (ícone do módulo em
+  tinta clara, título escuro, "voltar" discreto, leito em selo claro).
+- **Uma cor por módulo, em tons suaves**: seleções (chips, índice, segmentos)
+  em tinta clara com contorno; botão principal sólido; ícones de módulo e de
+  títulos em pílula clara (como o `step-badge` do LabFlow).
+- **Rótulos de campo** em caixa-alta pequena cinza (`.field-label`), como no
+  LabFlow; seções com marcador discreto e divisória fina.
+- **Prévia do prontuário** em caixa clara com mono 13 px.
+- Cards dos quadros sem faixa colorida (só uma linha rosa discreta quando há
+  pendência).
+
+### Design — sessões com cores marcantes
+
+- **Cor forte por módulo**: Pré-Parto rosa-coral, Puerpério fúcsia (antes igual
+  ao Pré-Parto), Onco violeta, Pré-Natal teal-esmeralda, PSGO vermelho-laranja,
+  Ferramentas índigo; fundo com brilho sutil na cor do módulo.
+- **Banner (hero)** em gradiente em todas as páginas (`PageHeader` e novo
+  `PageHero`): ícone em vidro, "voltar" em pílula, **leito em destaque** nas
+  páginas de paciente e subpáginas (aferição, rotina, CTG, partograma, editar),
+  botões brancos/vidro sobre o gradiente.
+- **Seleções** (chips, índice, segmentos) e botão principal em gradiente do
+  módulo (`.chip-on`).
+- **Seções dos formulários**: marcador colorido (✓ verde quando preenchida),
+  faixa lateral e cabeçalho tingido quando aberta.
+- **Cards dos quadros** com faixa superior (vermelha se há pendência) e leito em
+  quadrado colorido; ícones dos títulos de cards em "bolha" colorida.
+- **Prévia do prontuário** em painel escuro com faixa na cor do módulo
+  (impressão continua preto no branco).
+
+### Correções do teste de usabilidade
+
+- **PSGO sem admissão duplicada**: após o 1º salvamento automático o endereço
+  passa a `/psgo/admissao?id=…` — recarregar edita a mesma admissão.
+- **Rascunho local** (Pré-Natal e PSGO antes de nome + RG): recarregar ou fechar
+  a aba não perde o preenchimento; aviso com "Descartar e começar do zero".
+  Pré-Natal ganha **Nova consulta**.
+- **PSGO → Pré-Parto** pede leito e situação (indução, condução, fase ativa,
+  cesárea eletiva) e já cria a rotina de aferições do turno, como a admissão
+  direta (`core/schedule/initial-routine.ts`); abre direto a paciente.
+- **Nome em maiúsculas** também no PSGO e no Pré-Parto (admissão/edição).
+- **Idade** só aceita 2 dígitos no PSGO/Pré-Natal; valores fora de 10–60 anos
+  não vão para o cadastro.
+- **Partograma**: o último toque até 60 min antes da abertura entra na coluna 0
+  (só dados do toque) nos dois modelos.
+- **Evolução de plantão**: motivo da admissão sugerido pela situação (indução
+  se houve misoprostol; fase ativa, condução, cesárea eletiva).
+- **Celular**: abas inferiores não cobrem mais o que é rolado até a vista
+  (`scroll-padding`); botão flutuante **Prontuário** nos geradores (PSGO,
+  Pré-Natal, Puerpério, Onco); cabeçalhos de seção quebram linha (seletor
+  Gestante/Não gestante não estoura).
+- **Aferição**: parâmetros com ✓ (será aferido) / + (adicionar); fechar um
+  parâmetro com valores digitados pede confirmação.
+- **Cronograma**: "marcar como feita" mostra progresso.
+- **Acessibilidade**: todos os campos com rótulo associado (`Label` associa-se
+  ao campo seguinte; `LabeledBox`), alvos de toque ≥ 32 px, texto mínimo 11 px,
+  botões só-ícone com nome.
+- **Ferramentas** (Receita, Documentos, CTG) com o cabeçalho padrão.
+
+### Design — menu recolhível
+
+- **Menu lateral recolhível**: botão no topo do menu (ou **Ctrl/⌘+B**) alterna
+  entre completo e só ícones, com o nome ao passar o mouse; a escolha fica
+  lembrada no aparelho. Ícones das seções mantidos (os originais).
+
+### Design — visual moderno
+
+- **Nova navegação**: barra lateral fixa no computador (módulos agrupados em
+  Internação · Atendimento · Utilitários, cada um com seu ícone colorido) e, no
+  celular, **abas inferiores** (Plantão, Pré-Parto, Puerpério, PSGO, Pré-Natal,
+  Mais) — pensado para uso à beira-leito. Sai a faixa superior em gradiente.
+- **Tokens** revisados: fundo neutro, bordas mais suaves, sombras leves
+  (`shadow-card`, `shadow-lift`), foco com anel da cor do módulo; botões,
+  campos, selects e selos com o mesmo acabamento.
+- **Cabeçalho padrão** de página (`PageHeader`) com o ícone do módulo, título,
+  subtítulo com contagem e ações.
+- **Plantão (início)** com saudação, data e turno, e cards de resumo com ícone
+  do módulo; cards clicáveis "sobem" ao passar o mouse.
+- Prontuário gerado em uma "folha" destacada; seções recolhidas mais compactas;
+  histórico de evoluções mostra as 5 últimas (demais sob "Ver as outras").
+- Índice de seções e painéis fixos reposicionados para o novo layout.
+
+### Pré-Parto — partograma (OMS 2020 + ficha HC-UFTM)
+
+- **Abrir partograma** (página da paciente → "Abrir partograma"): hora de
+  abertura (coluna 0) e modelo preferido; a paciente passa a "Partograma aberto"
+  e a evolução de plantão ganha a linha **"ABERTO PARTOGRAMA EM … ÀS … HS"**.
+- **Preenchimento automático a partir da abertura**: cada aferição registrada
+  depois entra sozinha na coluna da hora certa — dilatação, De Lee, BCF (no
+  minuto), dinâmica (nº × duração → intensidade), bolsa/LA, ocitocina,
+  medicações e examinador. Na tela, o automático aparece em **azul** (corrige-se
+  na aferição); o lançado na folha fica em preto e prevalece. Salvamento
+  automático; impressão em A4.
+- **Modelo OMS — Labour Care Guide (2020)**: seções de cuidados de suporte, bebê,
+  mulher, progresso, medicação e avaliação/plano; 1ª fase em meias horas (12 h)
+  e **2º período** em 15 min com alerta de duração (≥ 3 h nulípara / ≥ 2 h
+  multípara). Células fora do limiar da coluna **"Alerta"** ficam vermelhas e
+  entram na lista de alertas; colo parado por 5 cm ≥ 6 h … 9 cm ≥ 2 h
+  (`src/core/partogram/lcg.ts`, fonte citada).
+- **Ficha de Trabalho de Parto HC-UFTM (modelo antigo)** portada da plataforma
+  original (`MJanssen13/Preparto`): mesma folha e coordenadas, menus de exame
+  (dilatação + De Lee + variedade de posição com rotação), BCF por minuto,
+  contrações por intensidade, tabela (bolsa, LA, ocitocina, medicamentos,
+  examinador), observações e linhas de alerta/ação (auto no 1º ponto ≥ 4 cm ou
+  hora escolhida). Os dados ficam em `patients.partogram_data` no mesmo formato
+  da plataforma original.
+
+### Página inicial — visão do plantão
+
+- **Resumo por módulo** (Pré-Parto, Puerpério, Onco, PSGO): nº de pacientes e a
+  próxima pendência de cada um.
+- **Precisa de atenção**: aferições atrasadas, pacientes sem rotina, anti-D
+  pendente e evoluções do dia por fazer — cada item leva direto à tela certa.
+- **Atalhos** para as tarefas comuns (admitir, PSGO, pré-natal, cronograma,
+  receita, CTG, documentos).
+- **Equipe de plantão** aparece resumida quando já preenchida ("Editar" reabre).
+
+### Onco-Ginecologia — módulo novo
+
+- **Quadro de leitos** (diagnóstico, DPO, "evoluída hoje"), **admissão**,
+  **alta/reabrir**, **transferência para o PSGO** e remoção com confirmação.
+- **Tela de trabalho** com índice de seções e prontuário ao vivo na estrutura da
+  Enfermaria GO Geral adaptada: diagnóstico oncológico/histologia/estadiamento,
+  tratamento prévio, contexto da internação gerado, evolução por atalhos (dor com
+  EVA, náuseas, dieta, diurese, intestino, deambulação, sangramento, febre),
+  **ECOG** (Oken 1982), exame físico com FO, **dispositivos/débitos**, parâmetros
+  da enfermagem (24 h), HD com **Nº DPO** automático, plano marcável e CD de alta.
+- Antecedentes importados da admissão do PSGO; evolução do dia parte da anterior.
+- Dados em `clinical_summary.onco`; lógica em `src/core/oncogineco/`.
+
+### Refatorações e correções
+
+- `Field`, `Chip` e `ExamLine` compartilhados (`src/components/form-controls.tsx`);
+  utilitários de enfermaria em `src/core/prontuario/ward.ts`; importação de
+  antecedentes do PSGO em `src/core/prontuario/psgo-history.ts`.
+- Datas sem hora (ex.: data da cirurgia) eram exibidas **um dia antes** (lidas
+  como UTC) — corrigido.
+- Removido o placeholder de módulo (Puerpério e Onco agora existem).
+
+### Puerpério — módulo novo (Enfermaria GO Geral)
+
+- **Quadro de leitos** do puerpério: DPP, via de parto, RN, pendências (TS do RN,
+  anti-D se mãe Rh−, sorologias) e **"evoluída hoje" / "evolução pendente"**.
+- **Pré-Parto → Puerpério** em um passo: no card "Parto, desfecho e alta" da
+  paciente, registra via de parto, hora, IG e RN(s) e transfere (mesmo registro
+  de paciente, `module = "puerperio"`, auditado em `patient_transfers`; desfecho
+  gravado e aferições pendentes limpas). Também há **admissão direta**.
+- **Tela de trabalho da puérpera** com índice de seções e prontuário ao vivo no
+  **modelo "ENFERMARIA GO GERAL" do serviço**: cabeçalho (paridade, TS/CI, TS RN/
+  CD, CMB, MEU, fez uso, cirurgias, alergias, HCV, consultas, sorologias),
+  CONTEXTO INTERNAÇÃO gerado a partir do parto, EVOLUÇÃO por atalhos, exame
+  físico com as frases padrão, **parâmetros da enfermagem** (faixas das últimas
+  24 h), parâmetros da equipe de GO, HD "PUERPÉRIO IMEDIATO (Nº DIA PÓS PARTO)"
+  com as orientações marcáveis e **CD de alta** do modelo por via de parto
+  (normal × cesárea), com método/ACO/ferro.
+- **Antecedentes importados da admissão do PSGO** (CMB, MEU, cirurgias,
+  alergias, HCV, consultas, CI, procedência) — sem redigitar.
+- A evolução do dia seguinte **parte da anterior** (exame e plano repetem; vitais
+  e queixas zeram). Histórico de evoluções com copiar/apagar; alta/reabrir.
+- Dados do módulo em `clinical_summary.puerperio`; vitais como `observations`
+  (Regra de Ouro). Lógica pura em `src/core/puerperio/`.
+
+### Pré-Parto — cronograma e quadro de leitos
+
+- **Cronograma agrupado por horário**: um cabeçalho por hora (atrasada/agora em
+  destaque) e uma linha compacta por paciente; modo **por leito** agrupa as
+  horas de cada paciente. Janela **Próx. 2 h / Plantão / Todas** (atrasadas
+  sempre aparecem) e contador de atrasadas. Corrigidas as *keys* duplicadas.
+- **Card do leito** mostra a próxima aferição, as atrasadas (em vermelho) ou
+  "Sem rotina de aferições".
+
+### Pré-Parto — página da paciente e aferição
+
+- **Registrar aferição** é a ação principal (com nº de atrasadas). Sem tarefa
+  escolhida, a aferição se **vincula sozinha** à pendente da vez (vencida ou nos
+  próximos 30 min — `dueTask`) e já abre os campos devidos; "Registrar avulsa"
+  desfaz o vínculo. A hora do registro passa a ser a real (não a da tarefa).
+- **Faixa de situação** no topo: próxima aferição (ou atrasadas, em vermelho) e
+  **últimos valores** de BCF, PA, DU, toque e TAX, com alertas.
+- **Alertas ao vivo** no formulário para valores fora da faixa (BCF, PA
+  ≥140/90 e ≥160/110, febre, taquicardia, SpO₂, critérios do MgSO₄) —
+  `src/core/obstetric/alerts.ts`, com as fontes citadas.
+- **Dinâmica uterina** por atalho (nº de contrações × duração → `3x40''/10'`).
+- **Examinador(a)** lembrado no aparelho e sugerido a partir da equipe de plantão.
+- Próximas aferições: atrasadas em destaque, **pular** uma ou **todas as atrasadas**.
+- Desfecho e **remover paciente** no fim da coluna (remover e apagar CTG pedem
+  confirmação). No celular, aferições/histórico vêm antes da evolução de plantão.
+- Gráficos de tendência sem animação (abrem completos).
+
+### Correção — fuso horário do servidor
+
+- Horas renderizadas no servidor (Vercel roda em **UTC**) saíam **3 h adiantadas**:
+  próximas aferições, linhas de evolução, e a rotina criada na admissão terminava
+  às 16h (19h UTC) em vez de 19h. Agora o Node usa `America/Sao_Paulo`
+  (`src/instrumentation.ts` + `next.config.mjs`; sobrescrevível por `APP_TIMEZONE`).
+
+### Pré-Parto — rotina de aferições simplificada
+
+- **Tela "Rotina" refeita em 4 escolhas**: (1) **fase** — escolha única, já
+  pré-selecionada pela situação da paciente (`suggestedBaseRoutine`); (2)
+  **protocolos** — MgSO₄, Diabetes (marcado sozinho se DMG/Overt) e Metildopa,
+  liga/desliga; (3) **período** — início editável e fim (plantão, 2/6/12/24 h);
+  (4) **aferições extras** — parâmetros + intervalo.
+- A **linha do tempo** ao lado é recalculada na hora a cada escolha (antes cada
+  "Aplicar" só acumulava e não dava para desfazer). Resumo por parâmetro
+  (ex.: BCF ×7) no topo.
+- Ajustes finos na própria linha do tempo: tocar num parâmetro o risca/restaura;
+  o lápis abre todos os parâmetros daquele horário; "Horário avulso" adiciona um
+  horário; "Desfazer ajustes" volta ao gerado.
+- **Página da paciente**: o card **Próximas aferições** fica sempre visível no
+  topo da coluna, com **Criar rotina** (quando vazio) ou **Editar rotina**.
+- A admissão usa a mesma regra de fase sugerida.
+
+### Usabilidade — índice nos formulários e painel do prontuário
+
+- **Índice fixo de seções** no PSGO e no Pré-Natal (`src/components/form-section.tsx`):
+  barra no topo do formulário com um chip por seção. Clicar **abre a seção e rola
+  até ela**; a seção visível fica destacada. Seções **preenchidas** ganham ✓ (no
+  índice e no título) e o contador mostra quantas já foram preenchidas (ex.: 3/13).
+  Uma seção conta como preenchida quando algum campo difere do formulário vazio.
+- O componente `Section` passou a ser **compartilhado** pelos dois geradores
+  (antes havia uma cópia em cada um).
+- **Painel do Prontuário (PSGO) reorganizado**: *Salvar* e *Copiar* em destaque,
+  lado a lado; *Prescrever*, *Termos* e *Passagem* numa linha secundária abaixo.
+  O aviso de salvamento automático fica sob o título.
+
 ### Interface — menos texto explicativo
 
 - Removidos os **subtítulos explicativos** das páginas (hub, Ferramentas,

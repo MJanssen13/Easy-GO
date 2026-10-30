@@ -30,7 +30,7 @@ import type { CtgAnalysis } from "@/core/ctg/analysis";
 import type { LaudoPatient } from "@/core/ctg/trace-print";
 
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const CONCLUSION_OPTIONS = [
   "Feto ativo",
@@ -436,7 +436,7 @@ export function CtgLaudoForm({
           </div>
           <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
-            4-5 pts: ativo · 2-3: hipoativo · 0-1: inativo. Apoio à decisão — validar com a equipe.
+            4-5 pts: ativo · 2-3: hipoativo · 0-1: inativo. Apoio à decisão. Valide com a equipe.
           </p>
         </div>
 

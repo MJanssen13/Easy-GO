@@ -61,6 +61,26 @@ function todayISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Motivo da admissão sugerido pela situação. Quem recebeu misoprostol foi
+ * admitida para indução, mesmo que já esteja em fase ativa / partograma.
+ */
+export function admissionReasonFor(patient: Patient): string {
+  const hadMiso = (patient.observations ?? []).some((o) => o.medication?.misoprostolDose);
+  if (hadMiso || patient.status === "induction") return "INDUÇÃO AO PARTO VAGINAL";
+  switch (patient.status) {
+    case "conduction":
+      return "CONDUÇÃO DO TRABALHO DE PARTO";
+    case "active_labor":
+    case "partogram_open":
+      return "TRABALHO DE PARTO EM FASE ATIVA";
+    case "scheduled_c_section":
+      return "CESARIANA ELETIVA";
+    default:
+      return "";
+  }
+}
+
 /** Valores iniciais da nota, derivados da paciente. */
 export function defaultShiftInput(patient: Patient): ShiftNoteInput {
   const h = new Date().getHours();
@@ -68,7 +88,7 @@ export function defaultShiftInput(patient: Patient): ShiftNoteInput {
     shift: h >= 7 && h < 19 ? "diurno" : "noturno",
     noteDate: todayISO(),
     admissionDate: (patient.admissionDate ?? "").slice(0, 10),
-    reason: "INDUÇÃO AO PARTO VAGINAL",
+    reason: admissionReasonFor(patient),
     clinicalText: DEFAULT_CLINICAL,
     induction: {
       mode: "none",
@@ -140,6 +160,15 @@ export function renderShiftEvolution(
   narrative.push(
     `ASSUMO PLANTÃO ${input.shift === "noturno" ? "NOTURNO" : "DIURNO"} AS ${hora} DIA ${dateShort(input.noteDate)}, PACIENTE INTERNADA EM ${dateShort(input.admissionDate)} DEVIDO A GESTAÇÃO DE ${gaStr}${comorb ? ` + ${comorb}` : ""}, ADMITIDA PARA ${input.reason}, A FIM DE PROSSEGUIR ASSISTÊNCIA A MESMA.`,
   );
+  // Partograma aberto (como na plataforma original: "ABERTO PARTOGRAMA ... HS").
+  const pg = patient.partogramData as { openedAt?: string; startTime?: string } | null | undefined;
+  const pgAt = pg?.openedAt ?? pg?.startTime;
+  if (pgAt && !Number.isNaN(new Date(pgAt).getTime())) {
+    const d = new Date(pgAt);
+    narrative.push(
+      `ABERTO PARTOGRAMA EM ${dateShort(pgAt)} ÀS ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} HS.`,
+    );
+  }
   if (input.clinicalText.trim()) narrative.push(input.clinicalText.trim());
 
   if (input.induction.mode !== "none") {
@@ -167,17 +196,7 @@ export function renderShiftEvolution(
   L.push("");
 
   // Parâmetros (alimentados pelo log de evoluções na janela do plantão)
-  L.push(`PARÂMETROS EM ${input.window}:`);
-  const windowMs = (input.window === "24H" ? 24 : 12) * 3600 * 1000;
-  const start = now.getTime() - windowMs;
-  const lines = observations
-    .filter((o) => {
-      const t = new Date(o.recordedAt).getTime();
-      return !Number.isNaN(t) && t >= start;
-    })
-    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
-    .map((o) => renderObservationLine(o));
-  for (const line of lines) L.push(line);
+  L.push(renderParametersBlock(observations, input.window === "24H" ? 24 : 12, now));
 
   L.push("");
   L.push("MANTENHO VIGILÂNCIA CLÍNICA E OBSTÉTRICA");
@@ -194,4 +213,25 @@ export function renderShiftEvolution(
   }
 
   return L.join("\n").replace(/\n{3,}/g, "\n\n").trim().toUpperCase();
+}
+
+/**
+ * Bloco "PARÂMETROS EM 12H:" para colar no prontuário: uma aferição por linha
+ * (hora + valores), em ordem cronológica. `hours = null` traz todas.
+ */
+export function renderParametersBlock(
+  observations: Observation[],
+  hours: number | null,
+  now: Date = new Date(),
+): string {
+  const start = hours == null ? -Infinity : now.getTime() - hours * 3600 * 1000;
+  const lines = observations
+    .filter((o) => {
+      const t = new Date(o.recordedAt).getTime();
+      return !Number.isNaN(t) && t >= start;
+    })
+    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
+    .map((o) => renderObservationLine(o));
+  const title = hours == null ? "PARÂMETROS:" : `PARÂMETROS EM ${hours}H:`;
+  return [title, ...lines].join("\n").toUpperCase();
 }

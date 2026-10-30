@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, Save, Target, Calculator } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Plus, Save, Target, Calculator, Link2, Hand, Activity, Pill, FlaskConical, HeartPulse, NotebookPen, ClipboardList } from "lucide-react";
 import { recordObservation, type ObservationState } from "../actions";
+import { useActionRedirect } from "@/lib/use-action-redirect";
 import type { Patient } from "@/core/patients/types";
 import { MONITOR_PARAMS, paramGroup, GROUP_ACCENT } from "@/core/schedule/params";
 import {
@@ -15,26 +16,53 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { isoToLocalInput, localInputToIso } from "@/components/local-datetime-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { vitalAlerts, parseDiuresisMlH, type VitalAlert } from "@/core/obstetric/alerts";
 
 const selectClass =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex h-9 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const initialState: ObservationState = {};
 
-const VITAL_PARAMS = ["PA", "FC", "TAX", "Sat", "DXT"];
+
+/** Contrações em 10 min e duração (s) para montar a dinâmica "3x40''/10'". */
+const DYN_COUNTS = [0, 1, 2, 3, 4, 5];
+const DYN_DURATIONS = [20, 30, 40, 50, 60];
+
+function num(fd: FormData, k: string): number | null {
+  const v = fd.get(k);
+  if (v == null || v === "") return null;
+  const n = Number(String(v).replace(",", "."));
+  return Number.isNaN(n) ? null : n;
+}
+
+const VITAL_PARAMS = ["PA", "PA em pé", "FC", "TAX", "Sat", "DXT"];
 const MG_PARAMS = ["Reflexo", "Diurese", "FR"];
 
 /** Só o que o formulário realmente usa da paciente (permite reuso inline). */
 type EvolutionPatient = Pick<Patient, "id" | "useMethyldopa" | "useMagnesiumSulfate">;
 
 /** Local "YYYY-MM-DDTHH:mm" for a datetime-local default value. */
-function nowLocal(): string {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-}
+const toLocalInput = isoToLocalInput;
+
+/** Campos (name) de cada parâmetro — para avisar antes de fechar um preenchido. */
+const PARAM_FIELDS: Record<string, string[]> = {
+  PA: ["paSystolic", "paDiastolic"],
+  "PA em pé": ["paStandingSystolic", "paStandingDiastolic"],
+  FC: ["fc"],
+  TAX: ["tax"],
+  Sat: ["spo2"],
+  DXT: ["dxt"],
+  BCF: ["bcf"],
+  Dinâmica: ["dynamicsSummary"],
+  Toque: ["dilation", "effacement", "station", "cervixObservation"],
+  Medicação: ["misoprostolDose", "misoprostolCount", "oxytocinDose", "antibiotic", "medicationOther"],
+  Reflexo: ["mgReflex"],
+  Diurese: ["mgDiuresis"],
+  FR: ["mgRespiratoryRate"],
+};
 
 function Field({
   label,
@@ -58,32 +86,70 @@ function Field({
 export function EvolutionForm({
   patient,
   taskId,
+  taskLabel,
+  unlinkHref,
   focus = [],
+  taskTimestamp,
   defaultRecordedAt,
   returnTo,
   onCancel,
 }: {
   patient: EvolutionPatient;
   taskId?: string;
+  /** Ex.: "13:00" — horário da tarefa do cronograma que esta aferição conclui. */
+  taskLabel?: string;
+  /** Link para registrar sem vincular à tarefa. */
+  unlinkHref?: string;
   focus?: string[];
+  /** Horário da tarefa do cronograma: a aferição é registrada nesse horário. */
+  taskTimestamp?: string;
   defaultRecordedAt?: string;
   returnTo?: string;
   onCancel?: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(recordObservation, initialState);
+  const [state, formAction, submitting] = useActionState(recordObservation, initialState);
+  const navigating = useActionRedirect(state);
+  // Segue carregando até a página de destino abrir.
+  const pending = submitting || navigating;
 
   // Seleção de parâmetros: o cronograma (focus) começa selecionado; clicar em
   // qualquer chip abre/fecha o campo correspondente.
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set([...focus, ...(patient.useMagnesiumSulfate ? MG_PARAMS : [])]),
+    () =>
+      new Set([
+        ...focus,
+        ...(patient.useMagnesiumSulfate ? MG_PARAMS : []),
+        // Rotinas salvas antes de existir "PA em pé": metildopa pede as duas.
+        ...(patient.useMethyldopa && focus.includes("PA") ? ["PA em pé"] : []),
+      ]),
   );
   const show = (p: string) => selected.has(p);
-  const toggle = (p: string) =>
+  // Só os parâmetros da tarefa à vista; "Outros" abre a lista completa.
+  const [showAllParams, setShowAllParams] = useState(focus.length === 0);
+  // Vinculada ao cronograma, a aferição fica no horário da rotina (ex.: lançada
+  // às 13:41 a das 13:30 fica 13:30). Calculado no navegador (fuso do aparelho).
+  const [recordedAt, setRecordedAt] = useState("");
+  useEffect(() => {
+    setRecordedAt(defaultRecordedAt ?? toLocalInput(taskTimestamp));
+  }, [defaultRecordedAt, taskTimestamp]);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Fechar um parâmetro com valores digitados apagaria esses valores: confirma antes.
+  const toggle = (p: string) => {
+    if (selected.has(p) && formRef.current) {
+      const typed = (PARAM_FIELDS[p] ?? []).some((name) => {
+        const el = formRef.current!.elements.namedItem(name);
+        return el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement
+          ? el.value.trim() !== ""
+          : false;
+      });
+      if (typed && !window.confirm(`Remover ${p} desta aferição? Os valores digitados serão apagados.`)) return;
+    }
     setSelected((s) => {
       const n = new Set(s);
       n.has(p) ? n.delete(p) : n.add(p);
       return n;
     });
+  };
 
   // Toque controlado → índice de Bishop automático.
   const [dilation, setDilation] = useState("");
@@ -104,6 +170,62 @@ export function EvolutionForm({
     [dilation, effacement, station, cervixConsistency, cervixPosition],
   );
 
+  // Dinâmica uterina: texto livre + atalho (nº de contrações × duração).
+  const [dynamics, setDynamics] = useState("");
+  const [dynCount, setDynCount] = useState<number | null>(null);
+  function pickDynamics(count: number | null, dur: number | null) {
+    setDynCount(count);
+    if (count === 0) setDynamics("AUSENTE");
+    else if (count != null && dur != null) setDynamics(`${count}x${dur}''/10'`);
+  }
+
+
+  // Alertas ao vivo (valores fora da faixa) — lidos do próprio formulário.
+  const [alerts, setAlerts] = useState<VitalAlert[]>([]);
+  function refreshAlerts(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    setAlerts(
+      vitalAlerts({
+        bcf: num(fd, "bcf"),
+        paSystolic: num(fd, "paSystolic"),
+        paDiastolic: num(fd, "paDiastolic"),
+        fc: num(fd, "fc"),
+        tax: num(fd, "tax"),
+        spo2: num(fd, "spo2"),
+        mgReflex: (fd.get("mgReflex") as string) || null,
+        respiratoryRate: num(fd, "mgRespiratoryRate"),
+        diuresisMlH: parseDiuresisMlH(fd.get("mgDiuresis") as string),
+      }),
+    );
+  }
+
+  // Digitação rápida: abre já no 1º campo clínico e Enter (ou "próximo" do
+  // teclado do celular) pula para o campo seguinte em vez de enviar.
+  const fields = () =>
+    [...(formRef.current?.querySelectorAll<HTMLElement>("input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea") ?? [])].filter(
+      (el) => !el.hasAttribute("disabled") && el.offsetParent !== null,
+    );
+  const selectedKey = [...selected].sort().join(",");
+  useEffect(() => {
+    for (const el of fields()) if (el instanceof HTMLInputElement) el.enterKeyHint = "next";
+  }, [selectedKey]);
+  useEffect(() => {
+    // Só campos de valor (não a conduta): sem tarefa, o teclado não cobre os chips.
+    const first = fields().find(
+      (el) => el instanceof HTMLInputElement && el.id !== "recordedAt",
+    );
+    first?.focus({ preventScroll: false });
+  }, []);
+  function onEnterNext(e: React.KeyboardEvent<HTMLFormElement>) {
+    const t = e.target as HTMLElement;
+    if (e.key !== "Enter" || !(t instanceof HTMLInputElement) || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    const list = fields();
+    const next = list[list.indexOf(t) + 1];
+    if (next) next.focus();
+    else t.blur();
+  }
+
   const showVitais = VITAL_PARAMS.some(show);
   const showBcfDin = show("BCF") || show("Dinâmica");
   const showToque = show("Toque");
@@ -111,18 +233,39 @@ export function EvolutionForm({
   const showMg = MG_PARAMS.some(show) || patient.useMagnesiumSulfate;
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form
+      ref={formRef}
+      action={formAction}
+      className="space-y-5"
+      onInput={(e) => refreshAlerts(e.currentTarget)}
+      onChange={(e) => refreshAlerts(e.currentTarget)}
+      onKeyDown={onEnterNext}
+    >
       <input type="hidden" name="patientId" value={patient.id} />
       {taskId && <input type="hidden" name="taskId" value={taskId} />}
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
+      {taskId && taskLabel && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-900">
+          <span className="flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            Conclui a aferição das <strong>{taskLabel}</strong> do cronograma.
+          </span>
+          {unlinkHref && (
+            <Link href={unlinkHref} className="-my-2 inline-flex min-h-9 items-center py-2 text-xs font-medium underline-offset-2 hover:underline">
+              Registrar avulsa
+            </Link>
+          )}
+        </div>
+      )}
+
       {/* Seletor de aferições — todas disponíveis; cronograma em destaque */}
-      <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+      <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 sm:px-4 sm:py-3">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
           <Target className="h-4 w-4" /> Aferir nesta tarefa
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {MONITOR_PARAMS.map((p) => {
+          {MONITOR_PARAMS.filter((p) => showAllParams || selected.has(p.id) || focus.includes(p.id)).map((p) => {
             const scheduled = focus.includes(p.id);
             const sel = selected.has(p.id);
             return (
@@ -130,69 +273,60 @@ export function EvolutionForm({
                 key={p.id}
                 type="button"
                 onClick={() => toggle(p.id)}
-                title={scheduled ? "Aferição do cronograma agora" : "Adicionar aferição"}
-                className={`rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${
-                  sel ? GROUP_ACCENT[p.group] : "bg-background text-muted-foreground"
+                aria-pressed={sel}
+                title={sel ? "Remover desta aferição" : "Adicionar a esta aferição"}
+                className={`inline-flex min-h-9 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${
+                  sel ? GROUP_ACCENT[p.group] : "border-dashed bg-background text-muted-foreground"
                 } ${scheduled ? "ring-2 ring-primary/70 ring-offset-1" : ""}`}
               >
+                {sel ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                 {p.label}
               </button>
             );
           })}
+          {!showAllParams && (
+            <button
+              type="button"
+              onClick={() => setShowAllParams(true)}
+              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-dashed bg-background px-2.5 py-1 text-xs font-bold text-muted-foreground"
+            >
+              <Plus className="h-3.5 w-3.5" /> Outros
+            </button>
+          )}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Em destaque (contorno): aferições do cronograma agora. Toque em qualquer parâmetro para
-          abrir ou fechar seus campos.
+        <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
+          <Check className="inline h-3 w-3" /> = será aferido · <Plus className="inline h-3 w-3" /> = adicionar ·
+          contorno = previsto no cronograma agora.
         </p>
       </div>
-
-      {/* Cabeçalho do registro */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Registro</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Data e hora" htmlFor="recordedAt">
-              <Input
-                id="recordedAt"
-                name="recordedAt"
-                type="datetime-local"
-                defaultValue={defaultRecordedAt ?? nowLocal()}
-              />
-            </Field>
-            <Field label="Examinador(a)" htmlFor="examinerName">
-              <Input id="examinerName" name="examinerName" autoComplete="off" />
-            </Field>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Sinais vitais */}
       {showVitais && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Sinais vitais</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <HeartPulse className="h-4 w-4" /> Sinais vitais
+          </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               {show("PA") && (
                 <>
                   <Field
-                    label={patient.useMethyldopa ? "PA sist. (sentada)" : "PA sistólica"}
+                    label={show("PA em pé") ? "PA sist. (sentada)" : "PA sistólica"}
                     htmlFor="paSystolic"
                   >
                     <Input id="paSystolic" name="paSystolic" type="number" inputMode="numeric" placeholder="mmHg" />
                   </Field>
                   <Field
-                    label={patient.useMethyldopa ? "PA diast. (sentada)" : "PA diastólica"}
+                    label={show("PA em pé") ? "PA diast. (sentada)" : "PA diastólica"}
                     htmlFor="paDiastolic"
                   >
                     <Input id="paDiastolic" name="paDiastolic" type="number" inputMode="numeric" placeholder="mmHg" />
                   </Field>
                 </>
               )}
-              {show("PA") && patient.useMethyldopa && (
+              {show("PA em pé") && (
                 <>
                   <Field label="PA sist. (em pé)" htmlFor="paStandingSystolic">
                     <Input
@@ -243,13 +377,45 @@ export function EvolutionForm({
       {showBcfDin && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Dinâmica uterina e BCF</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <Activity className="h-4 w-4" /> Dinâmica uterina e BCF
+          </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {show("Dinâmica") && (
-                <Field label="Dinâmica uterina" htmlFor="dynamicsSummary">
-                  <Input id="dynamicsSummary" name="dynamicsSummary" placeholder="ex.: 3x40''/10'" />
+                <Field label="Dinâmica uterina" htmlFor="dynamicsSummary" className="sm:col-span-2">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="w-24 text-xs text-muted-foreground">Contrações/10&apos;</span>
+                      {DYN_COUNTS.map((c) => (
+                        <QuickChip key={c} active={dynCount === c} onClick={() => pickDynamics(c, null)}>
+                          {c}
+                        </QuickChip>
+                      ))}
+                    </div>
+                    {dynCount != null && dynCount > 0 && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="w-24 text-xs text-muted-foreground">Duração</span>
+                        {DYN_DURATIONS.map((d) => (
+                          <QuickChip
+                            key={d}
+                            active={dynamics === `${dynCount}x${d}''/10'`}
+                            onClick={() => pickDynamics(dynCount, d)}
+                          >
+                            {d}&quot;
+                          </QuickChip>
+                        ))}
+                      </div>
+                    )}
+                    <Input
+                      id="dynamicsSummary"
+                      name="dynamicsSummary"
+                      placeholder="ex.: 3x40''/10'"
+                      value={dynamics}
+                      onChange={(e) => setDynamics(e.target.value)}
+                    />
+                  </div>
                 </Field>
               )}
               {show("BCF") && (
@@ -266,7 +432,9 @@ export function EvolutionForm({
       {showToque && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Toque vaginal</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <Hand className="h-4 w-4" /> Toque vaginal
+          </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -386,7 +554,9 @@ export function EvolutionForm({
       {showMg && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Monitorização de MgSO₄</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <FlaskConical className="h-4 w-4" /> Monitorização de MgSO₄
+          </CardTitle>
           </CardHeader>
           <CardContent>
             <input type="hidden" name="magnesiumEnabled" value="on" />
@@ -408,7 +578,7 @@ export function EvolutionForm({
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               Critérios de suspensão: reflexo patelar ausente, FR &lt; 12 irpm ou diurese &lt; 25
-              ml/h. Apoio à decisão — validar com a equipe.
+              ml/h. Apoio à decisão. Valide com a equipe.
             </p>
           </CardContent>
         </Card>
@@ -418,7 +588,9 @@ export function EvolutionForm({
       {showMed && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Medicação</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+            <Pill className="h-4 w-4" /> Medicação
+          </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -450,39 +622,106 @@ export function EvolutionForm({
       {/* Conduta */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Conduta / observações</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <NotebookPen className="h-4 w-4" /> Conduta / observações
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <Textarea name="notes" rows={4} placeholder="Conduta, plano, intercorrências..." />
+          <Textarea aria-label="Conduta e observações" name="notes" rows={4} placeholder="Conduta, plano, intercorrências..." />
         </CardContent>
       </Card>
+
+      {/* Horário (no fim: no celular os campos clínicos vêm primeiro) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ClipboardList className="h-4 w-4" /> Horário
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Data e hora" htmlFor="recordedAt">
+              <Input
+                id="recordedAt"
+                type="datetime-local"
+                value={recordedAt}
+                onChange={(e) => setRecordedAt(e.target.value)}
+              />
+              {/* ISO convertido no navegador: o servidor roda em UTC. */}
+              <input type="hidden" name="recordedAt" value={localInputToIso(recordedAt)} />
+              {taskTimestamp && (
+                <p className="text-xs text-muted-foreground">Horário da rotina, não o do lançamento.</p>
+              )}
+            </Field>
+          </div>
+        </CardContent>
+      </Card>
+
+      {alerts.length > 0 && (
+        <div className="space-y-1 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
+          {alerts.map((a) => (
+            <p
+              key={a.text}
+              className={`flex items-center gap-2 text-sm ${a.level === "danger" ? "font-semibold text-rose-800" : "text-amber-800"}`}
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {a.text}
+            </p>
+          ))}
+          <p className="text-[11px] text-muted-foreground">Apoio à decisão. Valide com a equipe.</p>
+        </div>
+      )}
 
       {state.error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{state.error}</p>
       )}
 
-      <div className="flex justify-end gap-2">
+      {/* No celular, Salvar fica sempre à vista, acima das abas inferiores. */}
+      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex justify-end gap-2 border-t bg-background/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         {onCancel ? (
           <button
             type="button"
             onClick={onCancel}
-            className="self-center text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-10 items-center px-2 self-center text-sm text-muted-foreground hover:text-foreground"
           >
             Cancelar
           </button>
         ) : (
           <Link
             href={`/pre-parto/${patient.id}`}
-            className="self-center text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-10 items-center px-2 self-center text-sm text-muted-foreground hover:text-foreground"
           >
             Cancelar
           </Link>
         )}
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} className="flex-1 sm:flex-none">
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Salvar evolução
+          Salvar aferição
         </Button>
       </div>
     </form>
+  );
+}
+
+function QuickChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`h-7 min-w-8 rounded-md border px-2 text-xs font-semibold transition-colors ${
+        active ? "chip-on" : "bg-background hover:bg-muted"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

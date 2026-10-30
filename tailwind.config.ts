@@ -74,15 +74,20 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      // Cantos discretos (6–10 px): papel clínico, não "app de cards".
       borderRadius: {
-        xl: "calc(var(--radius) + 4px)",
+        "3xl": "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 4px)",
+        xl: "calc(var(--radius) + 2px)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 3px)",
       },
       boxShadow: {
-        card: "0 1px 2px 0 rgb(0 32 91 / 0.04), 0 6px 20px -6px rgb(0 32 91 / 0.10)",
-        soft: "0 2px 10px -3px rgb(0 32 91 / 0.14)",
+        // Sem sombras decorativas: a borda separa; sombra só em sobreposições.
+        card: "0 0 #0000",
+        lift: "0 8px 24px -8px rgb(16 24 40 / 0.18)",
+        soft: "0 0 #0000",
       },
       keyframes: {
         "accordion-down": {

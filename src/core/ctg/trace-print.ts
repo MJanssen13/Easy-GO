@@ -9,6 +9,7 @@ import { traceSummary } from "./trc";
 import { renderCtgTrace } from "./trace-svg";
 import { buildMarks, examStartSec, type Stimulus, type TraceMark } from "./stimuli";
 import { annotationRange, annotationsFor, type TraceAnnotation } from "./annotations";
+import { NO_BROWSER_HEADERS_CSS } from "@/core/print/page-css";
 
 export interface LaudoPatient {
   nome?: string;
@@ -80,6 +81,7 @@ function document_(sections: string): string {
 <title>Cardiotocografia</title>
 <style>
   @page { size: A4 landscape; margin: 8mm; }
+  ${NO_BROWSER_HEADERS_CSS}
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }

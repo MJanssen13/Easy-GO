@@ -1,7 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { ALWAYS_ALLOWED_PATHS, MODULE_SLUGS, isModuleEnabled } from "@/lib/module-flags";
 
 // AUTH TEMPORARIAMENTE DESATIVADA — reativar após resolver login no Supabase
 export async function middleware(request: NextRequest) {
+  // Módulos ainda não liberados: volta ao plantão.
+  const path = request.nextUrl.pathname;
+  const slug = path.split("/")[1] ?? "";
+  const isModule = MODULE_SLUGS.includes(slug);
+  if (isModule && !isModuleEnabled(slug) && !ALWAYS_ALLOWED_PATHS.some((p) => path === p || path.startsWith(`${p}/`))) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
   return NextResponse.next();
 }
 

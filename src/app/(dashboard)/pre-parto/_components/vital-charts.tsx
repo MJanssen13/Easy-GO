@@ -75,9 +75,9 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 5, right: 8, left: -12, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="time" tick={{ fontSize: 10 }} tickFormatter={hhmm} stroke="#94a3b8" />
-                <YAxis yAxisId="l" domain={[60, 200]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                <YAxis yAxisId="r" orientation="right" domain={[0, 10]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                <XAxis dataKey="time" tick={{ fontSize: 11 }} tickFormatter={hhmm} stroke="#94a3b8" />
+                <YAxis yAxisId="l" domain={[60, 200]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                <YAxis yAxisId="r" orientation="right" domain={[0, 10]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: "11px" }} />
                 <ReferenceLine y={110} yAxisId="l" stroke="#ef4444" strokeDasharray="3 3" opacity={0.4} />
@@ -89,6 +89,7 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
                   name="BCF (bpm)"
                   stroke="#f43f5e"
                   strokeWidth={2}
+                  isAnimationActive={false}
                   dot={{ r: 3 }}
                   connectNulls
                 />
@@ -99,6 +100,7 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
                   name="Dilatação (cm)"
                   stroke="#0ea5e9"
                   strokeWidth={2}
+                  isAnimationActive={false}
                   dot={{ r: 3 }}
                   connectNulls
                 />
@@ -115,20 +117,21 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 5, right: 8, left: -12, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="time" tick={{ fontSize: 10 }} tickFormatter={hhmm} stroke="#94a3b8" />
-                <YAxis domain={[40, 180]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                <XAxis dataKey="time" tick={{ fontSize: 11 }} tickFormatter={hhmm} stroke="#94a3b8" />
+                <YAxis domain={[40, 180]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconType="plainline" wrapperStyle={{ fontSize: "11px" }} />
                 <ReferenceLine y={140} stroke="#ef4444" strokeDasharray="3 3" opacity={0.4} />
                 <ReferenceLine y={90} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.4} />
-                <Line type="monotone" dataKey="systolic" name="PAS" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                <Line type="monotone" dataKey="diastolic" name="PAD" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="systolic" name="PAS" stroke="#4f46e5" strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
+                <Line type="monotone" dataKey="diastolic" name="PAD" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
                 <Line
                   type="monotone"
                   dataKey="standingSystolic"
                   name="PAS em pé"
                   stroke="#d97706"
                   strokeWidth={2}
+                  isAnimationActive={false}
                   strokeDasharray="5 5"
                   dot={{ r: 3 }}
                   connectNulls
@@ -139,6 +142,7 @@ export function VitalCharts({ observations }: { observations: Observation[] }) {
                   name="PAD em pé"
                   stroke="#f59e0b"
                   strokeWidth={2}
+                  isAnimationActive={false}
                   strokeDasharray="5 5"
                   dot={{ r: 3 }}
                   connectNulls
