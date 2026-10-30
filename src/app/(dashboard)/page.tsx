@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, FileText, HeartPulse, Pill, Plus, Stethoscope, Zap } from "lucide-react";
-import { getModule } from "@/lib/modules";
+import { ALWAYS_ALLOWED_PATHS, getModule, isModuleEnabled } from "@/lib/modules";
 import { buttonVariants } from "@/components/ui/button";
 import { listPatients } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
@@ -24,6 +24,8 @@ interface Attention {
 }
 
 async function load(module: PatientModule): Promise<Patient[] | null> {
+  // Módulo não liberado: não aparece no plantão.
+  if (!isModuleEnabled(module.replace("_", "-"))) return [];
   try {
     return (await listPatients(module)).filter((p) => !RESOLVED_STATUSES.includes(p.status));
   } catch {
@@ -45,7 +47,7 @@ const QUICK = [
   { href: "/ferramentas/receita", label: "Receita", icon: Pill },
   { href: "/ferramentas/cardiotocografia", label: "Cardiotocografia", icon: HeartPulse },
   { href: "/ferramentas/documentos", label: "Documentos de apoio", icon: FileText },
-];
+].filter((q) => isModuleEnabled(q.href.split("/")[1]!) || ALWAYS_ALLOWED_PATHS.includes(q.href));
 
 export default async function HubPage() {
   const [preParto, puerperio, onco, psgo] = await Promise.all([
@@ -127,7 +129,7 @@ export default async function HubPage() {
       })(),
     },
     { slug: "psgo", count: psgo?.length ?? null, line: "Admissões ativas do PS" },
-  ];
+  ].filter((s) => isModuleEnabled(s.slug));
 
   return (
     <div className="space-y-6">
@@ -163,7 +165,10 @@ export default async function HubPage() {
       )}
 
       {/* Resumo por módulo: uma faixa só, números alinhados */}
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border xl:grid-cols-4">
+      <div
+        className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border"
+        style={{ gridTemplateColumns: `repeat(auto-fit, minmax(10rem, 1fr))` }}
+      >
         {summaries.map((s) => {
           const m = getModule(s.slug)!;
           return (

@@ -101,6 +101,11 @@ export const MODULES: ModuleDef[] = [
   },
 ];
 
+export { ENABLED_MODULE_SLUGS, ALWAYS_ALLOWED_PATHS, isModuleEnabled } from "./module-flags";
+import { isModuleEnabled } from "./module-flags";
+
+export const ENABLED_MODULES: ModuleDef[] = MODULES.filter((m) => isModuleEnabled(m.slug));
+
 export function getModule(slug: string): ModuleDef | undefined {
   return MODULES.find((m) => m.slug === slug);
 }

@@ -7,6 +7,7 @@ import type { PatientModule } from "@/core/patients/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isModuleEnabled } from "@/lib/modules";
 import { transferPsgoPatient, type PrePartoArrival } from "../actions";
 
 const ARRIVAL_STATUS: { v: NonNullable<PrePartoArrival["status"]>; label: string }[] = [
@@ -16,11 +17,12 @@ const ARRIVAL_STATUS: { v: NonNullable<PrePartoArrival["status"]>; label: string
   { v: "scheduled_c_section", label: "Cesárea eletiva" },
 ];
 
-const TARGETS: { module: PatientModule; label: string; path: string }[] = [
+const ALL_TARGETS: { module: PatientModule; label: string; path: string }[] = [
   { module: "pre_parto", label: "Pré-Parto", path: "/pre-parto" },
   { module: "puerperio", label: "Puerpério", path: "/puerperio" },
   { module: "oncogineco", label: "Onco-Ginecologia", path: "/oncogineco" },
 ];
+const TARGETS = ALL_TARGETS.filter((t) => isModuleEnabled(t.path.slice(1)));
 
 export function PsgoTransfer({ patientId }: { patientId: string }) {
   const router = useRouter();

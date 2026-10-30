@@ -5,6 +5,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Só Pré-Parto e PSGO liberados
+
+- Menu, abas do celular, plantão e atalhos mostram apenas Pré-Parto e PSGO.
+  Rotas dos demais módulos voltam ao plantão (a receita, usada pelo PSGO,
+  continua acessível). Transferências para Puerpério/Onco ficam ocultas.
+- Liberar outros módulos: `NEXT_PUBLIC_ENABLED_MODULES=pre-parto,psgo,puerperio`.
+
 ### Celular — anotação rápida
 
 - Botão **Aferir** no cartão da paciente (quadro): abre a aferição da vez e,

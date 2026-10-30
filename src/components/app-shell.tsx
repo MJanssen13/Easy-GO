@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
-import { MODULES, type ModuleDef } from "@/lib/modules";
+import { ENABLED_MODULES as MODULES, type ModuleDef } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 
 const GROUPS: ModuleDef["group"][] = ["Internação", "Atendimento", "Utilitários"];
@@ -84,7 +84,7 @@ function NavList({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: 
           isActive(pathname, "/"),
         )}
       </div>
-      {GROUPS.map((g) => (
+      {GROUPS.filter((g) => MODULES.some((m) => m.group === g)).map((g) => (
         <div key={g} className="space-y-1">
           {collapsed ? (
             <div className="mx-auto mb-2 h-px w-6 bg-border" />
@@ -138,7 +138,9 @@ function UserBox({ signOut, collapsed }: { signOut: () => Promise<void>; collaps
 }
 
 /** Abas inferiores no celular (uso à beira-leito): os módulos mais usados + menu. */
-const MOBILE_TABS = ["pre-parto", "puerperio", "psgo", "pre-natal"];
+const MOBILE_TABS = ["pre-parto", "puerperio", "psgo", "pre-natal"].filter((slug) =>
+  MODULES.some((m) => m.slug === slug),
+);
 
 export function AppShell({ children, signOut }: { children: React.ReactNode; signOut: () => Promise<void> }) {
   const pathname = usePathname();
@@ -223,7 +225,11 @@ export function AppShell({ children, signOut }: { children: React.ReactNode; sig
 
       {/* Abas inferiores (celular) */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden print:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-6">
+        <div
+          className="mx-auto grid max-w-lg"
+          // Plantão + módulos + "Mais".
+          style={{ gridTemplateColumns: `repeat(${MOBILE_TABS.length + 2}, minmax(0, 1fr))` }}
+        >
           {[
             { href: "/", label: "Plantão", node: <LayoutDashboard className="h-5 w-5" /> },
             ...MOBILE_TABS.map((slug) => {

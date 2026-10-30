@@ -32,6 +32,7 @@ import { PhotoThumb } from "@/components/photo-field";
 import { ParametersPaste } from "../_components/parameters-paste";
 import { VitalCharts } from "../_components/vital-charts";
 import { TransferToPuerperio } from "../_components/transfer-puerperio";
+import { isModuleEnabled } from "@/lib/modules";
 import {
   removePatient,
   removeCtg,
@@ -397,7 +398,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!resolved && (
+          {!resolved && isModuleEnabled("puerperio") && (
             <div className="mb-4">
               <TransferToPuerperio patientId={patient.id} bed={patient.bed} />
             </div>
