@@ -5,6 +5,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Pré-Parto — Evoluções
+
+- Sai o card **Evolução de plantão**. No card **Evoluções** (agora na coluna
+  principal) fica, no topo, a caixa **Colar no prontuário** com os horários e
+  aferições das últimas 12 h, 24 h ou todas (editável antes de copiar;
+  `renderParametersBlock`). As aferições ficam num menu recolhível abaixo.
+
 ### Design — menos "cara de IA"
 
 - Cantos menores (6–10 px) e sem sombras decorativas; sai o efeito de

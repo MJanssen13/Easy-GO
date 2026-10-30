@@ -196,17 +196,7 @@ export function renderShiftEvolution(
   L.push("");
 
   // Parâmetros (alimentados pelo log de evoluções na janela do plantão)
-  L.push(`PARÂMETROS EM ${input.window}:`);
-  const windowMs = (input.window === "24H" ? 24 : 12) * 3600 * 1000;
-  const start = now.getTime() - windowMs;
-  const lines = observations
-    .filter((o) => {
-      const t = new Date(o.recordedAt).getTime();
-      return !Number.isNaN(t) && t >= start;
-    })
-    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
-    .map((o) => renderObservationLine(o));
-  for (const line of lines) L.push(line);
+  L.push(renderParametersBlock(observations, input.window === "24H" ? 24 : 12, now));
 
   L.push("");
   L.push("MANTENHO VIGILÂNCIA CLÍNICA E OBSTÉTRICA");
@@ -223,4 +213,25 @@ export function renderShiftEvolution(
   }
 
   return L.join("\n").replace(/\n{3,}/g, "\n\n").trim().toUpperCase();
+}
+
+/**
+ * Bloco "PARÂMETROS EM 12H:" para colar no prontuário: uma aferição por linha
+ * (hora + valores), em ordem cronológica. `hours = null` traz todas.
+ */
+export function renderParametersBlock(
+  observations: Observation[],
+  hours: number | null,
+  now: Date = new Date(),
+): string {
+  const start = hours == null ? -Infinity : now.getTime() - hours * 3600 * 1000;
+  const lines = observations
+    .filter((o) => {
+      const t = new Date(o.recordedAt).getTime();
+      return !Number.isNaN(t) && t >= start;
+    })
+    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
+    .map((o) => renderObservationLine(o));
+  const title = hours == null ? "PARÂMETROS:" : `PARÂMETROS EM ${hours}H:`;
+  return [title, ...lines].join("\n").toUpperCase();
 }

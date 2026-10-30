@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHero } from "@/components/page-header";
 import { notFound } from "next/navigation";
-import { IdCard, ArrowLeft, Trash2, Table2, Printer, ClipboardList, Plus, CalendarClock, Activity, Pencil, CheckCircle2, RotateCcw, TrendingUp, Stethoscope, AlertTriangle, SkipForward, FileChartLine, Baby } from "lucide-react";
+import { IdCard, ChevronDown, ArrowLeft, Trash2, Table2, Printer, ClipboardList, Plus, CalendarClock, Activity, Pencil, CheckCircle2, RotateCcw, TrendingUp, Stethoscope, AlertTriangle, SkipForward, FileChartLine, Baby } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
 import { renderCtgLine } from "@/core/ctg/render";
@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label";
 import { CopyButton } from "@/components/copy-button";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { PhotoThumb } from "@/components/photo-field";
-import { ShiftEvolution } from "../_components/shift-evolution";
+import { ParametersPaste } from "../_components/parameters-paste";
 import { VitalCharts } from "../_components/vital-charts";
 import { TransferToPuerperio } from "../_components/transfer-puerperio";
 import {
@@ -297,7 +297,97 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </CardContent>
       </Card>
 
-      <ShiftEvolution patient={patient} observations={patient.observations ?? []} />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ClipboardList className="h-4 w-4" /> Evoluções
+            <span className="text-xs font-normal text-muted-foreground">
+              ({patient.observations?.length ?? 0})
+            </span>
+            <span className="ml-auto flex flex-wrap items-center gap-1.5">
+              <Link
+                href={`/pre-parto/${patient.id}/planilha`}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium hover:bg-muted"
+              >
+                <Table2 className="h-3.5 w-3.5" /> Editar em lote
+              </Link>
+              {(patient.observations?.length ?? 0) > 0 && (
+                <CopyButton text={renderTimeline(patient, patient.observations ?? [], ctgs)} label="Copiar linha do tempo" />
+              )}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {patient.observations && patient.observations.length > 0 ? (
+            (() => {
+              const item = (o: (typeof patient.observations)[number]) => {
+                const line = renderObservationLine(o);
+                return (
+                  <li key={o.id} className="flex items-start justify-between gap-2 rounded-xl border bg-muted/20 px-3 py-2">
+                    <div className="min-w-0">
+                      <pre className="prontuario-text text-xs">{line}</pre>
+                      {o.examinerName && (
+                        <span className="text-[11px] text-muted-foreground">{o.examinerName}</span>
+                      )}
+                    </div>
+                    <span className="flex shrink-0 items-center gap-0.5">
+                      <CopyButton text={line} />
+                      <Link
+                        href={`/pre-parto/${patient.id}/planilha?editar=${o.id}`}
+                        title="Editar esta aferição"
+                        aria-label="Editar esta aferição"
+                        className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                      <form action={deleteObservationAction}>
+                        <input type="hidden" name="patientId" value={patient.id} />
+                        <input type="hidden" name="obsId" value={o.id} />
+                        <ConfirmSubmit
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          message="Excluir esta aferição? Não é possível desfazer."
+                          aria-label="Excluir esta aferição"
+                          title="Excluir esta aferição"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </ConfirmSubmit>
+                      </form>
+                    </span>
+                  </li>
+                );
+              };
+              const obs = patient.observations!;
+              return (
+                <div className="space-y-4">
+                  <ParametersPaste observations={obs} />
+                  <details className="group rounded-lg border">
+                    <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-medium hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
+                      <span>
+                        Aferições registradas <span className="text-muted-foreground">({obs.length})</span>
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                    </summary>
+                    <ul className="space-y-2 border-t p-3">{obs.map(item)}</ul>
+                  </details>
+                </div>
+              );
+            })()
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma evolução registrada. Use{" "}
+              <Link
+                href={`/pre-parto/${patient.id}/evolucao`}
+                className="font-medium text-primary hover:underline"
+              >
+                Nova evolução
+              </Link>{" "}
+              para registrar sinais vitais, dinâmica, toque e protocolos.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -528,97 +618,6 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ClipboardList className="h-4 w-4" /> Evoluções
-            <span className="text-xs font-normal text-muted-foreground">
-              ({patient.observations?.length ?? 0})
-            </span>
-            <span className="ml-auto flex flex-wrap items-center gap-1.5">
-              <Link
-                href={`/pre-parto/${patient.id}/planilha`}
-                className="inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium hover:bg-muted"
-              >
-                <Table2 className="h-3.5 w-3.5" /> Editar em lote
-              </Link>
-              {(patient.observations?.length ?? 0) > 0 && (
-                <CopyButton text={renderTimeline(patient, patient.observations ?? [], ctgs)} label="Copiar linha do tempo" />
-              )}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {patient.observations && patient.observations.length > 0 ? (
-            (() => {
-              const item = (o: (typeof patient.observations)[number]) => {
-                const line = renderObservationLine(o);
-                return (
-                  <li key={o.id} className="flex items-start justify-between gap-2 rounded-xl border bg-muted/20 px-3 py-2">
-                    <div className="min-w-0">
-                      <pre className="prontuario-text text-xs">{line}</pre>
-                      {o.examinerName && (
-                        <span className="text-[11px] text-muted-foreground">{o.examinerName}</span>
-                      )}
-                    </div>
-                    <span className="flex shrink-0 items-center gap-0.5">
-                      <CopyButton text={line} />
-                      <Link
-                        href={`/pre-parto/${patient.id}/planilha?editar=${o.id}`}
-                        title="Editar esta aferição"
-                        aria-label="Editar esta aferição"
-                        className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Link>
-                      <form action={deleteObservationAction}>
-                        <input type="hidden" name="patientId" value={patient.id} />
-                        <input type="hidden" name="obsId" value={o.id} />
-                        <ConfirmSubmit
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-destructive"
-                          message="Excluir esta aferição? Não é possível desfazer."
-                          aria-label="Excluir esta aferição"
-                          title="Excluir esta aferição"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </ConfirmSubmit>
-                      </form>
-                    </span>
-                  </li>
-                );
-              };
-              const obs = patient.observations!;
-              return (
-                <div className="space-y-2">
-                  <ul className="space-y-2">{obs.slice(0, 5).map(item)}</ul>
-                  {obs.length > 5 && (
-                    <details className="group">
-                      <summary className="cursor-pointer list-none rounded-lg py-1.5 text-center text-xs font-medium text-primary hover:bg-muted">
-                        <span className="group-open:hidden">Ver as outras {obs.length - 5} evoluções</span>
-                        <span className="hidden group-open:inline">Recolher</span>
-                      </summary>
-                      <ul className="mt-2 space-y-2">{obs.slice(5).map(item)}</ul>
-                    </details>
-                  )}
-                </div>
-              );
-            })()
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma evolução registrada. Use{" "}
-              <Link
-                href={`/pre-parto/${patient.id}/evolucao`}
-                className="font-medium text-primary hover:underline"
-              >
-                Nova evolução
-              </Link>{" "}
-              para registrar sinais vitais, dinâmica, toque e protocolos.
-            </p>
-          )}
-        </CardContent>
-      </Card>
 
       </div>
       </div>

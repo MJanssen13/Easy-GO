@@ -75,8 +75,7 @@ export function ShiftTeamCard() {
           ))}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Salva neste dispositivo e usada automaticamente em toda a plataforma (evoluções de
-          plantão do Pré-Parto e prontuário do PSGO). Cargos vazios não entram no texto.
+          Salva neste aparelho e incluída nos textos para o prontuário. Cargos vazios não entram.
         </p>
         </>
         )}
