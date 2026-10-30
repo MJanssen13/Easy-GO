@@ -70,15 +70,15 @@ export function PartogramWorkspace({
       points: initial.points ?? [],
       contractionBlocks: initial.contractionBlocks ?? [],
       tableData: initial.tableData?.length ? initial.tableData : emptyTable(),
-      activePhaseStartIndex: initial.activePhaseStartIndex,
+      startColumn: initial.startColumn,
       headerData: header,
       observations: initial.observations ?? "",
     };
   });
 
   const autoUftm = useMemo(
-    () => deriveUftm(observations, openedAt, uftm.activePhaseStartIndex),
-    [observations, openedAt, uftm.activePhaseStartIndex],
+    () => deriveUftm(observations, openedAt, { startCol: uftm.startColumn, manualPoints: uftm.points }),
+    [observations, openedAt, uftm.startColumn, uftm.points],
   );
   const autoFirst = useMemo(() => deriveLcgFirst(observations, openedAt), [observations, openedAt]);
   const autoSecond = useMemo(() => deriveLcgSecond(observations, lcg.secondStageAt), [observations, lcg.secondStageAt]);
@@ -103,7 +103,7 @@ export function PartogramWorkspace({
           points: uftm.points,
           contractionBlocks: uftm.contractionBlocks,
           tableData: uftm.tableData,
-          activePhaseStartIndex: uftm.activePhaseStartIndex,
+          startColumn: uftm.startColumn,
           headerData: uftm.headerData,
           observations: uftm.observations,
           lcg,

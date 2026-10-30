@@ -135,34 +135,41 @@ export interface UftmLayout {
 }
 
 /**
- * `startCol` força a coluna inicial (escolhida na tela); sem ele, vem da 1ª
- * dilatação registrada.
+ * Hora real e hora de registro começam na coluna do 1º toque:
+ * - `startCol` (escolhido na tela) força a coluna;
+ * - senão, a mais à esquerda entre a 1ª dilatação das aferições (coluna da
+ *   linha de alerta) e a 1ª dilatação marcada à mão no gráfico.
+ * A hora real é ancorada na 1ª dilatação das aferições (ou na abertura).
  */
 export function deriveUftm(
   observations: Observation[],
   openedAt: string,
-  startColOverride?: number,
+  opts: { startCol?: number; manualPoints?: UftmPoint[] } = {},
 ): UftmAuto & UftmLayout {
   const obs = afterOpening(observations, openedAt, true);
   const points: UftmPoint[] = [];
   const blocks: UftmContractionBlock[] = [];
+  const clampCol = (c: number) => Math.max(0, Math.min(UFTM_COLS - 1, Math.round(c)));
 
-  // Hora real e de registro começam na coluna da 1ª dilatação.
   const first = obs.find((o) => o.obstetric.dilation != null);
   const t0 = first?.recordedAt ?? openedAt;
-  const startCol =
-    startColOverride != null
-      ? Math.max(0, Math.min(UFTM_COLS - 1, startColOverride))
+  const manualCols = (opts.manualPoints ?? []).filter((p) => p.type === "dilation").map((p) => clampCol(p.x));
+  const manualFirst = manualCols.length ? Math.min(...manualCols) : undefined;
+  // Coluna onde cai a 1ª aferição (âncora da hora real).
+  const anchor =
+    opts.startCol != null
+      ? clampCol(opts.startCol)
       : first?.obstetric.dilation != null
         ? uftmStartColumn(first.obstetric.dilation)
-        : 0;
-  const colOf = (iso: string) => startCol + slotOf(iso, t0, 60);
+        : (manualFirst ?? 0);
+  const startCol = opts.startCol != null ? anchor : Math.min(anchor, manualFirst ?? anchor);
+  const colOf = (iso: string) => anchor + slotOf(iso, t0, 60);
   const table: Partial<UftmTableColumn>[] = Array.from({ length: UFTM_COLS }, (_, i) =>
     i < startCol
       ? { hourIndex: i }
       : {
           hourIndex: i,
-          realTime: hhmm(slotTime(t0, i - startCol, 60)),
+          realTime: hhmm(slotTime(t0, i - anchor, 60)),
           registerHour: String(i - startCol + 1),
         },
   );

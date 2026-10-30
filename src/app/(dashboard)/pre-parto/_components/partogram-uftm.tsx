@@ -151,7 +151,7 @@ export interface UftmManual {
   points: UftmPoint[];
   contractionBlocks: UftmContractionBlock[];
   tableData: UftmTableColumn[];
-  activePhaseStartIndex?: number;
+  startColumn?: number;
   headerData: UftmHeader;
   observations: string;
 }
@@ -366,7 +366,7 @@ export function PartogramUftm({
           onClick={() => {
             if (!window.confirm("Limpar todo o gráfico? Apaga os pontos e contrações lançados aqui. Os que vieram das aferições continuam."))
               return;
-            set({ points: [], contractionBlocks: [], activePhaseStartIndex: undefined });
+            set({ points: [], contractionBlocks: [], startColumn: undefined });
           }}
           className="flex min-h-8 items-center gap-1 rounded-lg border px-3 text-xs font-semibold text-muted-foreground hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
         >
@@ -380,10 +380,10 @@ export function PartogramUftm({
           Hora real começa na coluna
           <select
             className="h-7 rounded border px-1"
-            value={manual.activePhaseStartIndex ?? ""}
-            onChange={(e) => set({ activePhaseStartIndex: e.target.value === "" ? undefined : Number(e.target.value) })}
+            value={manual.startColumn ?? ""}
+            onChange={(e) => set({ startColumn: e.target.value === "" ? undefined : Number(e.target.value) })}
           >
-            <option value="">{`auto: ${auto.startCol + 1}ª (1ª dilatação na linha de alerta)`}</option>
+            <option value="">{`auto: ${auto.startCol + 1}ª (1º toque)`}</option>
             {Array.from({ length: UFTM_COLS }, (_, i) => (
               <option key={i} value={i}>
                 {i + 1}ª

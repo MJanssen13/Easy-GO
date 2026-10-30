@@ -107,7 +107,10 @@ export interface PartogramData {
   points?: UftmPoint[];
   contractionBlocks?: UftmContractionBlock[];
   tableData?: UftmTableColumn[];
+  /** Legado da plataforma original (vinha 0 por padrão); não é mais usado. */
   activePhaseStartIndex?: number;
+  /** Coluna escolhida à mão onde começam hora real e de registro. */
+  startColumn?: number;
   headerData?: Partial<UftmHeader>;
   observations?: string;
 

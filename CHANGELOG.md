@@ -5,6 +5,12 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Partograma — hora real a partir do 1º toque
+
+- Ignora o campo legado `activePhaseStartIndex` (vinha 0 das fichas antigas e
+  forçava a 1ª coluna). A escolha manual agora fica em `startColumn`.
+- Considera também a 1ª dilatação marcada à mão no gráfico, não só as aferições.
+
 ### Correção — salvar ficava carregando para sempre
 
 - Causa: o `loading.tsx` do dashboard, combinado com `revalidatePath` nas Server
