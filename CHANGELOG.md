@@ -10,7 +10,7 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - Botão **Aferir** no cartão da paciente (quadro): abre a aferição da vez e,
   ao salvar, volta ao quadro.
 - Aferição: só os parâmetros da tarefa aparecem ("Outros" abre o resto);
-  horário e examinador foram para o fim; o 1º campo já vem focado; Enter /
+  campo de examinador removido e o horário foi para o fim; o 1º campo já vem focado; Enter /
   "próximo" do teclado pula para o campo seguinte; **Salvar** fixo acima das
   abas inferiores.
 - Busca do quadro sem o "X" duplicado.

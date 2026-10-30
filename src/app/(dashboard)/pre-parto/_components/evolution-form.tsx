@@ -20,14 +20,12 @@ import { isoToLocalInput, localInputToIso } from "@/components/local-datetime-in
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { vitalAlerts, parseDiuresisMlH, type VitalAlert } from "@/core/obstetric/alerts";
-import { readShiftTeam } from "@/lib/shift-team";
 
 const selectClass =
   "flex h-9 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-[0_1px_2px_0_rgb(16_24_40/0.04)] transition-colors hover:border-foreground/20 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15";
 
 const initialState: ObservationState = {};
 
-const EXAMINER_KEY = "easygo.lastExaminer";
 
 /** Contrações em 10 min e duração (s) para montar a dinâmica "3x40''/10'". */
 const DYN_COUNTS = [0, 1, 2, 3, 4, 5];
@@ -181,28 +179,6 @@ export function EvolutionForm({
     else if (count != null && dur != null) setDynamics(`${count}x${dur}''/10'`);
   }
 
-  // Examinador(a): lembra o último neste aparelho e sugere a equipe de plantão.
-  const [examiner, setExaminer] = useState("");
-  const [teamNames, setTeamNames] = useState<string[]>([]);
-  useEffect(() => {
-    try {
-      setExaminer(window.localStorage.getItem(EXAMINER_KEY) ?? "");
-    } catch {
-      // sem localStorage
-    }
-    const team = readShiftTeam();
-    setTeamNames(
-      [...new Set((Object.values(team) as string[]).flatMap((v) => v.split(",").map((n) => n.trim())).filter(Boolean))],
-    );
-  }, []);
-  function rememberExaminer(v: string) {
-    setExaminer(v);
-    try {
-      window.localStorage.setItem(EXAMINER_KEY, v);
-    } catch {
-      // sem localStorage
-    }
-  }
 
   // Alertas ao vivo (valores fora da faixa) — lidos do próprio formulário.
   const [alerts, setAlerts] = useState<VitalAlert[]>([]);
@@ -236,7 +212,7 @@ export function EvolutionForm({
   useEffect(() => {
     // Só campos de valor (não a conduta): sem tarefa, o teclado não cobre os chips.
     const first = fields().find(
-      (el) => el instanceof HTMLInputElement && el.id !== "recordedAt" && el.id !== "examinerName",
+      (el) => el instanceof HTMLInputElement && el.id !== "recordedAt",
     );
     first?.focus({ preventScroll: false });
   }, []);
@@ -655,11 +631,11 @@ export function EvolutionForm({
         </CardContent>
       </Card>
 
-      {/* Horário e examinador (no fim: no celular os campos clínicos vêm primeiro) */}
+      {/* Horário (no fim: no celular os campos clínicos vêm primeiro) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ClipboardList className="h-4 w-4" /> Horário e examinador
+            <ClipboardList className="h-4 w-4" /> Horário
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -676,21 +652,6 @@ export function EvolutionForm({
               {taskTimestamp && (
                 <p className="text-xs text-muted-foreground">Horário da rotina, não o do lançamento.</p>
               )}
-            </Field>
-            <Field label="Examinador(a)" htmlFor="examinerName">
-              <Input
-                id="examinerName"
-                name="examinerName"
-                autoComplete="off"
-                list="examiner-options"
-                value={examiner}
-                onChange={(e) => rememberExaminer(e.target.value)}
-              />
-              <datalist id="examiner-options">
-                {teamNames.map((n) => (
-                  <option key={n} value={n} />
-                ))}
-              </datalist>
             </Field>
           </div>
         </CardContent>
