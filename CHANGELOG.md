@@ -10,6 +10,8 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 - Ignora o campo legado `activePhaseStartIndex` (vinha 0 das fichas antigas e
   forçava a 1ª coluna). A escolha manual agora fica em `startColumn`.
 - Considera também a 1ª dilatação marcada à mão no gráfico, não só as aferições.
+- Bolsa, LA, Ocitocina, Medicamentos e Examinador: texto centralizado na
+  célula (vertical e horizontal); tocar abre a edição.
 
 ### Correção — salvar ficava carregando para sempre
 

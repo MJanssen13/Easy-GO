@@ -581,22 +581,15 @@ export function PartogramUftm({
                         onChange={(v) => setCell(i, row.key, v)}
                       />
                     ) : (
-                      <textarea
+                      <TextCell
                         key={i}
                         value={c[row.key].v}
-                        aria-label={`${ROW_LABELS[row.key]} — hora ${i + 1}`}
-                        inputMode={row.kind === "decimal" ? "decimal" : undefined}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => setCell(i, row.key, MASKS[row.kind ?? "text"](e.target.value))}
-                        className={cn(
-                          "h-full resize-none overflow-hidden border-none bg-transparent p-0 text-center font-bold uppercase leading-[0.85] outline-none",
-                          c[row.key].auto ? "pg-auto-text" : "text-black",
-                        )}
-                        style={{
-                          width: `${100 / UFTM_COLS}%`,
-                          fontSize: row.font,
-                          ...(row.rotate ? { writingMode: "vertical-rl", transform: "rotate(180deg)" } : {}),
-                        }}
+                        auto={c[row.key].auto}
+                        font={row.font}
+                        rotate={row.rotate}
+                        decimal={row.kind === "decimal"}
+                        label={`${ROW_LABELS[row.key]} — hora ${i + 1}`}
+                        onChange={(v) => setCell(i, row.key, MASKS[row.kind ?? "text"](v))}
                       />
                     ),
                   )}
@@ -784,6 +777,65 @@ function MenuActions({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
  * Célula de lista da ficha (Bolsa, LA): escolhe a sigla ou "Outro…" para
  * digitar. Impressa como texto simples (sem seta do seletor).
  */
+/**
+ * Célula de texto livre da tabela: mostra o texto centralizado nos dois eixos
+ * (inclusive o vertical, de baixo para cima, como na ficha impressa) e vira
+ * caixa de edição ao tocar.
+ */
+function TextCell({
+  value,
+  auto,
+  font,
+  rotate,
+  decimal,
+  label,
+  onChange,
+}: {
+  value: string;
+  auto: boolean;
+  font: number;
+  rotate?: boolean;
+  decimal?: boolean;
+  label: string;
+  onChange: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const vertical = rotate ? ({ writingMode: "vertical-rl", transform: "rotate(180deg)" } as const) : {};
+  const text = cn("font-bold uppercase leading-[0.95]", auto ? "pg-auto-text" : "text-black");
+  const style = { width: `${100 / UFTM_COLS}%`, fontSize: font };
+  if (editing)
+    return (
+      <textarea
+        autoFocus
+        value={value}
+        aria-label={label}
+        inputMode={decimal ? "decimal" : undefined}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
+        className={cn(text, "h-full resize-none overflow-hidden border-none bg-yellow-50 p-0 text-center outline-none")}
+        style={{ ...style, ...vertical }}
+      />
+    );
+  return (
+    <button
+      type="button"
+      aria-label={value ? `${label}: ${value}` : label}
+      onClick={(e) => {
+        e.stopPropagation();
+        setEditing(true);
+      }}
+      className="flex h-full cursor-text items-center justify-center overflow-hidden p-0"
+      style={style}
+    >
+      <span className={cn(text, "whitespace-pre-wrap break-words text-center")} style={{ ...vertical, ...(rotate ? { maxHeight: "100%" } : { maxWidth: "100%", paddingTop: "0.12em" }) }}>
+        {value}
+      </span>
+    </button>
+  );
+}
+
 function OptionCell({
   value,
   auto,
@@ -824,7 +876,7 @@ function OptionCell({
   // com as legendas. Na impressão sai só o texto.
   return (
     <span className="relative flex h-full items-center justify-center" style={style}>
-      <span className={cn(common, "flex h-auto w-full items-center justify-center")} aria-hidden>
+      <span className={cn(common, "flex h-auto w-full items-center justify-center pt-[0.12em] leading-none")} aria-hidden>
         {value}
       </span>
       <select
