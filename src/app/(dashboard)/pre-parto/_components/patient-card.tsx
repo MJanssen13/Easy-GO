@@ -9,7 +9,23 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { BedAvatar, CardStrip } from "@/components/bed-avatar";
 
-export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stats24h | null }) {
+/** Último toque (24 h) mostrado no card. */
+export interface LastExam {
+  at: string;
+  dilation?: number | null;
+  status?: string | null; // OEI/OEEA/OII
+  station?: number | null;
+}
+
+export function PatientCard({
+  patient,
+  stats,
+  lastExam,
+}: {
+  patient: Patient;
+  stats?: Stats24h | null;
+  lastExam?: LastExam | null;
+}) {
   const ga = currentGaLabel(patient);
   const active = !RESOLVED_STATUSES.includes(patient.status);
   const overdue = active ? overdueTasks(patient.schedule ?? []) : [];
@@ -54,6 +70,19 @@ export function PatientCard({ patient, stats }: { patient: Patient; stats?: Stat
           {patient.age != null && <span>{patient.age} anos</span>}
           {patient.parity && <span>{patient.parity}</span>}
         </div>
+
+        {lastExam && (
+          <p className="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">
+            <span className="field-label">Último toque</span>
+            <strong className="text-sm text-foreground">
+              {lastExam.dilation != null ? `${lastExam.dilation} cm` : lastExam.status}
+            </strong>
+            {lastExam.station != null && (
+              <span>· {lastExam.station === -4 ? "AM" : `DL ${lastExam.station > 0 ? "+" : ""}${lastExam.station}`}</span>
+            )}
+            <span>· {hhmm(lastExam.at)}</span>
+          </p>
+        )}
 
         {stats && (stats.hasBcf || stats.hasPa) && (
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 rounded-md bg-muted/50 px-2 py-1 text-xs">

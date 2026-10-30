@@ -21,7 +21,7 @@ import {
   overdueTasks,
 } from "@/core/schedule/planner";
 import { initialRoutineTasks } from "@/core/schedule/initial-routine";
-import { createCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
+import { createCtg, updateCtg, deleteCtg as deleteCtgRow } from "@/core/ctg/repository";
 import { computeCtgScore, suggestConclusion } from "@/core/ctg/scoring";
 import type { NewCtgInput } from "@/core/ctg/types";
 import type { ScheduledTask } from "@/core/patients/types";
@@ -456,6 +456,11 @@ export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgS
     conclusion: opt(formData.get("conclusion")),
     notes: opt(formData.get("notes")),
   };
+  const ctgId = opt(formData.get("ctgId"));
+  const image = opt(formData.get("image"));
+  if (image && (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 3_000_000)) {
+    return { error: "Foto inválida ou grande demais." };
+  }
 
   const parsed = ctgSchema.safeParse(raw);
   if (!parsed.success) {
@@ -487,10 +492,12 @@ export async function saveCtg(_prev: CtgState, formData: FormData): Promise<CtgS
     score,
     conclusion: d.conclusion && d.conclusion !== "" ? d.conclusion : suggestConclusion(score),
     notes: d.notes ?? null,
+    imagePath: image ?? null,
   };
 
   try {
-    await createCtg(input);
+    if (ctgId) await updateCtg(ctgId, input);
+    else await createCtg(input);
   } catch (err) {
     const message =
       err instanceof RepositoryError ? err.message : "Não foi possível salvar a CTG.";

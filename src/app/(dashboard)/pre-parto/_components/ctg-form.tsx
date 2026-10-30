@@ -2,9 +2,11 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Activity, Calculator, Info, Loader2, Save, Gauge, NotebookPen, ClipboardList } from "lucide-react";
+import { Activity, Calculator, Camera, Info, Loader2, Save, Gauge, NotebookPen, ClipboardList } from "lucide-react";
 import { saveCtg, type CtgState } from "../actions";
 import type { Patient } from "@/core/patients/types";
+import type { CtgRecord } from "@/core/ctg/types";
+import { PhotoField } from "@/components/photo-field";
 import {
   computeCtgScore,
   suggestConclusion,
@@ -23,8 +25,8 @@ const selectClass =
 
 const initialState: CtgState = {};
 
-function nowLocal(): string {
-  const d = new Date();
+function nowLocal(iso?: string): string {
+  const d = iso ? new Date(iso) : new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 16);
 }
@@ -39,14 +41,15 @@ const CONCLUSION_OPTIONS = [
   "Bifásico",
 ];
 
-export function CtgForm({ patient }: { patient: Patient }) {
+/** Formulário de CTG — nova ou edição (`ctg`), com foto do traçado. */
+export function CtgForm({ patient, ctg }: { patient: Patient; ctg?: CtgRecord }) {
   const [state, formAction, pending] = useActionState(saveCtg, initialState);
 
-  const [baseline, setBaseline] = useState("");
-  const [variability, setVariability] = useState<CtgVariability | "">("6-25");
-  const [atMfRatio, setAtMfRatio] = useState<CtgAtMfRatio | "">("gte60");
-  const [decelerations, setDecelerations] = useState<CtgPresence | "">("absent");
-  const [conclusion, setConclusion] = useState("");
+  const [baseline, setBaseline] = useState(ctg?.baseline != null ? String(ctg.baseline) : "");
+  const [variability, setVariability] = useState<CtgVariability | "">(ctg ? (ctg.variability ?? "") : "6-25");
+  const [atMfRatio, setAtMfRatio] = useState<CtgAtMfRatio | "">(ctg ? (ctg.atMfRatio ?? "") : "gte60");
+  const [decelerations, setDecelerations] = useState<CtgPresence | "">(ctg ? (ctg.decelerations ?? "") : "absent");
+  const [conclusion, setConclusion] = useState(ctg ? String(ctg.conclusion ?? "") : "");
 
   const bpm = baseline === "" ? null : Number(baseline);
   const score = computeCtgScore({
@@ -62,6 +65,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
   return (
     <form action={formAction} className="space-y-5">
       <input type="hidden" name="patientId" value={patient.id} />
+      {ctg && <input type="hidden" name="ctgId" value={ctg.id} />}
 
       <Card>
         <CardHeader>
@@ -72,7 +76,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
         <CardContent>
           <div className="space-y-1.5">
             <Label htmlFor="recordedAt">Data e hora</Label>
-            <Input id="recordedAt" name="recordedAt" type="datetime-local" defaultValue={nowLocal()} />
+            <Input id="recordedAt" name="recordedAt" type="datetime-local" defaultValue={nowLocal(ctg?.recordedAt)} />
           </div>
         </CardContent>
       </Card>
@@ -126,7 +130,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="accelerations">Acelerações transitórias</Label>
-              <select id="accelerations" name="accelerations" className={selectClass} defaultValue="present">
+              <select id="accelerations" name="accelerations" className={selectClass} defaultValue={ctg?.accelerations ?? "present"}>
                 <option value="present">Presentes</option>
                 <option value="absent">Ausentes</option>
               </select>
@@ -150,7 +154,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="movements">Movimentação fetal</Label>
-              <select id="movements" name="movements" className={selectClass} defaultValue="present">
+              <select id="movements" name="movements" className={selectClass} defaultValue={ctg?.movements ?? "present"}>
                 <option value="present">Presentes</option>
                 <option value="absent">Ausentes</option>
               </select>
@@ -174,7 +178,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
             <div className="grid grid-cols-1 gap-4 rounded-md bg-muted/40 p-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="decelerationType">Tipo</Label>
-                <select id="decelerationType" name="decelerationType" className={selectClass} defaultValue="">
+                <select id="decelerationType" name="decelerationType" className={selectClass} defaultValue={ctg?.decelerationType ?? ""}>
                   <option value="">—</option>
                   <option value="early">Precoce</option>
                   <option value="late">Tardia</option>
@@ -183,7 +187,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="decelerationCount">Número</Label>
-                <Input id="decelerationCount" name="decelerationCount" placeholder="ex.: 3" />
+                <Input id="decelerationCount" name="decelerationCount" placeholder="ex.: 3" defaultValue={ctg?.decelerationCount ?? ""} />
               </div>
             </div>
           )}
@@ -192,14 +196,14 @@ export function CtgForm({ patient }: { patient: Patient }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="contractions">Contrações</Label>
-              <select id="contractions" name="contractions" className={selectClass} defaultValue="absent">
+              <select id="contractions" name="contractions" className={selectClass} defaultValue={ctg?.contractions ?? "absent"}>
                 <option value="absent">Ausentes</option>
                 <option value="present">Presentes</option>
               </select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="soundStimulus">Estímulo sonoro</Label>
-              <select id="soundStimulus" name="soundStimulus" className={selectClass} defaultValue="not_done">
+              <select id="soundStimulus" name="soundStimulus" className={selectClass} defaultValue={ctg?.soundStimulus ?? "not_done"}>
                 <option value="not_done">Não realizado</option>
                 <option value="done">Realizado</option>
               </select>
@@ -207,7 +211,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="stimulusCount">Nº de estímulos (se realizado)</Label>
-            <Input id="stimulusCount" name="stimulusCount" className="sm:w-40" />
+            <Input id="stimulusCount" name="stimulusCount" className="sm:w-40" defaultValue={ctg?.stimulusCount ?? ""} />
           </div>
         </CardContent>
       </Card>
@@ -257,7 +261,18 @@ export function CtgForm({ patient }: { patient: Patient }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Textarea aria-label="Observações da CTG" name="notes" rows={2} placeholder="Detalhes adicionais..." />
+          <Textarea aria-label="Observações da CTG" name="notes" rows={2} placeholder="Detalhes adicionais..." defaultValue={ctg?.notes ?? ""} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Camera className="h-4 w-4" /> Foto do traçado
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PhotoField name="image" initial={ctg?.imagePath} />
         </CardContent>
       </Card>
 
@@ -274,7 +289,7 @@ export function CtgForm({ patient }: { patient: Patient }) {
         </Link>
         <Button type="submit" disabled={pending}>
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Salvar CTG
+          {ctg ? "Salvar alterações" : "Salvar CTG"}
         </Button>
       </div>
     </form>

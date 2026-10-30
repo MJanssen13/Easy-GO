@@ -5,6 +5,33 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Funcionalidades da plataforma original (Preparto) + folha de parâmetros
+
+- **Planilha de aferições** (`/pre-parto/[id]/planilha`): lançar e editar em
+  lote direto na plataforma, com os atalhos do Google Planilhas — setas, Tab,
+  Enter/F2/duplo clique, digitar substitui, Esc, Shift+setas/arrastar, Ctrl+A,
+  Delete, Ctrl+C/X/V (inclusive colar do Excel/Sheets), Ctrl+D/R, Ctrl+Z/Y,
+  Ctrl+Enter / Ctrl+Alt+= (inserir), Ctrl+Alt+− (excluir), Ctrl+S. Listas
+  aceitam abreviações ("8", "r", "am", "+1"), "3x40" vira "3x40''/10'",
+  validação por célula, alertas clínicos em vermelho, "Gerar horários",
+  grupos de colunas, linhas novas/editadas/excluídas marcadas. Salva tudo em
+  uma ação (`saveObservationSheet`) e conclui tarefas do cronograma ± 20 min.
+  Lógica pura em `core/observations/sheet.ts`.
+- **Editar / excluir aferição** no histórico da paciente.
+- **Copiar linha do tempo** (aferições por data + partograma + CTGs) para o
+  prontuário (`core/prontuario/timeline.ts`).
+- **CTG com foto do traçado** (câmera ou galeria, comprimida no aparelho) e
+  **edição de CTG** (`/pre-parto/[id]/ctg/[ctgId]`); foto em tela cheia.
+- **Quadro do Pré-Parto** com busca (nome, leito, prontuário), filtro
+  Ativas/Resolvidas/Todas e ordenação por leito/nome/internação; card mostra o
+  **último toque** (dilatação, De Lee, hora).
+- **Folha de parâmetros para impressão** (A4, modelo HC-UFTM "PARÂMETROS |
+  SULFATO DE MAGNÉSIO" e variante de sinais vitais), preenchida hora a hora com
+  as aferições — Pré-Parto, Puerpério e Onco (`/[módulo]/[id]/folha`).
+- **App instalável** (manifest, ícones, service worker): estáticos em cache;
+  sem internet só as ferramentas locais abrem do cache — páginas de pacientes
+  mostram `/offline` (nunca dados desatualizados).
+
 ### Desempenho — salvamento mais rápido
 
 - **Salvamento automático (PSGO e partograma) não revalida mais rotas**: antes,

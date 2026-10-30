@@ -185,3 +185,27 @@
     @apply text-[11px] font-semibold uppercase tracking-wide text-muted-foreground;
   }
 }
+
+/* Folha de parâmetros (impressão A4, sem margens do navegador). */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  html,
+  body,
+  .app-surface {
+    background: #fff !important;
+  }
+  /* Só a folha ocupa a página (sem alturas mínimas do layout). */
+  .min-h-screen,
+  main {
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+  .param-sheet {
+    margin: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

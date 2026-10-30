@@ -105,6 +105,14 @@ export async function createCtg(input: NewCtgInput): Promise<CtgRecord> {
   return dbToCtg(data);
 }
 
+/** Atualiza uma CTG (edição). */
+export async function updateCtg(id: string, input: NewCtgInput): Promise<void> {
+  const supabase = await createClient();
+  const { created_by: _ignored, ...row } = newCtgToInsert(input, null);
+  const { error } = await supabase.from("ctgs").update(row).eq("id", id).eq("patient_id", input.patientId);
+  if (error) throw new RepositoryError("Não foi possível atualizar a CTG.", error);
+}
+
 export async function deleteCtg(id: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("ctgs").delete().eq("id", id);

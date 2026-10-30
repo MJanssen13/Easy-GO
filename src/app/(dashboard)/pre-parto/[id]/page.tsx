@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHero } from "@/components/page-header";
 import { notFound } from "next/navigation";
-import { IdCard, ArrowLeft, Trash2, ClipboardList, Plus, CalendarClock, Activity, Pencil, CheckCircle2, RotateCcw, TrendingUp, Stethoscope, AlertTriangle, SkipForward, FileChartLine, Baby } from "lucide-react";
+import { IdCard, ArrowLeft, Trash2, Table2, Printer, ClipboardList, Plus, CalendarClock, Activity, Pencil, CheckCircle2, RotateCcw, TrendingUp, Stethoscope, AlertTriangle, SkipForward, FileChartLine, Baby } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { listCtgs } from "@/core/ctg/repository";
 import { renderCtgLine } from "@/core/ctg/render";
@@ -13,6 +13,8 @@ import {
 } from "@/core/patients/status";
 import { currentGaLabel } from "@/core/patients/display";
 import { renderObservationLine } from "@/core/prontuario/preparto";
+import { renderTimeline } from "@/core/prontuario/timeline";
+import { deleteObservationAction } from "../sheet-actions";
 import { upcomingTasks, overdueTasks, taskUrgency } from "@/core/schedule/planner";
 import { latestValues } from "@/core/patients/stats";
 import { vitalAlerts } from "@/core/obstetric/alerts";
@@ -25,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CopyButton } from "@/components/copy-button";
 import { ConfirmSubmit } from "@/components/confirm-submit";
+import { PhotoThumb } from "@/components/photo-field";
 import { ShiftEvolution } from "../_components/shift-evolution";
 import { VitalCharts } from "../_components/vital-charts";
 import { TransferToPuerperio } from "../_components/transfer-puerperio";
@@ -162,6 +165,16 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
           <Link href={`/pre-parto/${patient.id}/rotina`}>
             <Button variant="outline">
               <CalendarClock className="h-4 w-4" /> Rotina
+            </Button>
+          </Link>
+          <Link href={`/pre-parto/${patient.id}/planilha`}>
+            <Button variant="outline" title="Lançar e editar aferições em lote">
+              <Table2 className="h-4 w-4" /> Planilha
+            </Button>
+          </Link>
+          <Link href={`/pre-parto/${patient.id}/folha`}>
+            <Button variant="outline" title="Imprimir folha de parâmetros">
+              <Printer className="h-4 w-4" /> Folha
             </Button>
           </Link>
           <Link href={`/pre-parto/${patient.id}/ctg`}>
@@ -481,6 +494,14 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                       </div>
                       <div className="flex items-center gap-1">
                         <CopyButton text={line} />
+                        <Link
+                          href={`/pre-parto/${patient.id}/ctg/${c.id}`}
+                          title="Editar CTG"
+                          aria-label="Editar CTG"
+                          className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Link>
                         <form action={removeCtg}>
                           <input type="hidden" name="id" value={c.id} />
                           <input type="hidden" name="patientId" value={patient.id} />
@@ -495,7 +516,10 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                         </form>
                       </div>
                     </div>
-                    <pre className="prontuario-text px-3 py-2 text-sm">{line}</pre>
+                    <div className="flex flex-wrap items-start gap-3 px-3 py-2">
+                      <pre className="prontuario-text min-w-0 flex-1 text-sm">{line}</pre>
+                      {c.imagePath && <PhotoThumb src={c.imagePath} alt="Foto do traçado da CTG" />}
+                    </div>
                   </li>
                 );
               })}
@@ -510,6 +534,17 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
             <ClipboardList className="h-4 w-4" /> Evoluções
             <span className="text-xs font-normal text-muted-foreground">
               ({patient.observations?.length ?? 0})
+            </span>
+            <span className="ml-auto flex flex-wrap items-center gap-1.5">
+              <Link
+                href={`/pre-parto/${patient.id}/planilha`}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium hover:bg-muted"
+              >
+                <Table2 className="h-3.5 w-3.5" /> Editar em lote
+              </Link>
+              {(patient.observations?.length ?? 0) > 0 && (
+                <CopyButton text={renderTimeline(patient, patient.observations ?? [], ctgs)} label="Copiar linha do tempo" />
+              )}
             </span>
           </CardTitle>
         </CardHeader>
@@ -526,7 +561,31 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                         <span className="text-[11px] text-muted-foreground">{o.examinerName}</span>
                       )}
                     </div>
-                    <CopyButton text={line} />
+                    <span className="flex shrink-0 items-center gap-0.5">
+                      <CopyButton text={line} />
+                      <Link
+                        href={`/pre-parto/${patient.id}/planilha?editar=${o.id}`}
+                        title="Editar esta aferição"
+                        aria-label="Editar esta aferição"
+                        className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                      <form action={deleteObservationAction}>
+                        <input type="hidden" name="patientId" value={patient.id} />
+                        <input type="hidden" name="obsId" value={o.id} />
+                        <ConfirmSubmit
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          message="Excluir esta aferição? Não é possível desfazer."
+                          aria-label="Excluir esta aferição"
+                          title="Excluir esta aferição"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </ConfirmSubmit>
+                      </form>
+                    </span>
                   </li>
                 );
               };

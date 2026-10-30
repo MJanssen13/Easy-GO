@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PageHero } from "@/components/page-header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ClipboardList, LogOut, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ClipboardList, LogOut, RotateCcw, Trash2, Printer } from "lucide-react";
 import { getPatient } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import { DELIVERY_LABELS, readPuerperio } from "@/core/puerperio/types";
@@ -66,6 +66,14 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
           </>
         }
         meta={patient.medicalRecordNumber ? `RG ${patient.medicalRecordNumber}` : undefined}
+        actions={
+          <Link
+            href={`/puerperio/${patient.id}/folha`}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border bg-white px-4 text-sm font-semibold hover:bg-slate-50"
+          >
+            <Printer className="h-4 w-4" /> Folha de parâmetros
+          </Link>
+        }
       />
 
       <PuerperioWorkspace patient={patient} summary={summary} observations={patient.observations ?? []} />
