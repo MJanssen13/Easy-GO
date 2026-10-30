@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { savePartogram } from "../partogram-actions";
 import { PartogramLcg } from "./partogram-lcg";
 import { formatGaWeeks, PartogramUftm, emptyTable, type UftmManual } from "./partogram-uftm";
+import { NO_BROWSER_HEADERS_CSS } from "@/core/print/page-css";
 
 export interface PartogramPatient {
   id: string;
@@ -116,7 +117,7 @@ export function PartogramWorkspace({
 
   return (
     <div className="space-y-4">
-      <style>{`@media print { @page { size: A4 ${model === "oms" ? "landscape" : "portrait"}; margin: ${model === "oms" ? "8mm" : "0"}; } }`}</style>
+      <style>{`@media print { @page { size: A4 ${model === "oms" ? "landscape" : "portrait"}; margin: ${model === "oms" ? "8mm" : "0"}; } ${NO_BROWSER_HEADERS_CSS} }`}</style>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <div className="inline-flex rounded-lg bg-muted p-1">
           {(

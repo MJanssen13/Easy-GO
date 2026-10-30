@@ -184,6 +184,11 @@
     size: A4 portrait;
     margin: 0;
   }
+  /* Sem cabeçalho/rodapé do navegador (URL, data, página). */
+  @page {
+    @top-left { content: ""; } @top-center { content: ""; } @top-right { content: ""; }
+    @bottom-left { content: ""; } @bottom-center { content: ""; } @bottom-right { content: ""; }
+  }
   html,
   body,
   .app-surface {

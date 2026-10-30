@@ -16,6 +16,7 @@ import {
   type CtgDecelType,
   type CtgSoundStimulus,
 } from "./scoring";
+import { NO_BROWSER_HEADERS_CSS } from "@/core/print/page-css";
 
 /** Caminhos padrão do papel timbrado (servidos de `public/laudo`). */
 export const DEFAULT_LETTERHEAD: LaudoLetterhead = {
@@ -259,6 +260,7 @@ export function renderCtgLaudoHtml(
 <title>Laudo — Cardiotocografia</title>
 <style>
   @page { size: A4; margin: 12mm 14mm; }
+  ${NO_BROWSER_HEADERS_CSS}
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; }
   body {

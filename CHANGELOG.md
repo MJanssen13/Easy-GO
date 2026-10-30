@@ -5,6 +5,13 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Impressão sem notas de rodapé
+
+- Removida a nota "Gerado pelo Easy-GO…" da folha de parâmetros.
+- Todas as impressões (folha, partograma, laudo e traçado de CTG, receitas,
+  relatórios e termos) declaram as caixas de margem da página vazias, o que faz
+  o Chrome/Edge omitir cabeçalho e rodapé próprios (URL, data, nº de página).
+
 ### Rotina e aferição
 
 - Novo parâmetro **PA em pé**: no protocolo de Metildopa (PA + PA em pé de 1/1 h)

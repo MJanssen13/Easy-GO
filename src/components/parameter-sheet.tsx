@@ -185,9 +185,6 @@ export function ParameterSheet({
               );
             })}
           </div>
-          <p className="mt-1 text-[9px] text-neutral-500">
-            Gerado pelo Easy-GO a partir das aferições registradas — conferir com a equipe de enfermagem.
-          </p>
         </article>
       </div>
     </div>

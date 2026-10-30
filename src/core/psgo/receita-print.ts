@@ -20,6 +20,7 @@ import {
   type ReceitaGrupo,
 } from "./prescricao";
 import { RECEITA_LOGOS } from "./receita-logos";
+import { NO_BROWSER_HEADERS_CSS } from "@/core/print/page-css";
 
 const UNIDADE = "Hospital de Clínicas da Universidade Federal do Triângulo Mineiro — HC-UFTM";
 const ENDERECO = "CNES: 2206595, Av. Getúlio Guarita, 130, N.S. Abadia - Uberaba, MG";
@@ -120,6 +121,7 @@ function coluna(header: ReceitaHeader, grupo: ReceitaGrupo, lado: "left" | "righ
 // via ocupa essa altura por inteiro (assinatura ancorada no rodapé da via).
 export const RECEITA_PRINT_STYLE = `
   @page { size: A4 landscape; margin: 8mm; }
+  ${NO_BROWSER_HEADERS_CSS}
   * { box-sizing: border-box; }
   body { margin: 0; color: #111; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8.5pt; line-height: 1.3; }
   .sheet { display: flex; page-break-after: always; font-family: "Segoe UI", -apple-system, Arial, sans-serif; font-size: 8.5pt; color: #111; }

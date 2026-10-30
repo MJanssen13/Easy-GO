@@ -12,6 +12,7 @@
  * preenchimento manual. Ver `@/lib/print` para a impressão.
  */
 import { DEFAULT_LETTERHEAD, type LaudoLetterhead } from "@/core/ctg/laudo";
+import { NO_BROWSER_HEADERS_CSS } from "@/core/print/page-css";
 
 export interface TermosData {
   name: string;
@@ -217,6 +218,7 @@ export function renderTermosHtml(
 <title>Termos de consentimento — PSGO</title>
 <style>
   @page { size: A4; margin: 12mm 14mm; }
+  ${NO_BROWSER_HEADERS_CSS}
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; line-height: 1.3; color: #000; }
