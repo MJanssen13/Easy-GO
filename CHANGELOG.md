@@ -7,9 +7,14 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ### Correção — salvar ficava carregando para sempre
 
-- Admissão, aferição, rotina, CTG e editar paciente devolvem o destino em vez de
-  `redirect()` na Server Action; o cliente navega e, se a navegação for abortada
-  (acontecia em produção), faz navegação completa após 1,5 s.
+- Causa: o `loading.tsx` do dashboard, combinado com `revalidatePath` nas Server
+  Actions, deixava a transição do roteador pendente para sempre em produção
+  (botão girando sem fim). Removido.
+- Admissão, aferição, rotina, CTG, editar, desfecho/alta, reabrir, remover e
+  transferir Onco → PSGO devolvem o destino (`redirectTo`) em vez de `redirect()`;
+  o cliente navega e, se não concluir em 4 s, faz navegação completa.
+- Novos `ActionForm` e `SubmitButton`: botão mostra carregamento e bloqueia
+  clique duplo.
 - Páginas de admissão passam a ser dinâmicas (a resposta da action vinha de cache).
 
 ### Partograma HC-UFTM — campos da ficha

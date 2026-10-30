@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CopyButton } from "@/components/copy-button";
-import { ConfirmSubmit } from "@/components/confirm-submit";
+import { ActionForm } from "@/components/action-form";
+import { ConfirmSubmit, SubmitButton } from "@/components/confirm-submit";
 import { PuerperioWorkspace } from "../_components/puerperio-workspace";
 import { dischargePuerperio, removeEvolution, removePuerperio, reopenPuerperio } from "../actions";
 
@@ -140,15 +141,15 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
                   Alta em{" "}
                   <strong>{patient.dischargeTime ? when(patient.dischargeTime) : "—"}</strong>
                 </span>
-                <form action={reopenPuerperio}>
+                <ActionForm action={reopenPuerperio}>
                   <input type="hidden" name="id" value={patient.id} />
-                  <Button type="submit" size="sm" variant="outline">
+                  <SubmitButton size="sm" variant="outline">
                     <RotateCcw className="h-4 w-4" /> Reabrir
-                  </Button>
-                </form>
+                  </SubmitButton>
+                </ActionForm>
               </div>
             ) : (
-              <form action={dischargePuerperio} className="flex flex-wrap items-end gap-2">
+              <ActionForm action={dischargePuerperio} className="flex flex-wrap items-end gap-2">
                 <input type="hidden" name="id" value={patient.id} />
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground">Data/hora (opcional)</span>
@@ -157,13 +158,13 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
                 <ConfirmSubmit size="sm" message={`Registrar a alta de ${patient.name}?`}>
                   <LogOut className="h-4 w-4" /> Dar alta
                 </ConfirmSubmit>
-              </form>
+              </ActionForm>
             )}
             <p className="text-[11px] text-muted-foreground">
               Para a CD de alta, use &quot;Alta hospitalar&quot; na Conduta antes de salvar a evolução.
             </p>
             <div className="flex justify-end border-t pt-3">
-              <form action={removePuerperio}>
+              <ActionForm action={removePuerperio}>
                 <input type="hidden" name="id" value={patient.id} />
                 <ConfirmSubmit
                   variant="ghost"
@@ -173,7 +174,7 @@ export default async function PuerperioPatientPage({ params }: { params: Promise
                 >
                   <Trash2 className="h-4 w-4" /> Remover paciente
                 </ConfirmSubmit>
-              </form>
+              </ActionForm>
             </div>
           </CardContent>
         </Card>

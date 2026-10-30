@@ -24,9 +24,9 @@ function num(v: string): number | undefined {
 
 export default function AdmissionPage() {
   const [state, formAction, pending] = useActionState(admitPatient, initialState);
-  useActionRedirect(state);
+  const navigating = useActionRedirect(state);
   // Mantém o botão em "carregando" até a página da paciente abrir.
-  const busy = pending || !!state.redirectTo;
+  const busy = pending || navigating;
   const [dumWeeks, setDumWeeks] = useState("");
   const [dumDays, setDumDays] = useState("");
   const [usWeeks, setUsWeeks] = useState("");

@@ -1,7 +1,7 @@
 "use server";
 
+import type { RedirectState } from "@/components/action-form";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   addObservation,
   createPatient,
@@ -173,10 +173,10 @@ export async function removeOncoEvolution(formData: FormData): Promise<void> {
   revalidate(id);
 }
 
-export async function dischargeOnco(formData: FormData): Promise<void> {
+export async function dischargeOnco(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
   const raw = String(formData.get("dischargeTime") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await updatePatient(id, {
       status: "resolved",
@@ -187,44 +187,45 @@ export async function dischargeOnco(formData: FormData): Promise<void> {
     // best-effort
   }
   revalidate(id);
-  redirect(`/oncogineco/${id}`);
+  return { redirectTo: `/oncogineco/${id}` };
 }
 
-export async function reopenOnco(formData: FormData): Promise<void> {
+export async function reopenOnco(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await updatePatient(id, { status: "inpatient", outcome: "none", dischargeTime: null });
   } catch {
     // best-effort
   }
   revalidate(id);
-  redirect(`/oncogineco/${id}`);
+  return { redirectTo: `/oncogineco/${id}` };
 }
 
-export async function removeOnco(formData: FormData): Promise<void> {
+export async function removeOnco(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await deletePatient(id);
   } catch {
     // best-effort
   }
-  revalidate();
-  redirect("/oncogineco");
+  // Sem revalidar: a página atual deixaria de existir (404) antes de navegar;
+  // a lista é dinâmica e vem atualizada.
+  return { redirectTo: "/oncogineco" };
 }
 
 /** Onco → PSGO (ex.: intercorrência que volta a ser conduzida pelo PS). */
-export async function transferOncoToPsgo(formData: FormData): Promise<void> {
+export async function transferOncoToPsgo(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
-  if (!id) return;
+  if (!id) return {};
   try {
     await transferPatient(id, "psgo", reason || "Transferida da Onco-Ginecologia");
   } catch {
     // best-effort
   }
-  revalidate();
-  revalidatePath("/psgo");
-  redirect("/psgo");
+  // Sem revalidar: a página atual deixaria de existir (404) antes de navegar;
+  // a lista é dinâmica e vem atualizada.
+  return { redirectTo: "/psgo" };
 }

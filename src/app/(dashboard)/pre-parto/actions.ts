@@ -1,7 +1,7 @@
 "use server";
 
+import type { RedirectState } from "@/components/action-form";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   createPatient,
@@ -705,11 +705,11 @@ export async function editPatient(
 
 const RESOLVE_OUTCOMES = ["vaginal_delivery", "c_section", "discharge", "transfer"] as const;
 
-export async function resolvePatientAction(formData: FormData): Promise<void> {
+export async function resolvePatientAction(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
   const outcome = String(formData.get("outcome") ?? "");
   const dischargeRaw = opt(formData.get("dischargeTime"));
-  if (!id || !RESOLVE_OUTCOMES.includes(outcome as (typeof RESOLVE_OUTCOMES)[number])) return;
+  if (!id || !RESOLVE_OUTCOMES.includes(outcome as (typeof RESOLVE_OUTCOMES)[number])) return {};
 
   const iso = dischargeRaw ? new Date(dischargeRaw).toISOString() : undefined;
   try {
@@ -719,12 +719,12 @@ export async function resolvePatientAction(formData: FormData): Promise<void> {
   }
   revalidatePath("/pre-parto");
   revalidatePath(`/pre-parto/${id}`);
-  redirect(`/pre-parto/${id}`);
+  return { redirectTo: `/pre-parto/${id}` };
 }
 
-export async function reopenPatientAction(formData: FormData): Promise<void> {
+export async function reopenPatientAction(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await reopenPatient(id);
   } catch {
@@ -732,17 +732,18 @@ export async function reopenPatientAction(formData: FormData): Promise<void> {
   }
   revalidatePath("/pre-parto");
   revalidatePath(`/pre-parto/${id}`);
-  redirect(`/pre-parto/${id}`);
+  return { redirectTo: `/pre-parto/${id}` };
 }
 
-export async function removePatient(formData: FormData): Promise<void> {
+export async function removePatient(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await deletePatient(id);
   } catch {
     // surfaced on next load; deletion is best-effort from the detail page
   }
-  revalidatePath("/pre-parto");
-  redirect("/pre-parto");
+  // Sem revalidar: a página atual deixaria de existir (404) antes de navegar;
+  // a lista é dinâmica e vem atualizada.
+  return { redirectTo: "/pre-parto" };
 }

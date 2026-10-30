@@ -48,9 +48,9 @@ function dtLocal(v?: string | null): string {
 
 export function EditPatientForm({ patient }: { patient: Patient }) {
   const [state, formAction, submitting] = useActionState(editPatient, initialState);
-  useActionRedirect(state);
+  const navigating = useActionRedirect(state);
   // Segue carregando até a página de destino abrir.
-  const pending = submitting || !!state.redirectTo;
+  const pending = submitting || navigating;
 
   // A IG vigente (hoje) preenche o método atual; o outro fica em branco.
   const current = currentGaParts(patient);

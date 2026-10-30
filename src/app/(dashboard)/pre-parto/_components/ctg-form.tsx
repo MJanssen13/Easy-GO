@@ -45,9 +45,9 @@ const CONCLUSION_OPTIONS = [
 /** Formulário de CTG — nova ou edição (`ctg`), com foto do traçado. */
 export function CtgForm({ patient, ctg }: { patient: Patient; ctg?: CtgRecord }) {
   const [state, formAction, submitting] = useActionState(saveCtg, initialState);
-  useActionRedirect(state);
+  const navigating = useActionRedirect(state);
   // Segue carregando até a página de destino abrir.
-  const pending = submitting || !!state.redirectTo;
+  const pending = submitting || navigating;
 
   const [baseline, setBaseline] = useState(ctg?.baseline != null ? String(ctg.baseline) : "");
   const [variability, setVariability] = useState<CtgVariability | "">(ctg ? (ctg.variability ?? "") : "6-25");

@@ -101,9 +101,9 @@ const rmKey = (iso: string, param: string) => `${iso}|${param}`;
  */
 export function RoutinePlanner({ patient }: { patient: Patient }) {
   const [state, formAction, submitting] = useActionState(saveRoutine, initialState);
-  useActionRedirect(state);
+  const navigating = useActionRedirect(state);
   // Segue carregando até a página de destino abrir.
-  const pending = submitting || !!state.redirectTo;
+  const pending = submitting || navigating;
 
   const diabetesAuto = hasDiabetesRisk(patient.riskFactors);
 

@@ -26,7 +26,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CopyButton } from "@/components/copy-button";
-import { ConfirmSubmit } from "@/components/confirm-submit";
+import { ActionForm } from "@/components/action-form";
+import { ConfirmSubmit, SubmitButton } from "@/components/confirm-submit";
 import { PhotoThumb } from "@/components/photo-field";
 import { ParametersPaste } from "../_components/parameters-paste";
 import { VitalCharts } from "../_components/vital-charts";
@@ -411,15 +412,15 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                   </span>
                 )}
               </div>
-              <form action={reopenPatientAction}>
+              <ActionForm action={reopenPatientAction}>
                 <input type="hidden" name="id" value={patient.id} />
-                <Button type="submit" size="sm" variant="outline">
+                <SubmitButton size="sm" variant="outline">
                   <RotateCcw className="h-4 w-4" /> Reabrir
-                </Button>
-              </form>
+                </SubmitButton>
+              </ActionForm>
             </div>
           ) : (
-            <form action={resolvePatientAction} className="flex flex-wrap items-end gap-2">
+            <ActionForm action={resolvePatientAction} className="flex flex-wrap items-end gap-2">
               <input type="hidden" name="id" value={patient.id} />
               <div className="space-y-1">
                 <Label className="field-label">Desfecho</Label>
@@ -437,13 +438,13 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
                 <Label className="field-label">Data/hora (opcional)</Label>
                 <Input type="datetime-local" name="dischargeTime" className="w-52" />
               </div>
-              <Button type="submit" size="sm">
+              <SubmitButton size="sm">
                 <CheckCircle2 className="h-4 w-4" /> Resolver
-              </Button>
-            </form>
+              </SubmitButton>
+            </ActionForm>
           )}
           <div className="mt-4 flex justify-end border-t pt-3">
-            <form action={removePatient}>
+            <ActionForm action={removePatient}>
               <input type="hidden" name="id" value={patient.id} />
               <ConfirmSubmit
                 variant="ghost"
@@ -453,7 +454,7 @@ export default async function PatientDetail({ params }: { params: Promise<{ id: 
               >
                 <Trash2 className="h-4 w-4" /> Remover paciente
               </ConfirmSubmit>
-            </form>
+            </ActionForm>
           </div>
         </CardContent>
       </Card>

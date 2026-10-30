@@ -109,9 +109,9 @@ export function EvolutionForm({
   onCancel?: () => void;
 }) {
   const [state, formAction, submitting] = useActionState(recordObservation, initialState);
-  useActionRedirect(state);
+  const navigating = useActionRedirect(state);
   // Segue carregando até a página de destino abrir.
-  const pending = submitting || !!state.redirectTo;
+  const pending = submitting || navigating;
 
   // Seleção de parâmetros: o cronograma (focus) começa selecionado; clicar em
   // qualquer chip abre/fecha o campo correspondente.

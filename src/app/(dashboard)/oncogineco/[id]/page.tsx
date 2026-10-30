@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CopyButton } from "@/components/copy-button";
-import { ConfirmSubmit } from "@/components/confirm-submit";
+import { ActionForm } from "@/components/action-form";
+import { ConfirmSubmit, SubmitButton } from "@/components/confirm-submit";
 import { OncoWorkspace } from "../_components/onco-workspace";
 import { dischargeOnco, removeOnco, removeOncoEvolution, reopenOnco, transferOncoToPsgo } from "../actions";
 
@@ -148,16 +149,16 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
                 <span>
                   Alta em <strong>{patient.dischargeTime ? when(patient.dischargeTime) : "—"}</strong>
                 </span>
-                <form action={reopenOnco}>
+                <ActionForm action={reopenOnco}>
                   <input type="hidden" name="id" value={patient.id} />
-                  <Button type="submit" size="sm" variant="outline">
+                  <SubmitButton size="sm" variant="outline">
                     <RotateCcw className="h-4 w-4" /> Reabrir
-                  </Button>
-                </form>
+                  </SubmitButton>
+                </ActionForm>
               </div>
             ) : (
               <>
-                <form action={dischargeOnco} className="flex flex-wrap items-end gap-2">
+                <ActionForm action={dischargeOnco} className="flex flex-wrap items-end gap-2">
                   <input type="hidden" name="id" value={patient.id} />
                   <div className="space-y-1">
                     <span className="text-xs text-muted-foreground">Data/hora (opcional)</span>
@@ -166,18 +167,18 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
                   <ConfirmSubmit size="sm" message={`Registrar a alta de ${patient.name}?`}>
                     <LogOut className="h-4 w-4" /> Dar alta
                   </ConfirmSubmit>
-                </form>
-                <form action={transferOncoToPsgo} className="space-y-2 border-t pt-3">
+                </ActionForm>
+                <ActionForm action={transferOncoToPsgo} className="space-y-2 border-t pt-3">
                   <input type="hidden" name="id" value={patient.id} />
                   <Input name="reason" placeholder="Motivo da transferência ao PSGO (opcional)" aria-label="Motivo da transferência" />
                   <ConfirmSubmit size="sm" variant="outline" message="Transferir a paciente para o PSGO?">
                     <ArrowRightLeft className="h-4 w-4" /> Transferir para o PSGO
                   </ConfirmSubmit>
-                </form>
+                </ActionForm>
               </>
             )}
             <div className="flex justify-end border-t pt-3">
-              <form action={removeOnco}>
+              <ActionForm action={removeOnco}>
                 <input type="hidden" name="id" value={patient.id} />
                 <ConfirmSubmit
                   variant="ghost"
@@ -187,7 +188,7 @@ export default async function OncoPatientPage({ params }: { params: Promise<{ id
                 >
                   <Trash2 className="h-4 w-4" /> Remover paciente
                 </ConfirmSubmit>
-              </form>
+              </ActionForm>
             </div>
           </CardContent>
         </Card>

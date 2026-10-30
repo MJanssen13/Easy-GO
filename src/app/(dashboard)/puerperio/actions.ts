@@ -1,7 +1,7 @@
 "use server";
 
+import type { RedirectState } from "@/components/action-form";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   addObservation,
   createPatient,
@@ -244,10 +244,10 @@ export async function removeEvolution(formData: FormData): Promise<void> {
   revalidate(id);
 }
 
-export async function dischargePuerperio(formData: FormData): Promise<void> {
+export async function dischargePuerperio(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
   const raw = String(formData.get("dischargeTime") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await updatePatient(id, {
       status: "resolved",
@@ -257,29 +257,30 @@ export async function dischargePuerperio(formData: FormData): Promise<void> {
     // best-effort
   }
   revalidate(id);
-  redirect(`/puerperio/${id}`);
+  return { redirectTo: `/puerperio/${id}` };
 }
 
-export async function reopenPuerperio(formData: FormData): Promise<void> {
+export async function reopenPuerperio(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await updatePatient(id, { status: "postpartum", dischargeTime: null });
   } catch {
     // best-effort
   }
   revalidate(id);
-  redirect(`/puerperio/${id}`);
+  return { redirectTo: `/puerperio/${id}` };
 }
 
-export async function removePuerperio(formData: FormData): Promise<void> {
+export async function removePuerperio(_prev: RedirectState, formData: FormData): Promise<RedirectState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return {};
   try {
     await deletePatient(id);
   } catch {
     // best-effort
   }
-  revalidate();
-  redirect("/puerperio");
+  // Sem revalidar: a página atual deixaria de existir (404) antes de navegar;
+  // a lista é dinâmica e vem atualizada.
+  return { redirectTo: "/puerperio" };
 }
