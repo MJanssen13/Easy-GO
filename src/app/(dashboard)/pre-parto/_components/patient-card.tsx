@@ -34,13 +34,19 @@ export function PatientCard({
     new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <Link href={`/pre-parto/${patient.id}`} className="group block">
+    <div className="group relative block">
       <Card className="relative flex h-full flex-col overflow-hidden p-4 pt-5 transition-colors group-hover:border-slate-300">
         <CardStrip alert={overdue.length > 0} />
         <div className="flex items-center gap-3">
           <BedAvatar bed={patient.bed} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-semibold text-slate-900 tracking-tight text-foreground">{patient.name}</p>
+            {/* Link "esticado": o cartão inteiro abre a paciente. */}
+            <Link
+              href={`/pre-parto/${patient.id}`}
+              className="block truncate text-base font-semibold tracking-tight text-foreground after:absolute after:inset-0"
+            >
+              {patient.name}
+            </Link>
             <Badge variant={PATIENT_STATUS_BADGE[patient.status]} className="mt-1">
               {PATIENT_STATUS_LABELS[patient.status]}
             </Badge>
@@ -118,7 +124,7 @@ export function PatientCard({
         <div className="flex-1" />
         {active && (
           <div
-            className={`mt-3 flex items-center gap-1.5 border-t pt-2 text-xs ${
+            className={`mt-3 flex min-h-11 items-center gap-1.5 border-t pt-2 text-xs ${
               overdue.length > 0 ? "font-semibold text-rose-700" : next ? "text-muted-foreground" : "text-amber-700"
             }`}
           >
@@ -138,9 +144,15 @@ export function PatientCard({
                 <CalendarClock className="h-3.5 w-3.5" /> Sem rotina de aferições
               </>
             )}
+            <Link
+              href={`/pre-parto/${patient.id}/evolucao?voltar=/pre-parto`}
+              className="relative z-10 ml-auto inline-flex min-h-9 shrink-0 items-center gap-1 rounded-md border bg-white px-3 text-xs font-semibold text-foreground hover:bg-muted"
+            >
+              <HeartPulse className="h-3.5 w-3.5 text-primary" /> Aferir
+            </Link>
           </div>
         )}
       </Card>
-    </Link>
+    </div>
   );
 }

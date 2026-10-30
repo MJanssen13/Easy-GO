@@ -126,6 +126,8 @@ export function EvolutionForm({
       ]),
   );
   const show = (p: string) => selected.has(p);
+  // Só os parâmetros da tarefa à vista; "Outros" abre a lista completa.
+  const [showAllParams, setShowAllParams] = useState(focus.length === 0);
   // Vinculada ao cronograma, a aferição fica no horário da rotina (ex.: lançada
   // às 13:41 a das 13:30 fica 13:30). Calculado no navegador (fuso do aparelho).
   const [recordedAt, setRecordedAt] = useState("");
@@ -221,6 +223,33 @@ export function EvolutionForm({
     );
   }
 
+  // Digitação rápida: abre já no 1º campo clínico e Enter (ou "próximo" do
+  // teclado do celular) pula para o campo seguinte em vez de enviar.
+  const fields = () =>
+    [...(formRef.current?.querySelectorAll<HTMLElement>("input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea") ?? [])].filter(
+      (el) => !el.hasAttribute("disabled") && el.offsetParent !== null,
+    );
+  const selectedKey = [...selected].sort().join(",");
+  useEffect(() => {
+    for (const el of fields()) if (el instanceof HTMLInputElement) el.enterKeyHint = "next";
+  }, [selectedKey]);
+  useEffect(() => {
+    // Só campos de valor (não a conduta): sem tarefa, o teclado não cobre os chips.
+    const first = fields().find(
+      (el) => el instanceof HTMLInputElement && el.id !== "recordedAt" && el.id !== "examinerName",
+    );
+    first?.focus({ preventScroll: false });
+  }, []);
+  function onEnterNext(e: React.KeyboardEvent<HTMLFormElement>) {
+    const t = e.target as HTMLElement;
+    if (e.key !== "Enter" || !(t instanceof HTMLInputElement) || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    const list = fields();
+    const next = list[list.indexOf(t) + 1];
+    if (next) next.focus();
+    else t.blur();
+  }
+
   const showVitais = VITAL_PARAMS.some(show);
   const showBcfDin = show("BCF") || show("Dinâmica");
   const showToque = show("Toque");
@@ -234,6 +263,7 @@ export function EvolutionForm({
       className="space-y-5"
       onInput={(e) => refreshAlerts(e.currentTarget)}
       onChange={(e) => refreshAlerts(e.currentTarget)}
+      onKeyDown={onEnterNext}
     >
       <input type="hidden" name="patientId" value={patient.id} />
       {taskId && <input type="hidden" name="taskId" value={taskId} />}
@@ -254,12 +284,12 @@ export function EvolutionForm({
       )}
 
       {/* Seletor de aferições — todas disponíveis; cronograma em destaque */}
-      <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+      <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 sm:px-4 sm:py-3">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
           <Target className="h-4 w-4" /> Aferir nesta tarefa
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {MONITOR_PARAMS.map((p) => {
+          {MONITOR_PARAMS.filter((p) => showAllParams || selected.has(p.id) || focus.includes(p.id)).map((p) => {
             const scheduled = focus.includes(p.id);
             const sel = selected.has(p.id);
             return (
@@ -278,53 +308,21 @@ export function EvolutionForm({
               </button>
             );
           })}
+          {!showAllParams && (
+            <button
+              type="button"
+              onClick={() => setShowAllParams(true)}
+              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-dashed bg-background px-2.5 py-1 text-xs font-bold text-muted-foreground"
+            >
+              <Plus className="h-3.5 w-3.5" /> Outros
+            </button>
+          )}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
           <Check className="inline h-3 w-3" /> = será aferido · <Plus className="inline h-3 w-3" /> = adicionar ·
           contorno = previsto no cronograma agora.
         </p>
       </div>
-
-      {/* Cabeçalho do registro */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ClipboardList className="h-4 w-4" /> Registro
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Data e hora" htmlFor="recordedAt">
-              <Input
-                id="recordedAt"
-                type="datetime-local"
-                value={recordedAt}
-                onChange={(e) => setRecordedAt(e.target.value)}
-              />
-              {/* ISO convertido no navegador: o servidor roda em UTC. */}
-              <input type="hidden" name="recordedAt" value={localInputToIso(recordedAt)} />
-              {taskTimestamp && (
-                <p className="text-xs text-muted-foreground">Horário da rotina, não o do lançamento.</p>
-              )}
-            </Field>
-            <Field label="Examinador(a)" htmlFor="examinerName">
-              <Input
-                id="examinerName"
-                name="examinerName"
-                autoComplete="off"
-                list="examiner-options"
-                value={examiner}
-                onChange={(e) => rememberExaminer(e.target.value)}
-              />
-              <datalist id="examiner-options">
-                {teamNames.map((n) => (
-                  <option key={n} value={n} />
-                ))}
-              </datalist>
-            </Field>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Sinais vitais */}
       {showVitais && (
@@ -657,6 +655,47 @@ export function EvolutionForm({
         </CardContent>
       </Card>
 
+      {/* Horário e examinador (no fim: no celular os campos clínicos vêm primeiro) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ClipboardList className="h-4 w-4" /> Horário e examinador
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Data e hora" htmlFor="recordedAt">
+              <Input
+                id="recordedAt"
+                type="datetime-local"
+                value={recordedAt}
+                onChange={(e) => setRecordedAt(e.target.value)}
+              />
+              {/* ISO convertido no navegador: o servidor roda em UTC. */}
+              <input type="hidden" name="recordedAt" value={localInputToIso(recordedAt)} />
+              {taskTimestamp && (
+                <p className="text-xs text-muted-foreground">Horário da rotina, não o do lançamento.</p>
+              )}
+            </Field>
+            <Field label="Examinador(a)" htmlFor="examinerName">
+              <Input
+                id="examinerName"
+                name="examinerName"
+                autoComplete="off"
+                list="examiner-options"
+                value={examiner}
+                onChange={(e) => rememberExaminer(e.target.value)}
+              />
+              <datalist id="examiner-options">
+                {teamNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+            </Field>
+          </div>
+        </CardContent>
+      </Card>
+
       {alerts.length > 0 && (
         <div className="space-y-1 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
           {alerts.map((a) => (
@@ -676,7 +715,8 @@ export function EvolutionForm({
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{state.error}</p>
       )}
 
-      <div className="flex justify-end gap-2">
+      {/* No celular, Salvar fica sempre à vista, acima das abas inferiores. */}
+      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex justify-end gap-2 border-t bg-background/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         {onCancel ? (
           <button
             type="button"
@@ -693,7 +733,7 @@ export function EvolutionForm({
             Cancelar
           </Link>
         )}
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} className="flex-1 sm:flex-none">
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Salvar aferição
         </Button>

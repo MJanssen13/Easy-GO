@@ -12,10 +12,12 @@ export default async function EvolutionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ taskId?: string }>;
+  searchParams: Promise<{ taskId?: string; voltar?: string }>;
 }) {
   const { id } = await params;
-  const { taskId } = await searchParams;
+  const { taskId, voltar } = await searchParams;
+  // Aberta pelo quadro ("Aferir"): ao salvar, volta ao quadro.
+  const returnTo = voltar === "/pre-parto" ? voltar : undefined;
   const patient = await getPatient(id);
   if (!patient) notFound();
 
@@ -48,8 +50,9 @@ export default async function EvolutionPage({
         taskId={task?.id}
         taskLabel={taskLabel}
         taskTimestamp={task?.timestamp}
-        unlinkHref={`/pre-parto/${patient.id}/evolucao?taskId=none`}
+        unlinkHref={`/pre-parto/${patient.id}/evolucao?taskId=none${returnTo ? `&voltar=${returnTo}` : ""}`}
         focus={task?.focus ?? []}
+        returnTo={returnTo}
       />
     </div>
   );

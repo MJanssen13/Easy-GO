@@ -104,7 +104,7 @@ export function PrePartoBoard({
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar por nome, leito ou prontuário…"
             aria-label="Buscar paciente"
-            className="h-10 w-full rounded-xl border bg-white pl-9 pr-9 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
+            className="h-10 w-full rounded-xl border bg-white pl-9 pr-9 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/15 [&::-webkit-search-cancel-button]:appearance-none"
           />
           {q && (
             <button
