@@ -242,7 +242,7 @@ export function RoutinePlanner({ patient }: { patient: Patient }) {
               </div>
             </Step>
 
-            <Step n={2} title="Protocolos" hint="opcional — some à fase">
+            <Step n={2} title="Protocolos" hint="opcional, somam-se à fase">
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {PROTOCOL_ROUTINES.map((r) => (
                   <OptionCard

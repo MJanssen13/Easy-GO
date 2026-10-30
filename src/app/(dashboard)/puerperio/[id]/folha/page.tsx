@@ -18,7 +18,7 @@ export default async function ParameterSheetPage({ params }: { params: Promise<{
         eyebrow="Puerpério"
         title="Folha de parâmetros"
         bed={patient.bed ?? null}
-        meta={`${patient.name} · impressão A4 preenchida com as aferições`}
+        meta={`${patient.name} · impressão A4 com as aferições registradas`}
       />
       <ParameterSheet patient={patient} observations={patient.observations ?? []} />
     </div>

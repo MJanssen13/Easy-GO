@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Activity, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { MODULES, type ModuleDef } from "@/lib/modules";
 import { cn } from "@/lib/utils";
-import { ModuleTile } from "@/components/module-tile";
 
 const GROUPS: ModuleDef["group"][] = ["Internação", "Atendimento", "Utilitários"];
 const COLLAPSE_KEY = "easygo.sidebarCollapsed";
@@ -28,16 +27,26 @@ function Tip({ show, children }: { show: boolean; children: React.ReactNode }) {
 function Brand({ collapsed }: { collapsed?: boolean }) {
   return (
     <Link href="/" className={cn("flex items-center gap-2.5", collapsed ? "justify-center" : "px-2")}>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,hsl(var(--grad-from)),hsl(var(--grad-to)))] text-white shadow-md shadow-primary/25">
-        <Activity className="h-5 w-5" />
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-900 text-white">
+        <Activity className="h-4 w-4" />
       </span>
       {!collapsed && (
         <span className="leading-tight">
-          <span className="block text-[15px] font-bold tracking-tight">Easy-GO</span>
+          <span className="block text-[15px] font-semibold tracking-tight">Easy-GO</span>
           <span className="block text-[11px] font-medium text-muted-foreground">GO · HC-UFTM</span>
         </span>
       )}
     </Link>
+  );
+}
+
+/** Ícone simples do módulo no menu (sem quadrado colorido). */
+function NavIcon({ m }: { m: ModuleDef }) {
+  const Icon = m.icon;
+  return (
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+      <Icon className="h-4 w-4" />
+    </span>
   );
 }
 
@@ -53,14 +62,13 @@ function NavList({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: 
         "group relative flex items-center gap-3 rounded-xl py-1.5 text-sm font-medium transition-colors",
         collapsed ? "justify-center px-0" : "px-2",
         active
-          ? "bg-white text-foreground shadow-card ring-1 ring-border/60"
-          : "text-muted-foreground hover:bg-white/60 hover:text-foreground",
+          ? "bg-white font-semibold text-foreground ring-1 ring-border"
+          : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
       )}
     >
       {icon}
       {!collapsed && <span className="truncate">{label}</span>}
-      {!collapsed && active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
-      {collapsed && active && <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />}
+
       <Tip show={!!collapsed}>{label}</Tip>
     </Link>
   );
@@ -70,8 +78,8 @@ function NavList({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: 
         {item(
           "/",
           "Plantão",
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm">
-            <LayoutDashboard className="h-3.5 w-3.5" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+            <LayoutDashboard className="h-4 w-4" />
           </span>,
           isActive(pathname, "/"),
         )}
@@ -84,7 +92,7 @@ function NavList({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: 
             <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{g}</p>
           )}
           {MODULES.filter((m) => m.group === g).map((m) =>
-            item(`/${m.slug}`, m.label, <ModuleTile m={m} size="sm" />, isActive(pathname, `/${m.slug}`)),
+            item(`/${m.slug}`, m.label, <NavIcon m={m} />, isActive(pathname, `/${m.slug}`)),
           )}
         </div>
       ))}
@@ -107,7 +115,7 @@ function UserBox({ signOut, collapsed }: { signOut: () => Promise<void>; collaps
       </form>
     );
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-white/70 p-2">
+    <div className="flex items-center gap-2.5 rounded-md border bg-white p-2">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
         E
       </span>
@@ -200,7 +208,7 @@ export function AppShell({ children, signOut }: { children: React.ReactNode; sig
         <Brand />
         {current && (
           <span className="ml-auto flex items-center gap-2 text-sm font-semibold">
-            <ModuleTile m={current} size="sm" /> {current.label}
+            {current.label}
           </span>
         )}
       </header>

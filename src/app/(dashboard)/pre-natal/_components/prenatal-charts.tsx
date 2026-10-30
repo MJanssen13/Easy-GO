@@ -7,7 +7,7 @@
  *  - Altura uterina × IG: percentis 10 e 90 (Freire et al., RBGO 2006), com a
  *    AU medida plotada.
  *
- * Apoio à decisão — validar.
+ * Apoio à decisão. Validar.
  */
 import {
   ComposedChart,

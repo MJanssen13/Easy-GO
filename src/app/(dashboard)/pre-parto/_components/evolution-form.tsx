@@ -582,7 +582,7 @@ export function EvolutionForm({
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               Critérios de suspensão: reflexo patelar ausente, FR &lt; 12 irpm ou diurese &lt; 25
-              ml/h. Apoio à decisão — validar com a equipe.
+              ml/h. Apoio à decisão. Valide com a equipe.
             </p>
           </CardContent>
         </Card>
@@ -646,7 +646,7 @@ export function EvolutionForm({
               {a.text}
             </p>
           ))}
-          <p className="text-[11px] text-muted-foreground">Apoio à decisão — validar com a equipe.</p>
+          <p className="text-[11px] text-muted-foreground">Apoio à decisão. Valide com a equipe.</p>
         </div>
       )}
 

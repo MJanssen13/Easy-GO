@@ -30,7 +30,7 @@ export function PsgoPatientCard({ patient }: { patient: Patient }) {
 
   return (
     <Link href={`/psgo/${patient.id}`} className="group block">
-      <Card className="relative overflow-hidden transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
+      <Card className="relative overflow-hidden transition-colors group-hover:border-slate-300">
         <CardStrip />
         <CardContent className="space-y-2 p-4 pt-5">
           <div className="flex items-center gap-3">

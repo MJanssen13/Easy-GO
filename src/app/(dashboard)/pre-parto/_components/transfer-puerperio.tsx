@@ -24,7 +24,7 @@ export function TransferToPuerperio({ patientId, bed }: { patientId: string; bed
   if (!open) {
     return (
       <Button type="button" variant="outline" className="w-full" onClick={() => setOpen(true)}>
-        <Baby className="h-4 w-4" /> Parto realizado — transferir para o Puerpério
+        <Baby className="h-4 w-4" /> Parto realizado: transferir para o Puerpério
       </Button>
     );
   }

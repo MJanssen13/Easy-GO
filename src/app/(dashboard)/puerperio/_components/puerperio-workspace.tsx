@@ -197,7 +197,7 @@ export function PuerperioWorkspace({
               placeholder="Toque na admissão, indução/condução, intercorrências…" aria-label="Contexto da internação"
             />
             <p className="text-[11px] text-muted-foreground">
-              Complete o toque na admissão, a indução e o acompanhante — o resto vem dos dados do parto.
+              Complete o toque na admissão, a indução e o acompanhante. O resto vem dos dados do parto.
             </p>
           </div>
         </Section>

@@ -130,7 +130,7 @@ export function PartogramWorkspace({
           ))}
         </div>
         <span className="text-xs text-muted-foreground">
-          Os dois modelos usam as mesmas aferições — troque à vontade.
+          Os dois modelos usam as mesmas aferições.
         </span>
         <span className="ml-auto flex items-center gap-2">
           <span className="text-xs text-muted-foreground">

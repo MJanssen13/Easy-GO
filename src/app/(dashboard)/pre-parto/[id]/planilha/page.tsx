@@ -24,7 +24,7 @@ export default async function SheetPage({
         eyebrow="Pré-Parto"
         title="Planilha de aferições"
         bed={patient.bed ?? null}
-        meta={`${patient.name} · lançar e editar em lote — atalhos do Google Planilhas`}
+        meta={`${patient.name} · lançar e editar várias aferições de uma vez`}
       />
       <ObservationSheet patientId={patient.id} observations={patient.observations ?? []} focusObsId={editar} />
     </div>

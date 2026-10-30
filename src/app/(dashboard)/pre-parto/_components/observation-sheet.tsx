@@ -998,7 +998,7 @@ function GenerateBar({
       </Button>
       <p className="w-full text-xs text-muted-foreground">
         Cria uma linha vazia por horário (pula os que já existem). Útil para lançar de uma vez as aferições anotadas no papel
-        {firstExisting ? " — por padrão, até a primeira aferição já registrada." : "."}
+        {firstExisting ? " Por padrão, vai até a primeira aferição já registrada." : "."}
       </p>
     </div>
   );

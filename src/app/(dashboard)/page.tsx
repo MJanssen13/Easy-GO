@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, FileText, HeartPulse, Pill, Plus, Stethoscope, Zap } from "lucide-react";
 import { getModule } from "@/lib/modules";
+import { buttonVariants } from "@/components/ui/button";
 import { listPatients } from "@/core/patients/repository";
 import { RESOLVED_STATUSES } from "@/core/patients/status";
 import type { Patient, PatientModule } from "@/core/patients/types";
@@ -12,7 +13,6 @@ import { readOnco } from "@/core/oncogineco/types";
 import { postOpDay } from "@/core/oncogineco/render";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftTeamCard } from "@/components/shift-team-card";
-import { ModuleTile } from "@/components/module-tile";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +57,6 @@ export default async function HubPage() {
   const offline = [preParto, puerperio, onco, psgo].every((l) => l == null);
   const now = new Date();
   const hour = now.getHours();
-  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
   const shiftLabel = hour >= 7 && hour < 19 ? "diurno" : "noturno";
   const dateLabel = now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   const totalActive = (preParto?.length ?? 0) + (puerperio?.length ?? 0) + (onco?.length ?? 0);
@@ -132,35 +131,29 @@ export default async function HubPage() {
 
   return (
     <div className="space-y-6">
-      {/* Saudação + turno */}
-      <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(120deg,#0f172a,#1e293b_55%,hsl(var(--grad-from))_140%)] p-6 text-white shadow-lift sm:p-8">
-        <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[hsl(var(--grad-to)/0.35)] blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-teal-400/20 blur-3xl" />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-white/60">{dateLabel}</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{greeting}</h1>
-            <p className="mt-2 text-sm text-white/70">
-              Plantão {shiftLabel} · {totalActive} paciente(s) internada(s)
-              {attention.length > 0 ? ` · ${attention.length} pendência(s)` : " · tudo em dia"}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/pre-parto/admissao"
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-white/90"
-            >
-              <Plus className="h-4 w-4" /> Admitir no Pré-Parto
-            </Link>
-            <Link
-              href="/psgo/admissao"
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-inset ring-white/20 backdrop-blur transition hover:bg-white/20"
-            >
-              <Plus className="h-4 w-4" /> Nova admissão PSGO
-            </Link>
-          </div>
+      {/* Turno: data, situação e ações principais */}
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b pb-4">
+        <div>
+          <p className="text-sm text-muted-foreground first-letter:uppercase">{dateLabel}</p>
+          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-slate-900">Plantão {shiftLabel}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {totalActive} paciente(s) internada(s) ·{" "}
+            {attention.length > 0 ? (
+              <span className="font-medium text-amber-700">{attention.length} pendência(s)</span>
+            ) : (
+              "sem pendências"
+            )}
+          </p>
         </div>
-      </section>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/psgo/admissao" className={buttonVariants({ variant: "outline" })}>
+            <Plus className="h-4 w-4" /> Admissão no PSGO
+          </Link>
+          <Link href="/pre-parto/admissao" className={buttonVariants()}>
+            <Plus className="h-4 w-4" /> Admitir no Pré-Parto
+          </Link>
+        </div>
+      </header>
 
       {offline && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -169,21 +162,18 @@ export default async function HubPage() {
         </div>
       )}
 
-      {/* Resumo por módulo */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      {/* Resumo por módulo: uma faixa só, números alinhados */}
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border xl:grid-cols-4">
         {summaries.map((s) => {
           const m = getModule(s.slug)!;
           return (
-            <Link key={s.slug} href={`/${s.slug}`} className="group">
-              <Card className="h-full p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift sm:p-5">
-                <div className="flex items-center justify-between">
-                  <ModuleTile m={m} />
-                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                </div>
-                <p className="mt-3 text-sm font-medium text-muted-foreground">{m.label}</p>
-                <p className="text-3xl font-bold tracking-tight">{s.count ?? "—"}</p>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.line}</p>
-              </Card>
+            <Link key={s.slug} href={`/${s.slug}`} className="group block bg-white p-4 transition-colors hover:bg-slate-50 sm:p-5">
+              <p className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+                {m.label}
+                <ArrowRight className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100" />
+              </p>
+              <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-slate-900">{s.count ?? "—"}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.line}</p>
             </Link>
           );
         })}
@@ -246,7 +236,7 @@ export default async function HubPage() {
                   href={q.href}
                   className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted"
                 >
-                  <Icon className="h-4 w-4 text-primary" /> {q.label}
+                  <Icon className="h-4 w-4 text-muted-foreground" /> {q.label}
                 </Link>
               );
             })}

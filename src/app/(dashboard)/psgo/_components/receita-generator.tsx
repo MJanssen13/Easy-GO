@@ -414,7 +414,7 @@ export function ReceitaGenerator({
     <div className="space-y-4">
       {/* Aviso (as ações de impressão ficam no card "Impressão", ao final) */}
       <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-        Apoio à documentação — valide medicamento, dose e posologia. O tipo de receituário é
+        Apoio à documentação: valide medicamento, dose e posologia. O tipo de receituário é
         sugerido automaticamente (ANVISA 344/98 e RDC 471/2021) e pode ser ajustado.
       </p>
 
@@ -460,7 +460,7 @@ export function ReceitaGenerator({
           <span>
             {blockedItems.length === 1 ? "1 medicamento exige" : `${blockedItems.length} medicamentos exigem`}{" "}
             <strong>Notificação de Receita</strong> (A/amarela ou B/azul) e{" "}
-            <strong>não pode ser impresso por aqui</strong> (proibido por lei — use o formulário
+            <strong>não pode ser impresso por aqui</strong> (proibido por lei; use o formulário
             oficial numerado). Os demais itens seguem para a impressão normalmente.
           </span>
         </div>
@@ -490,7 +490,7 @@ export function ReceitaGenerator({
                 ))}
               </select>
               <p className="text-[11px] text-muted-foreground">
-                Opcional — você também pode digitar os dados manualmente nos campos abaixo.
+                Opcional. Você também pode digitar os dados manualmente nos campos abaixo.
               </p>
             </Field>
           )}
@@ -513,7 +513,7 @@ export function ReceitaGenerator({
             <Input
               value={ig}
               onChange={(e) => setIg(e.target.value)}
-              placeholder="auto do prontuário — editável"
+              placeholder="do prontuário (editável)"
             />
           </Field>
         </CardContent>
@@ -527,7 +527,7 @@ export function ReceitaGenerator({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Field label="Escolha um modelo — preenche os medicamentos (todos editáveis)">
+          <Field label="Modelo de receita (preenche os medicamentos, todos editáveis)">
             <select
               className={`${selectCls} max-w-none`}
               value={activeTemplateId}
@@ -546,7 +546,7 @@ export function ReceitaGenerator({
             </select>
             <p className="text-[11px] text-muted-foreground">
               {activeTemplate?.descricao ??
-                "Aplicar um modelo substitui os medicamentos abaixo — que continuam editáveis."}
+                "Aplicar um modelo substitui os medicamentos abaixo. Eles continuam editáveis."}
             </p>
           </Field>
 
@@ -798,7 +798,7 @@ export function ReceitaGenerator({
                         {it.turnos.length > 0 && (
                           <div className="space-y-1">
                             <Label className="field-label">
-                              Dose por turno (opcional — deixe em branco para usar a dose acima)
+                              Dose por turno (opcional; em branco usa a dose acima)
                             </Label>
                             <div className="flex flex-wrap gap-3">
                               {TURNO_OPTIONS.filter((t) => it.turnos.includes(t.value)).map((t) => (
@@ -916,7 +916,7 @@ export function ReceitaGenerator({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-center text-xs text-muted-foreground">
-            Marque o que imprimir — sai em uma única impressão, agrupada na ordem paciente → parceiro.
+            Marque o que imprimir. Sai em uma única impressão, agrupada na ordem paciente → parceiro.
           </p>
 
           {/* Paciente */}

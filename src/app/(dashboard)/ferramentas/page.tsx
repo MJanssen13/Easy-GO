@@ -34,14 +34,14 @@ const TOOLS: Tool[] = [
 export default function FerramentasPage() {
   return (
     <div className="space-y-6">
-      <PageHeader module="ferramentas" title="Ferramentas" subtitle="Utilitários clínicos — não armazenam dados" />
+      <PageHeader module="ferramentas" title="Ferramentas" subtitle="Utilitários clínicos. Nada fica salvo." />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {TOOLS.map((t) => {
           const Icon = t.icon;
           return (
             <Link key={t.slug} href={`/ferramentas/${t.slug}`} className="group">
-              <Card className="h-full transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
+              <Card className="h-full transition-colors group-hover:border-slate-300">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-slate-600 ring-1 ring-inset ring-border">

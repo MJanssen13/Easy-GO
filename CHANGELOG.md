@@ -5,6 +5,20 @@ Registre aqui o que fizer, na seção **Não lançado**, antes de abrir o PR.
 
 ## [Não lançado]
 
+### Design — menos "cara de IA"
+
+- Cantos menores (6–10 px) e sem sombras decorativas; sai o efeito de
+  levantar o card no hover.
+- Cabeçalhos só com título, subtítulo e ações (sem ícone em quadrado nem
+  rótulo-sobrancelha); páginas de paciente mostram "Leito N" em mono antes do
+  nome.
+- Plantão: sai o banner escuro com brilhos; entra cabeçalho de texto e um
+  resumo por módulo em faixa única com números alinhados.
+- Menu lateral com ícones simples (sem quadrados coloridos) e marca sóbria.
+- Fundo liso; ícones de títulos de card em cinza; botão do LabFlow sem degradê.
+- Textos da interface reescritos em frases diretas (menos travessões).
+- Regras registradas em CLAUDE.md ("Design").
+
 ### Funcionalidades da plataforma original (Preparto) + folha de parâmetros
 
 - **Planilha de aferições** (`/pre-parto/[id]/planilha`): lançar e editar em

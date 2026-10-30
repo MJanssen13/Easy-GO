@@ -175,7 +175,7 @@ export function PartogramLcg({
       {alerts.length > 0 && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-rose-800">
-            <AlertTriangle className="h-4 w-4" /> {alerts.length} alerta(s) — registre avaliação e plano
+            <AlertTriangle className="h-4 w-4" /> {alerts.length} alerta(s). Registre avaliação e plano
           </p>
           <ul className="mt-1 grid gap-x-4 text-xs text-rose-800 sm:grid-cols-2">
             {alerts.slice(-12).map((a, i) => (
@@ -244,7 +244,7 @@ export function PartogramLcg({
 
       <p className="text-[11px] text-muted-foreground">
         OMS, Labour Care Guide (2020) — limiares da coluna &quot;Alerta&quot;. *Colo: alerta se sem progresso por 5 cm ≥ 6 h ·
-        6 cm ≥ 5 h · 7 cm ≥ 3 h · 8 cm ≥ 2,5 h · 9 cm ≥ 2 h. Apoio à decisão — validar com a equipe.
+        6 cm ≥ 5 h · 7 cm ≥ 3 h · 8 cm ≥ 2,5 h · 9 cm ≥ 2 h. Apoio à decisão. Valide com a equipe.
       </p>
 
       {edit && (
@@ -391,7 +391,7 @@ function Grid({
             <>
               <tr className="bg-slate-100">
                 <td colSpan={slots + 2} className="sticky left-0 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                  Tomada de decisão compartilhada — avaliação e plano
+                  Tomada de decisão compartilhada: avaliação e plano
                 </td>
               </tr>
               <tr className="border-t align-top">

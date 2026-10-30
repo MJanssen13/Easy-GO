@@ -20,7 +20,7 @@
 
     --border: 220 16% 89%;
     --input: 220 15% 85%;
-    --radius: 0.8rem;
+    --radius: 0.375rem;
 
     /* Accent principal — ROSA (pré-parto/puerpério é o padrão da plataforma) */
     --primary: 331 74% 51%;
@@ -128,11 +128,8 @@
 @layer components {
   /* Superfície do app: fundo neutro com um brilho sutil da cor do módulo. */
   .app-surface {
+    /* Fundo liso, cinza levemente azulado (sem brilhos decorativos). */
     background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(60rem 60rem at 110% -10%, hsl(var(--primary) / 0.05), transparent 60%),
-      radial-gradient(50rem 50rem at -10% 0%, rgb(0 32 91 / 0.04), transparent 55%);
-    background-attachment: fixed;
   }
   /* Rolagem fina e discreta. */
   .app-surface ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -167,17 +164,12 @@
     border-color: hsl(var(--primary) / 0.55) !important;
     color: hsl(var(--accent-foreground)) !important;
     background-color: hsl(var(--accent)) !important;
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.18);
   }
 
-  /* Ícone do título dos cards: pílula clara ("step-badge" do LabFlow). */
+  /* Ícone do título dos cards: discreto, na cor do texto secundário. */
   [data-card-title] > svg:first-child,
   [data-card-title] > span:first-child > svg:first-child {
-    box-sizing: content-box;
-    padding: 5px;
-    border-radius: 9999px;
-    color: hsl(var(--accent-foreground)) !important;
-    background-color: hsl(var(--accent));
+    color: hsl(var(--muted-foreground)) !important;
   }
 
   /* Rótulo de campo: caixa-alta pequena em cinza. */

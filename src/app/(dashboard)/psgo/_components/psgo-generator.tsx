@@ -249,14 +249,14 @@ function AutoGrowTextarea({
   );
 }
 
-/** Botão único para abrir o LabFlow (laboratório) em nova aba — gradiente teal da marca. */
+/** Botão para abrir o LabFlow (laboratório) em nova aba, na cor da marca. */
 function LabflowButton() {
   return (
     <a
       href="https://labflowai.vercel.app/"
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(105deg,hsl(176_88%_22%),hsl(174_92%_30%)_52%,hsl(172_74%_41%))] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-[0.98]"
+      className="inline-flex items-center gap-2 rounded-md border border-teal-200 bg-teal-50 px-3.5 py-2 text-sm font-semibold text-teal-800 transition hover:bg-teal-100"
     >
       <FlaskConical className="h-4 w-4" />
       Acessar LabFlow
@@ -1393,7 +1393,7 @@ export function PsgoGenerator({
                     normal, <strong>A</strong> abortos.
                   </p>
                   <p>Ex.: 1 cesárea + 1 normal, gestante → <strong>G3C1N1</strong>.</p>
-                  <p>Modelo em calibração — validar com a equipe.</p>
+                  <p>Modelo em calibração. Valide com a equipe.</p>
               </InfoTip>
               {parityView.summary && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-bold tabular-nums text-primary">
@@ -1714,7 +1714,7 @@ export function PsgoGenerator({
             )}
             {robsonMissing.length > 0 && (
               <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                Robson incompleto — faltam: {robsonMissing.join(", ")}.
+                Robson incompleto. Faltam: {robsonMissing.join(", ")}.
               </p>
             )}
             </>
@@ -2148,10 +2148,10 @@ export function PsgoGenerator({
                 })}
 
                 <p className="text-[11px] text-muted-foreground">
-                  Preencha apenas o que constar no laudo — nem todos os aspectos (CCN, SG, VV, BCF,
+                  Preencha apenas o que constar no laudo. Nem todos os aspectos (CCN, SG, VV, BCF,
                   biometria, Doppler, IP da a. uterina) aparecem no mesmo US. A IG do 1º USG (usado
                   para datar) é digitada; a dos demais é <strong>automática</strong>, definida pela
-                  data conforme o método (DUM/USG) — e determina os percentis.
+                  data conforme o método (DUM/USG) e determina os percentis.
                 </p>
               </>
             )}

@@ -248,7 +248,7 @@ export function CtgForm({ patient, ctg }: { patient: Patient; ctg?: CtgRecord })
           </div>
           <p className="flex items-start gap-1.5 rounded bg-muted/50 p-2 text-[11px] text-muted-foreground">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
-            4-5 pts: ativo · 2-3 pts: hipoativo · 0-1 pt: inativo. Apoio à decisão — validar com a
+            4-5 pts: ativo · 2-3 pts: hipoativo · 0-1 pt: inativo. Apoio à decisão. Valide com a
             equipe.
           </p>
         </CardContent>

@@ -1,19 +1,17 @@
 import { cn } from "@/lib/utils";
 
-/** Leito em destaque (cards dos quadros): quadrado com o gradiente do módulo. */
+/** Leito em destaque nos cards: número grande, só tipografia (sem caixa colorida). */
 export function BedAvatar({ bed, alert, className }: { bed?: string | null; alert?: boolean; className?: string }) {
   return (
     <span
       className={cn(
-        "flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl ring-1 ring-inset",
-        alert
-          ? "bg-rose-50 text-rose-700 ring-rose-200"
-          : "bg-accent text-[hsl(var(--accent-foreground))] ring-primary/15",
+        "flex w-10 shrink-0 flex-col items-center border-r pr-3 leading-none",
+        alert ? "text-rose-700" : "text-slate-900",
         className,
       )}
     >
-      <span className="text-[11px] font-semibold uppercase leading-none tracking-wide opacity-70">Leito</span>
-      <span className="text-base font-bold leading-tight">{bed || "—"}</span>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Leito</span>
+      <span className="mt-1 font-mono text-xl font-semibold tabular-nums">{bed || "—"}</span>
     </span>
   );
 }

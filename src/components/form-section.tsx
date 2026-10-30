@@ -242,7 +242,7 @@ export function SectionIndex({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "sticky top-16 z-10 -mx-1 rounded-2xl border bg-white/90 px-2 py-2 shadow-card backdrop-blur-xl lg:top-4",
+        "sticky top-16 z-10 -mx-1 rounded-lg border bg-white px-2 py-2 lg:top-4",
         className,
       )}
     >

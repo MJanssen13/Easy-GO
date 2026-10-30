@@ -23,7 +23,7 @@ function OncoCard({ patient }: { patient: Patient }) {
   const dx = oncoDiagnosisLine(s.history);
   return (
     <Link href={`/oncogineco/${patient.id}`} className="group block">
-      <Card className="relative flex h-full flex-col overflow-hidden p-4 pt-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift">
+      <Card className="relative flex h-full flex-col overflow-hidden p-4 pt-5 transition-colors group-hover:border-slate-300">
         <CardStrip alert={!resolved && !evolvedToday} />
         <div className="flex items-center gap-3">
           <BedAvatar bed={patient.bed} />

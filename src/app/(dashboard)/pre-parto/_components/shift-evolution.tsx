@@ -118,7 +118,7 @@ export function ShiftEvolution({
           ) : (
             <p className="mt-1 text-muted-foreground">
               Nenhum cargo preenchido. Defina no card <strong>Equipe de plantão</strong> na aba
-              Leitos — ela entra automaticamente aqui.
+              Leitos e ela entra aqui automaticamente.
             </p>
           )}
         </div>

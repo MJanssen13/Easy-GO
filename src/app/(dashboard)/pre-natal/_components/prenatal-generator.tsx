@@ -217,7 +217,7 @@ function LabflowButton() {
       href="https://labflowai.vercel.app/"
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(105deg,hsl(176_88%_22%),hsl(174_92%_30%)_52%,hsl(172_74%_41%))] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-[0.98]"
+      className="inline-flex items-center gap-2 rounded-md border border-teal-200 bg-teal-50 px-3.5 py-2 text-sm font-semibold text-teal-800 transition hover:bg-teal-100"
     >
       <FlaskConical className="h-4 w-4" />
       Acessar LabFlow
@@ -1274,7 +1274,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
               )}
               <InfoTip title="Vacinas na gestação (PNI/MS)">
                 <p>Hep B e dT: esquema (doses com data; vazio → PENDENTE). dTpa (20–36 sem) e VSR (28–36 sem): data; na janela e sem data → PENDENTE. Influenza e COVID-19: data.</p>
-                <p>Apoio à decisão — validar com a caderneta e o calendário vigente.</p>
+                <p>Apoio à decisão. Valide com a caderneta e o calendário vigente.</p>
               </InfoTip>
             </>
           }
@@ -1911,7 +1911,7 @@ export function PrenatalGenerator({ today }: { today?: string } = {}) {
                 ))}
               </ul>
               <p className="text-[11px] text-muted-foreground">
-                Fonte: MS (Pré-Natal de Baixo Risco) / Febrasgo — sugestões (inclui USG), validar com o protocolo do serviço.
+                Fonte: MS (Pré-Natal de Baixo Risco) / Febrasgo. Sugestões (inclui USG), validar com o protocolo do serviço.
               </p>
             </>
           )}
